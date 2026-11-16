@@ -1,5 +1,6 @@
-import React from 'react';
-import {pdf,Document,Page,Text,View} from '@react-pdf/renderer';
+import {PDFDocument,rgb} from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
+import {exportFontBase64} from './exportFont';
 import type {Database} from './index';
 import {mutate} from './index';
 import type {Pack} from '../shared/types';
@@ -23,9 +24,16 @@ async function renderPack(pack:Pack,format:string,answers:boolean):Promise<Pick<
  if(format==='csv')return {body:'\ufeff'+[['Question','Type','Options',...(answers?['Answer','Explanation']:[])],...pack.questions.map(q=>[q.text,q.type,q.options?.map(o=>o.text).join(' | ')??'',...(answers?[correctAnswerText(q),q.explanation]:[])])].map(row=>row.map(csv).join(',')).join('\r\n'),encoding:'utf8',mimeType:'text/csv;charset=utf-8'};
  if(format==='html')return {body:`<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${esc(pack.title)}</title><style>body{font:18px/1.6 system-ui;max-width:800px;padding:24px;margin:auto}li{margin-bottom:24px}pre{white-space:pre-wrap}details{margin-top:12px}</style></head><body><h1>${esc(pack.title)}</h1><p>${esc(pack.description)}</p><ol>${pack.questions.map(q=>`<li><pre>${esc(q.text)}</pre>${q.options?`<ul>${q.options.map(o=>`<li>${esc(o.text)}</li>`).join('')}</ul>`:''}${answers?`<details><summary>Jawaban & pembahasan</summary><b>${esc(correctAnswerText(q))}</b><pre>${esc(q.explanation)}</pre></details>`:''}</li>`).join('')}</ol></body></html>`,encoding:'utf8',mimeType:'text/html;charset=utf-8'};
  if(format==='pdf'){
- const h=React.createElement;const document=h(Document,{title:pack.title},h(Page,{size:'A4',style:{padding:36,fontSize:11,fontFamily:'Helvetica',lineHeight:1.5}},h(Text,{style:{fontSize:22,marginBottom:12}},pack.title),h(Text,{style:{marginBottom:16}},pack.description),...pack.questions.map((q,i)=>h(View,{key:q.id,style:{marginBottom:16}},h(Text,{},`${i+1}. ${q.text}`),...(q.options??[]).map((o,j)=>h(Text,{key:o.id},`${String.fromCharCode(65+j)}. ${o.text}`)),...(answers?[h(Text,{key:'answer'},`Jawaban: ${correctAnswerText(q)}`),h(Text,{key:'why'},q.explanation)]:[])))));
- const blob=await pdf(document).toBlob();return {body:bytesToBase64(new Uint8Array(await blob.arrayBuffer())),encoding:'base64',mimeType:'application/pdf'};
+ const document=await PDFDocument.create();document.setTitle(pack.title);document.registerFontkit(fontkit);
+ const font=await document.embedFont(Uint8Array.from(atob(exportFontBase64),c=>c.charCodeAt(0)),{subset:true});
+ let page=document.addPage([595,842]),y=802;
+ const line=(text:string,size:number)=>{if(y<44){page=document.addPage([595,842]);y=802;}page.drawText(text,{x:36,y,font,size,color:rgb(.12,.14,.19)});y-=size*1.55;};
+ const paragraph=(text:string,size=11)=>{for(const raw of text.split(/\r?\n/)){let current='';for(const ch of raw){if(font.widthOfTextAtSize(current+ch,size)>523&&current){line(current,size);current=ch;}else current+=ch;}line(current,size);}y-=6;};
+ paragraph(pack.title,18);paragraph(pack.description);
+ for(const [i,q] of pack.questions.entries()){paragraph(`${i+1}. ${q.text}`,12);for(const [j,o] of (q.options??[]).entries())paragraph(`${String.fromCharCode(65+j)}. ${o.text}`);if(answers){paragraph(`Jawaban: ${correctAnswerText(q)}`);paragraph(q.explanation);}y-=8;}
+ return {body:bytesToBase64(await document.save()),encoding:'base64',mimeType:'application/pdf'};
  }
+
  throw new Error('Unsupported output format');
 }
 export async function callExportTool(db:Database,owner:string,name:string,args:any,origin:string):Promise<unknown|undefined>{
