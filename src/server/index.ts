@@ -156,6 +156,7 @@ async function body(req:Request){const value=await req.text();if(value.length>8_
 export async function handleRequest(request:Request,env:Env,_ctx:unknown,assets:Assets={}):Promise<Response|null>{
  const url=new URL(request.url);if(!url.pathname.startsWith('/api/')&&url.pathname!=='/mcp')return null;
  try{
+  if(url.pathname==='/api/health'&&request.method==='GET'){if(!env.DB)return json({ok:false,database:'missing'},503);await env.DB.prepare('SELECT id FROM records LIMIT 0').all();await env.DB.prepare('SELECT id FROM pack_versions LIMIT 0').all();return json({ok:true,database:'ready'});}
   const user=identity(request);if(!env.DB)return json({error:'Database binding unavailable'},503);
   if(request.method==='POST'&&url.pathname!=='/mcp'){const origin=request.headers.get('origin');if(origin&&origin!==url.origin)return json({error:'Invalid request origin'},403);}
   if(url.pathname==='/mcp'){
