@@ -1,5 +1,5 @@
 import {spawnSync} from 'node:child_process';
-if(process.stdin.isTTY)spawnSync('stty',['-echo']);console.log('Ready for credentials on hidden stdin.');let input='';for await(const chunk of process.stdin){input+=chunk;if(input.includes('\n'))break;}
+if(process.stdin.isTTY)spawnSync('stty',['-echo'],{stdio:'inherit'});console.log('Ready for credentials on hidden stdin.');let input='';for await(const chunk of process.stdin){input+=chunk;if(input.includes('\n'))break;}
 const c=JSON.parse(input);const cwd=process.cwd();
 function run(args,env=process.env){const r=spawnSync('git',args,{cwd,env,encoding:'utf8'});if(r.status!==0)throw new Error('Git command failed: '+args[0]);return r.stdout.trim();}
 try{run(['init','-b',c.branch||'main']);run(['add','.']);run(['-c','user.name=Noodl Builder','-c','user.email=builder@noodl.local','commit','-m','Build ChatGPT-connected Noodl study workspace']);}catch(e){if(!run(['status','--porcelain'])){}else throw e;}

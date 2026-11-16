@@ -1,1 +1,8 @@
-{"project_id":"appgprj_6afa4fd4b5448191a94055541e506c3a","capabilities":["mcp"],"d1":[{"binding":"DB","migrations_dir":"migrations"}],"r2":null}
+{
+  "project_id": "appgprj_6afa4fd4b5448191a94055541e506c3a",
+  "capabilities": [
+    "mcp"
+  ],
+  "d1": "DB",
+  "r2": null
+}

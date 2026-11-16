@@ -21,6 +21,8 @@ export default function App(){
  useEffect(()=>{applyTheme(theme);},[theme]);
  useEffect(()=>{localStorage.setItem('noodl_language',lang);document.documentElement.lang=lang;},[lang]);
  useEffect(()=>{if(!notice)return;const t=setTimeout(()=>setNotice(''),6000);return()=>clearTimeout(t);},[notice]);
+ useEffect(()=>{const open=(event:Event)=>{const data=(event as CustomEvent).detail as {pack?:Pack;packId?:string;id?:string;questions?:unknown};const pack=data.pack??(data.id&&data.questions?data as unknown as Pack:undefined);setView('library');if(pack)setLaunch(pack);else if(data.packId)void client.sync().then(()=>{const current=client.getState().packs.find(p=>p.id===data.packId);if(current)setLaunch(current);});};window.addEventListener('noodl-host-update',open);return()=>window.removeEventListener('noodl-host-update',open);},[]);
+ useEffect(()=>{const close=(event:KeyboardEvent)=>{if(event.key==='Escape'){setLaunch(null);setEditing(null);setTools(null);setFlash(null);}};window.addEventListener('keydown',close);return()=>window.removeEventListener('keydown',close);},[]);
  useEffect(()=>{if(view==='public')void client.listPublications().then(setPublications).catch(e=>setNotice(String(e)));},[view]);
  const packs=state.packs.filter(p=>!p.deletedAt),completed=state.attempts.filter(a=>a.status==='completed'),answers=completed.flatMap(a=>a.answers),due=replayReviews(state.reviews).filter(r=>new Date(r.nextReview).getTime()<=Date.now()).length;
  const folders=[...new Set(packs.map(p=>p.folder).filter(Boolean))].sort();
