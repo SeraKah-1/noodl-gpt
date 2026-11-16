@@ -1,34 +1,76 @@
-# Noodl — ChatGPT Study Workspace
+# Noodl ChatGPT Workspace
 
-Turunan Noodl MIT yang memisahkan pembuatan konten dari pengalaman belajar. ChatGPT mengirim soal terstruktur melalui MCP; website dan panel interaktif memakai bank/progres yang sama. Tidak ada API key AI, pemrosesan file sumber, prompt editor, atau panggilan provider AI.
+Noodl stores question banks and study progress. It provides a website and an interactive panel in ChatGPT. ChatGPT supplies study content through MCP tools. The application does not call an AI provider.
 
-## Menjalankan dan memeriksa
+This repository is a derivative of [SeraKah-1/noodl](https://github.com/SeraKah-1/noodl). The upstream reference is commit `ec8342b85213dd7c00b11f367298ee4df8ccb3b7`. The MIT license is retained in [LICENSE](LICENSE).
 
-Node 24+, `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, `npm run audit:production`.
+## Start here
 
-`npm run dev` melayani UI Vite. Backend produksi memakai Worker dan D1 Sites; UI lokal tanpa backend akan menampilkan login, bukan identitas palsu. Tes server memakai SQLite nyata dengan adapter D1. Paket produksi berada di `dist/server/index.js` dan manifest/migrasi di `dist/`.
+**Inspect the code before you make a change. Do not use documentation as proof of behavior.** Start with [AGENTS.md](AGENTS.md). Read the relevant implementation and tests. Record a mismatch if documentation differs from code.
 
-## Fitur
+| Need | Read | Inspect in code |
+| --- | --- | --- |
+| Understand the application | [Architecture](docs/ARCHITECTURE.md) | `src/App.tsx`, `src/server/index.ts` |
+| Set up a checkout | [Development](docs/DEVELOPMENT.md) | `package.json`, `vite.config.ts` |
+| Change data or scoring | [Data model](docs/DATA_MODEL.md) | `src/shared/`, `src/server/` |
+| Use ChatGPT tools | [ChatGPT control](docs/CHATGPT_CONTROL.md) | Tool definitions in `src/server/` |
+| Use the HTTP interface | [HTTP interface](docs/HTTP_API.md) | `handleRequest` in `src/server/index.ts` |
+| Make a change | [Contribution procedure](CONTRIBUTING.md) | Caller, handler, validator, and tests |
+| Select checks | [Testing](docs/TESTING.md) and [verification record](docs/VERIFICATION.md) | `tests/`, `scripts/verify-worker.mjs` |
+| Build and deploy | [Deployment](docs/DEPLOYMENT.md) | `.openai/hosting.json`, `scripts/` |
+| Review data access | [Security](docs/SECURITY.md) | Identity checks, owner filters, iframe policy |
+| Check missing functions | [Known limitations](docs/KNOWN_LIMITATIONS.md) | Current schemas and renderers |
+| Plan later work | [Decisions and proposals](docs/DECISIONS.md) | Confirm status before implementation |
+| Publish the GitHub source | [Source transfer](docs/SOURCE_TRANSFER.md) | Check repository access before a push |
+| Change the interface | [Design skills](docs/DESIGN_SKILLS.md) | `src/ui/`, `.agents/skills/` |
+| Review the original code | [Upstream audit](docs/UPSTREAM_AUDIT.md) | Pinned upstream checkout |
+| Write documentation | [Writing rules](docs/WRITING.md) | Keep names consistent with code |
 
-Bank/folder/pencarian, kuis tiga tipe dan tiga mode, mixed/retention, snapshot resume, flashcards, SRS, statistik nyata, Mix Room, peta konsep lokal, materi/insight/visualisasi dari ChatGPT, JSON/CSV/PDF, tema, pemisahan akun, publikasi salinan, offline PWA, tutor handoff, dan kontrol kamera opsional. Tidak ada multiplayer. Kamera memproses gambar di perangkat; aset model diunduh pertama kali, lalu disimpan cache website untuk pemakaian offline.
+## Current functions
 
-## Integrasi dan data
+- Private question banks, folders, tags, and content search.
+- Multiple choice, true or false, and fill-in-the-blank questions.
+- Standard, Survival, and Time Rush sessions.
+- Shuffled questions, mixed question types, and retention practice.
+- Saved session snapshots, results, flashcards, and spaced repetition.
+- Markdown materials, insights, a concept graph, and isolated HTML visualizations.
+- Account preferences and design tokens that ChatGPT can change.
+- JSON input and JSON, CSV, HTML, and PDF output through tools.
+- Publications and copies. Publications include answer keys. They exclude learner responses and progress.
+- An offline website after the application and required data are cached.
+- Optional camera controls on supported website browsers.
 
-- HTTP: `/api/me`, `/api/snapshot`, `/api/mutate`, `/api/publications`.
-- MCP: `/mcp`, discovery, tools dan resource `ui://noodl/workspace`.
-- Server mengambil identitas dari header tepercaya Sites; jangan mengekspos Worker langsung tanpa proxy autentikasi yang membersihkan header pengguna.
-- IDB dipisahkan per akun, local write + outbox atomik, ID operasi unik, konflik revisi eksplisit, logout mengunci cache. Browser pribadi tetap diperlukan; partisi akun bukan enkripsi disk.
-- Upaya belajar menyimpan soal, urutan opsi, dan occurrence ID unik. Review SRS dihitung deterministik berdasarkan waktu peristiwa dan ID. Jam perangkat yang keliru dapat memengaruhi jadwal; offline membutuhkan kepercayaan pada jam perangkat.
-- Sesi yang sama diedit dari dua perangkat memunculkan konflik. Progres tidak diam-diam ditimpa.
-- Publikasi adalah snapshot konten tanpa jawaban/progres pribadi; penerima mendapat ID baru.
-- Offline berlaku pada website/PWA setelah shell dan bank tersimpan. ChatGPT, pembuatan konten baru, dan publikasi memerlukan internet.
+## Local commands
 
-## Batas verifikasi
+Use Node.js 24 or later.
 
-Tes otomatis memeriksa logika, akun, SQLite, sync, replay, dan kontrak MCP. Verifikasi interaksi browser, kamera, dan panel di ChatGPT memerlukan host yang tersedia. Reminder browser bekerja selama aplikasi aktif; tidak menjanjikan pengiriman saat aplikasi ditutup. Bahasa utama Indonesia; sebagian label alat belajar masih Indonesia saat navigasi dipilih Inggris.
+```sh
+npm ci
+npm run typecheck
+npm test
+npm run build
+npm run audit:production
+npm run dev
+```
 
-Audit upstream: [docs/UPSTREAM_AUDIT.md](docs/UPSTREAM_AUDIT.md). Sumber asli: https://github.com/SeraKah-1/noodl pada ec8342b85213dd7c00b11f367298ee4df8ccb3b7. Pemberitahuan MIT asli dipertahankan dalam LICENSE.
+`npm run dev` starts the Vite interface. It does not provide the authenticated Worker or D1 database. A login screen in this mode does not establish a backend failure. Read the development guide before you test an authenticated flow.
 
-## Kontrol ChatGPT dan skill desain
+## Application and source
 
-Kontrol runtime diperluas ke CRUD per soal/artifact, pencarian konten, sesi, SRS, konfigurasi desain langsung, input JSON, dan file output JSON/CSV/HTML/PDF. Lihat [panduan kontrol](docs/CHATGPT_CONTROL.md) dan [skill desain lokal](docs/DESIGN_SKILLS.md).
+- Planned GitHub repository: `SeraKah-1/noodl-chatgpt-workspace`. Creation is blocked by the connected integration's permissions. See [Source transfer](docs/SOURCE_TRANSFER.md).
+- Existing application: <https://noodl-chat-study.sire-e.chatgpt.site>.
+- MCP endpoint: <https://noodl-chat-study.sire-e.chatgpt.site/mcp>.
+
+The source includes the existing Sites project configuration. A new GitHub repository does not create a deployment or change the plugin connection.
+
+The example input is [examples/pack.input.json](examples/pack.input.json). It contains all three question types. It is a bank input, not an HTTP or MCP request wrapper.
+
+The application uses Sites identity headers and a D1 binding named `DB`. There is no R2 binding. Do not expose the Worker behind a proxy that accepts identity headers from visitors.
+
+## Scope and status
+
+The original AI providers, source-file processing, and prompt editor were removed. There is no multiplayer mode. Managed image storage and versioned content blocks are proposed work. They are not current functions.
+
+The installed plugin has tool descriptions and a capability tool. Its last inspected package did not contain a usage skill. Repository design skills guide source changes. They do not automatically become instructions in a user's ChatGPT conversation.
+
+Documentation uses an ASD-STE100-inspired technical style. It is not certified as ASD-STE100 compliant. Third-party skill files retain their original text.

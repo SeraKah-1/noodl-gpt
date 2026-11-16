@@ -1,28 +1,41 @@
-# Audit upstream Noodl
+# Upstream audit
 
-**Cakupan:** audit statis pada upstream `main`, commit `ec8342b85213dd7c00b11f367298ee4df8ccb3b7`. Catatan ini merangkum temuan dari pembacaan kode; temuan tidak direproduksi sebagai bug runtime.
+## Scope
 
-## Status upstream
+This audit concerns upstream commit `ec8342b85213dd7c00b11f367298ee4df8ccb3b7` of [SeraKah-1/noodl](https://github.com/SeraKah-1/noodl).
 
-- Pada pemeriksaan sebelumnya tidak ditemukan issue GitHub atau pull request yang terbuka.
-- Run CI historis terbaru yang dirujuk: [GitHub Actions run 32492360318](https://github.com/SeraKah-1/noodl/actions/runs/32492360318). Types, tests, dan build lulus; `npm audit` gagal karena kerentanan tingkat tinggi pada `brace-expansion`.
+These findings came from a previous static code review. They were not reproduced as runtime failures. They do not establish current defects in this derivative.
 
-## Temuan kode
+Inspect the pinned upstream code before you change a finding. This repository has different source paths and data handling.
 
-| Area | Temuan statis | Dampak yang mungkin |
+## Historical repository status
+
+The previous review found no open GitHub issues or pull requests. That result is historical. It is not a current GitHub status check.
+
+The review referenced [Actions run 32492360318](https://github.com/SeraKah-1/noodl/actions/runs/32492360318). Type checks, tests, and build passed. The dependency audit failed on a high-severity `brace-expansion` advisory. Check current dependencies separately.
+
+## Static findings
+
+| Upstream source | Observation | Possible effect |
 | --- | --- | --- |
-| `services/storageKeys.ts` | Kunci penyimpanan akun bersifat global, bukan terisolasi per akun. | Data lokal dapat tercampur saat akun berbeda memakai perangkat yang sama. |
-| `syncService.ts:618` | Penulisan antrean sinkronisasi dapat menimpa antrean yang sudah ada. | Perubahan yang menunggu sinkronisasi berisiko hilang. |
-| `App.tsx:584` | Urutan yang dipakai untuk melanjutkan sesi tampak keliru. | Resume dapat membuka posisi yang tidak sesuai. |
-| `answerEvaluation.ts:2` | Normalisasi jawaban menghapus tanda negatif. | Jawaban numerik negatif dapat dinilai salah atau berubah makna. |
-| `FlashcardScreen.tsx:128` | Pembacaan jawaban hanya memakai `options`. | Format data tanpa properti itu mungkin tidak ditampilkan dengan benar. |
-| `ResultScreen.tsx:168` | Metrik hasil tampak berupa nilai tetap (80/75/60/90). | Hasil yang ditampilkan mungkin tidak mencerminkan performa sesi. |
-| `MaterialOverview.tsx:61` | Pengaitan topik menggunakan indeks yang dapat tidak cocok. | Materi dapat dikaitkan ke topik yang salah. |
-| `questionTransformer.ts:12,55` | Asumsi format bercampur; transformasi juga menulis ulang “vitamin D”. | Konten atau istilah dapat berubah secara tak terduga saat transformasi. |
-| `quizImportValidation.ts:28` | Ada risiko ID duplikat; opsi juga difilter berdasarkan indeks. | Impor dapat menerima identitas bentrok atau mengubah susunan/isi opsi. |
-| `storageService.ts:428` | Kegagalan ditelan tanpa diteruskan secara jelas. | Pemanggil dapat menganggap operasi penyimpanan berhasil. |
-| `NeuroSyncReview.tsx:25` | Status `processing` tampak dapat tertinggal. | Antarmuka dapat terus menunjukkan proses yang tidak selesai. |
+| `services/storageKeys.ts` | Account storage keys are global. | Local records from different accounts can share a namespace. |
+| `syncService.ts:618` | An outbox write can replace an existing queue. | Pending changes can be lost. |
+| `App.tsx:584` | Resume appears to select a different question order. | A resumed session can show the wrong position. |
+| `answerEvaluation.ts:2` | Normalization removes a minus sign. | A negative answer can change meaning during scoring. |
+| `FlashcardScreen.tsx:128` | Answer display reads only options. | Other question types can have an incomplete answer display. |
+| `ResultScreen.tsx:168` | Some metrics use fixed values: 80, 75, 60, and 90. | Displayed metrics can differ from session performance. |
+| `MaterialOverview.tsx:61` | Topic matching uses an index that can differ between lists. | Material can link to the wrong topic. |
+| `questionTransformer.ts:12,55` | Transformation assumes specific formats and can rewrite terms such as vitamin D. | Mixed questions can contain changed scientific text. |
+| `quizImportValidation.ts:28` | IDs can collide. Option filtering uses positions. | Import can change the answer mapping. |
+| `storageService.ts:428` | A failure can be caught without propagation. | A caller can assume a failed save succeeded. |
+| `NeuroSyncReview.tsx:25` | The processing state can remain set. | Review controls can remain unavailable. |
 
-## Batasan
+## Review procedure
 
-Dokumen roadmap di README bukan bukti bahwa temuan di atas telah terjadi saat aplikasi berjalan. Audit ini mencatat indikasi dari kode pada commit yang disebutkan; verifikasi perilaku, tingkat keparahan operasional, dan status perbaikan memerlukan pemeriksaan atau reproduksi lanjutan pada upstream terkait.
+1. Open the upstream file at the pinned commit.
+2. Trace the affected caller and persistence path.
+3. Reproduce the behavior before you assign operational severity.
+4. Check the latest upstream code before you label a finding unresolved.
+5. Check this derivative separately before you report a current defect here.
+
+A roadmap item is not evidence of a defect. A static indication is not a confirmed production failure.

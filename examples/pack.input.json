@@ -1,0 +1,36 @@
+{
+  "title": "Example question bank",
+  "description": "Three question types for input validation.",
+  "folder": "Examples",
+  "tags": ["example"],
+  "questions": [
+    {
+      "id": "q-multiple",
+      "type": "MULTIPLE_CHOICE",
+      "text": "What is 2 + 2?",
+      "options": [{"id": "a", "text": "3"}, {"id": "b", "text": "4"}],
+      "correctOptionId": "b",
+      "explanation": "Adding two units to two units gives four units.",
+      "difficulty": "Easy"
+    },
+    {
+      "id": "q-boolean",
+      "type": "TRUE_FALSE",
+      "text": "A triangle has three sides.",
+      "correctBoolean": true,
+      "explanation": "A triangle is a polygon with three sides.",
+      "difficulty": "Easy"
+    },
+    {
+      "id": "q-text",
+      "type": "FILL_BLANK",
+      "text": "What is 3 minus 5?",
+      "acceptedAnswers": ["-2"],
+      "explanation": "Subtracting five from three gives negative two.",
+      "difficulty": "Easy"
+    }
+  ],
+  "artifacts": [
+    {"id": "material-example", "kind": "material", "title": "Practice notes", "content": "Check the question type before you submit a response."}
+  ]
+}
