@@ -57,7 +57,7 @@ npm run dev
 
 ## Application and source
 
-- Planned public GitHub repository: `SeraKah-1/noodl-chatgpt-workspace`. Creation is blocked by the connected integration's permissions. See [Source transfer](docs/SOURCE_TRANSFER.md).
+- Public GitHub repository: [SeraKah-1/noodl-gpt](https://github.com/SeraKah-1/noodl-gpt). See [Source transfer](docs/SOURCE_TRANSFER.md).
 - Existing application: <https://noodl-chat-study.sire-e.chatgpt.site>.
 - MCP endpoint: <https://noodl-chat-study.sire-e.chatgpt.site/mcp>.
 
