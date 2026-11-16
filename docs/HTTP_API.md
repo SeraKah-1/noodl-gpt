@@ -83,3 +83,7 @@ MCP tool failures use `isError: true` with text content. They do not use the HTT
 An export must first be created through an export tool. The returned download URL identifies the saved output. Downloads require the account identity. They return `no-store`, attachment disposition, a restrictive content policy, and `nosniff`.
 
 See [ChatGPT control](CHATGPT_CONTROL.md) for export operations. See [Data model](DATA_MODEL.md) for record fields.
+
+## Anonymous publication catalog
+
+`GET /api/public/catalog` returns publication summaries. `GET /api/public/catalog/:id` returns a published content snapshot, including answer keys. Neither route exposes private banks or learning history. Other account endpoints and MCP require identity.

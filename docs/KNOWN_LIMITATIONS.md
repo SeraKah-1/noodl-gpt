@@ -33,3 +33,7 @@ This page describes current product limits. A limit is not evidence of a defect.
 ## Verification scope
 
 Automated repository tests cover server and client logic, storage, validation, sync, and file generation. A live ChatGPT connection, deployed Sites headers, browser behavior, camera hardware, and visual behavior in a particular host require that host and device. A test that uses a local database does not prove a production deployment is configured correctly.
+
+## Guest access
+
+Guests can study copied publications or imported JSON, save local progress, and use local preferences. Guest data stays in the browser and is not migrated automatically after login. Server publishing and MCP require login. Anonymous catalog availability also requires the Sites audience to be public.

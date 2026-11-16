@@ -182,6 +182,9 @@ export async function handleRequest(request:Request,env:Env,_ctx:unknown,assets:
  const url=new URL(request.url);if(!url.pathname.startsWith('/api/')&&url.pathname!=='/mcp')return null;
  try{
   if(url.pathname==='/api/health'&&request.method==='GET'){if(!env.DB)return json({ok:false,database:'missing'},503);await env.DB.prepare('SELECT id FROM records LIMIT 0').all();await env.DB.prepare('SELECT id FROM pack_versions LIMIT 0').all();return json({ok:true,database:'ready'});}
+  if(request.method==='GET'&&url.pathname==='/api/public/catalog')return json(await publications(env.DB));
+  const publicMatch=url.pathname.match(/^\/api\/public\/catalog\/([^/]+)$/);
+  if(request.method==='GET'&&publicMatch){const row=await env.DB.prepare('SELECT data FROM publications WHERE id=?').bind(decodeURIComponent(publicMatch[1])).first<{data:string}>();return row?json(JSON.parse(row.data)):json({error:'Publication not found'},404);}
   const user=identity(request);if(!env.DB)return json({error:'Database binding unavailable'},503);
   if(['POST','PATCH','PUT','DELETE'].includes(request.method)&&url.pathname!=='/mcp'){const origin=request.headers.get('origin');if(origin&&origin!==url.origin)return json({error:'Invalid request origin'},403);}
   const exportResponse=await handleExportRequest(request,env.DB,user.id);if(exportResponse)return exportResponse;

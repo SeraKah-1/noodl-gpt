@@ -45,3 +45,7 @@ The server creates JSON, CSV, HTML, or PDF pack files and a JSON workspace expor
 ## Sources
 
 This document describes the current implementation in `src/`, `drizzle/`, `migrations/`, and `scripts/`. It does not claim formal ASD-STE100 compliance.
+
+## Guest website access
+
+Anonymous website visitors enter a browser-local guest workspace after `/api/me` returns 401. The login screen also offers guest entry. `LocalStore.saveGuest` saves records without an outbox. `NoodlClient.sync` skips guest accounts. Guest settings are acknowledged locally. The public catalog supplies published banks; JSON input uses the shared validator. Guest and authenticated records remain in separate account partitions. The ChatGPT panel continues to require host authentication.

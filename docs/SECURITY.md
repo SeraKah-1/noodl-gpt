@@ -16,7 +16,7 @@ These checks protect data consistency. They do not encrypt data in the database 
 
 ## Publications and exports
 
-Published banks are intentionally available to signed-in publication browsers. A publication ID contains the owner's ID and source bank ID. The snapshot does not include profile fields, submitted learner responses, or review history. It does include question answer keys and artifacts. Treat the answers and owner ID in a publication ID as public. Unpublishing removes the listing, but cannot revoke copies already made.
+Published banks are intentionally available to anonymous and signed-in publication browsers. A publication ID contains the owner's ID and source bank ID. The snapshot does not include profile fields, submitted learner responses, or review history. It does include question answer keys and artifacts. Treat the answers and owner ID in a publication ID as public. Unpublishing removes the listing, but cannot revoke copies already made.
 
 Export records are scoped to their owner. Download routes require the authenticated identity and return `no-store` responses. Generated HTML exports escape bank text and use a restrictive content policy. Download responses use `nosniff` and a sandbox policy. CSV values beginning with formula characters are prefixed to reduce spreadsheet formula execution risk.
 
@@ -29,3 +29,7 @@ The server accepts structured content. It does not accept source file uploads, r
 ## Reporting a security issue
 
 Do not include private learner data, credentials, or answer keys in a public issue. Contact the repository maintainer through the repository's private security reporting channel, if one is configured. This repository does not define a separate security response time.
+
+## Guests
+
+Public GET routes `/api/public/catalog` and `/api/public/catalog/:id` expose only publication summaries and saved publication content. Private records and all server writes still require trusted account identity. Guests use a separate browser-local identity and write no server records. Guest records have no sync outbox. Logging in selects a separate account partition; it does not upload guest records. Clearing browser storage removes guest progress.

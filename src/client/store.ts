@@ -60,6 +60,20 @@ export class LocalStore {
   await tx.objectStore('meta').put(sequence,`${ownerId}:sequence`);
   await tx.done; return next;
  }
+ async guestUser():Promise<User>{
+  const db=await this.db();const tx=db.transaction('meta','readwrite');
+  let user=await tx.store.get('guest-profile') as User|undefined;
+  if(!user){user={id:'guest:'+crypto.randomUUID(),name:'Guest'};await tx.store.put(user,'guest-profile');}
+  await tx.done;return user;
+ }
+ async saveGuest(ownerId:string,kind:Operation['kind'],value:RecordValue):Promise<RecordValue>{
+  if(!ownerId.startsWith('guest:')||('ownerId' in value&&value.ownerId!==ownerId))throw new Error('Invalid guest owner');
+  const db=await this.db();const tx=db.transaction('records','readwrite');const recordKind:Kind=kind.startsWith('pack.')?'packs':kind==='attempt.put'?'attempts':'reviews';
+  const old=await tx.store.get([ownerId,recordKind,value.id]);
+  const next=structuredClone(value);if('revision' in next){next.revision=(old&&'revision' in old.value?old.value.revision:0)+1;next.updatedAt=new Date().toISOString();}
+  if(kind==='pack.delete')(next as Pack).deletedAt=new Date().toISOString();
+  await tx.store.put({ownerId,kind:recordKind,id:value.id,value:next,downloaded:old?.downloaded});await tx.done;return next;
+ }
  async markDownloaded(ownerId:string,pack:Pack) {
   const db=await this.db();const tx=db.transaction('records','readwrite');
   const key:[string,Kind,string]=[ownerId,'packs',pack.id];const existing=await tx.store.get(key);

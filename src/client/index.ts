@@ -1,11 +1,12 @@
 import type {Preferences,WorkspacePreferences} from '../shared/preferences';
 import type { Attempt, Operation, Pack, Publication, ReviewEvent, Snapshot, User } from '../shared/types';
+import { validatePackInput } from '../shared/validation';
 import { LocalStore, type PendingOperation } from './store';
 import { callHost, isEmbedded } from './bridge';
 export { isEmbedded, requestTutor, sendChatRequest } from './bridge';
 export { LocalStore } from './store';
 export interface ClientState {
- user:User|null; packs:Pack[]; attempts:Attempt[]; reviews:ReviewEvent[]; online:boolean;
+ guest?:boolean; user:User|null; packs:Pack[]; attempts:Attempt[]; reviews:ReviewEvent[]; online:boolean;
  pending:number; conflicts:PendingOperation[]; error:string|null; lastSync?:string; syncing:boolean;
  downloaded:string[]; initialized:boolean; preferences?:WorkspacePreferences;preferencesPending?:boolean;preferencesConflict?:boolean;
 }
@@ -41,12 +42,17 @@ export class NoodlClient {
   const profile=await this.local.profile();
   if(profile?.locked){this.patch({initialized:true});return null;}
   try{const user=await this.request<User>('/api/me');await this.local.setProfile(user);this.patch({user});}
-  catch(error){if(profile&&!profile.locked)this.patch({user:profile.user});else this.patch({error:(error as Error).message});}
+  catch(error){if(profile?.user.id.startsWith('guest:'))return this.startGuest();if(!isEmbedded()&&(error as {status?:number}).status===401)return this.startGuest();if(profile&&!profile.locked)this.patch({user:profile.user});else this.patch({error:(error as Error).message});}
   await this.reload();this.patch({initialized:true});if(this.state.user&&this.state.online)await this.sync();return this.state.user;
+ }
+ async startGuest():Promise<User>{
+  clearTimeout(this.retryTimer);const user=await this.local.guestUser();await this.local.setProfile(user);
+  this.patch({user,guest:true,packs:[],attempts:[],reviews:[],preferences:undefined,preferencesPending:false,preferencesConflict:false,pending:0,conflicts:[],error:null,initialized:true});
+  await this.reload();return user;
  }
  private async refreshAccount(){
   const profile=await this.local.profile();
-  if(profile?.locked||profile?.user.id!==this.state.user?.id){this.patch({user:null,packs:[],attempts:[],reviews:[],pending:0,conflicts:[],downloaded:[],preferences:undefined,preferencesPending:false,preferencesConflict:false});return;}
+  if(profile?.locked||profile?.user.id!==this.state.user?.id){this.patch({guest:false,user:null,packs:[],attempts:[],reviews:[],pending:0,conflicts:[],downloaded:[],preferences:undefined,preferencesPending:false,preferencesConflict:false});return;}
   await this.reload();
  }
  private async reload(){
@@ -55,14 +61,14 @@ export class NoodlClient {
   this.patch({preferences,preferencesPending:!!preferencePending,packs:data.records.filter(r=>r.kind==='packs'&&!(r.value as Pack).deletedAt).map(r=>r.value as Pack),attempts:data.records.filter(r=>r.kind==='attempts'&&!(r.value as Attempt & {deletedAt?:string}).deletedAt).map(r=>r.value as Attempt),reviews:data.records.filter(r=>r.kind==='reviews'&&!(r.value as ReviewEvent & {deletedAt?:string}).deletedAt).map(r=>r.value as ReviewEvent),pending:data.pending.length,conflicts:data.pending.filter(r=>r.status==='conflict'),lastSync:data.lastSync,downloaded:data.records.filter(r=>r.kind==='packs'&&r.downloaded).map(r=>r.id)});
  }
  private owner(){if(!this.state.user)throw new Error('Login terlebih dahulu.');return this.state.user.id;}
- private async enqueue(kind:Operation['kind'],value:Pack|Attempt|ReviewEvent){const owner=this.owner();const next=await this.local.enqueue(owner,kind,value);await this.reload();this.channel?.postMessage('changed');if(this.state.online)void this.sync();return next;}
+ private async enqueue(kind:Operation['kind'],value:Pack|Attempt|ReviewEvent){const owner=this.owner();const next=this.state.guest?await this.local.saveGuest(owner,kind,value):await this.local.enqueue(owner,kind,value);await this.reload();this.channel?.postMessage('changed');if(this.state.online)void this.sync();return next;}
  async savePack(pack:Pack){return this.enqueue('pack.put',pack) as Promise<Pack>;}
  async deletePack(pack:Pack){await this.enqueue('pack.delete',pack);}
  async saveAttempt(attempt:Attempt){return this.enqueue('attempt.put',attempt) as Promise<Attempt>;}
  async addReview(event:ReviewEvent){return this.enqueue('review.add',event) as Promise<ReviewEvent>;}
  async downloadPack(pack:Pack){await this.local.markDownloaded(this.owner(),pack);await this.reload();}
  isDownloaded(id:string){return this.state.downloaded.includes(id);}
- async sync(){if(!this.state.user||!this.state.online)return;return this.syncTask??=(this.syncOnce().finally(()=>{this.syncTask=undefined;}));}
+ async sync(){if(!this.state.user||!this.state.online||this.state.guest)return;return this.syncTask??=(this.syncOnce().finally(()=>{this.syncTask=undefined;}));}
  private async syncOnce(){
   const owner=this.owner();this.patch({syncing:true,error:null});
   let succeeded=false;
@@ -92,20 +98,21 @@ export class NoodlClient {
   if(pending){try{const result=await this.request<WorkspacePreferences>('/api/preferences','PATCH',pending);await this.local.cachePreferences(owner,result,pending.operationId);this.patch({preferencesConflict:false});}catch(error){if((error as {status?:number}).status===409||/conflict|revision changed/i.test((error as Error).message)){this.patch({preferencesConflict:true,error:'Pengaturan berubah di perangkat lain. Muat versi server atau simpan ulang setelah memeriksanya.'});return;}throw error;}}
   const result=await this.request<WorkspacePreferences>('/api/preferences');if(this.state.user?.id===owner)await this.local.cachePreferences(owner,result);
  }
- async updatePreferences(patch:Partial<Preferences>){const owner=this.owner();await this.local.queuePreferences(owner,patch);this.patch({preferencesConflict:false});await this.reload();this.channel?.postMessage('changed');if(this.state.online)await this.sync();}
- async useServerPreferences(){const owner=this.owner();const result=await this.request<WorkspacePreferences>('/api/preferences');await this.local.discardPreferences(owner);await this.local.cachePreferences(owner,result);this.patch({preferencesConflict:false});await this.reload();}
+ async updatePreferences(patch:Partial<Preferences>){const owner=this.owner();const queued=await this.local.queuePreferences(owner,patch);if(this.state.guest){const pending=await this.local.pendingPreferences(owner);await this.local.cachePreferences(owner,queued,pending!.operationId);}this.patch({preferencesConflict:false});await this.reload();this.channel?.postMessage('changed');if(this.state.online)await this.sync();}
+ async useServerPreferences(){if(this.state.guest)return;const owner=this.owner();const result=await this.request<WorkspacePreferences>('/api/preferences');await this.local.discardPreferences(owner);await this.local.cachePreferences(owner,result);this.patch({preferencesConflict:false});await this.reload();}
  async resolveConflict(operationId:string,action:'server'|'copy'){
   const copy=await this.local.resolve(this.owner(),operationId,action);if(copy)await this.savePack(copy);await this.reload();if(this.state.online)void this.sync();
  }
- async logout(){clearTimeout(this.retryTimer);await this.local.lock();this.patch({user:null,packs:[],attempts:[],reviews:[],pending:0,conflicts:[],downloaded:[],preferences:undefined,preferencesPending:false,preferencesConflict:false});this.channel?.postMessage('changed');}
+ async logout(){clearTimeout(this.retryTimer);await this.local.lock();this.patch({guest:false,user:null,packs:[],attempts:[],reviews:[],pending:0,conflicts:[],downloaded:[],preferences:undefined,preferencesPending:false,preferencesConflict:false});this.channel?.postMessage('changed');}
  async prepareLogin(){const profile=await this.local.profile();if(profile)await this.local.setProfile(profile.user,false);}
  async login(){
-  const user=await this.request<User>('/api/me');await this.local.setProfile(user);this.patch({user});await this.reload();await this.sync();return user;
+  const user=await this.request<User>('/api/me');await this.local.setProfile(user);this.patch({user,guest:false});await this.reload();await this.sync();return user;
  }
- async listPublications():Promise<Publication[]>{const reply=await this.request<{publications:Publication[]}>('/api/publications');return reply.publications;}
- async publishPack(id:string){const pack=this.state.packs.find(p=>p.id===id);if(!pack)throw new Error('Bank tidak ditemukan.');if((await this.local.read(this.owner())).pending.some(p=>p.operation.entityId===id))throw new Error('Sinkronkan perubahan bank sebelum membagikan.');return this.request<Publication>('/api/publications','POST',{packId:id,expectedRevision:pack.revision,operationId:crypto.randomUUID()});}
+ async listPublications():Promise<Publication[]>{const reply=await this.request<{publications:Publication[]}>(this.state.guest?'/api/public/catalog':'/api/publications');return reply.publications;}
+ async publishPack(id:string){if(this.state.guest)throw new Error('Masuk untuk membagikan bank ke publik.');const pack=this.state.packs.find(p=>p.id===id);if(!pack)throw new Error('Bank tidak ditemukan.');if((await this.local.read(this.owner())).pending.some(p=>p.operation.entityId===id))throw new Error('Sinkronkan perubahan bank sebelum membagikan.');return this.request<Publication>('/api/publications','POST',{packId:id,expectedRevision:pack.revision,operationId:crypto.randomUUID()});}
  async unpublish(id:string){await this.request(`/api/publications/${encodeURIComponent(id)}`,'DELETE');}
- async copyPublication(id:string){const pack=await this.request<Pack>(`/api/publications/${encodeURIComponent(id)}/copy`,'POST',{operationId:crypto.randomUUID()});await this.sync();return pack;}
+ async copyPublication(id:string){if(this.state.guest){const publication=await this.request<Publication>(`/api/public/catalog/${encodeURIComponent(id)}`);return this.importLocalPack(publication.pack);}const pack=await this.request<Pack>(`/api/publications/${encodeURIComponent(id)}/copy`,'POST',{operationId:crypto.randomUUID()});await this.sync();return pack;}
+ async importLocalPack(input:unknown){const content=validatePackInput(input);const time=new Date().toISOString();return this.savePack({...content,id:crypto.randomUUID(),ownerId:this.owner(),revision:0,createdAt:time,updatedAt:time});}
  async dispose(){clearTimeout(this.retryTimer);this.channel?.close();await this.local.close();}
 }
 export const client=new NoodlClient();
