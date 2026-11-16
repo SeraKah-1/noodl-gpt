@@ -2,9 +2,9 @@
 
 ## Current state
 
-The intended destination is `SeraKah-1/noodl-chatgpt-workspace`. The requested visibility is private, consistent with the existing project access.
+The intended destination is `SeraKah-1/noodl-chatgpt-workspace`. The user explicitly requested public visibility. This applies to the GitHub source repository. It does not change the existing website or plugin audience.
 
-On 2026-11-16, the connected GitHub account was `SeraKah-1`. Repository creation failed through both GraphQL and REST. GitHub returned `Resource not accessible by integration`; the REST status was 403.
+On 2026-11-16, the connected GitHub account was `SeraKah-1`. Public repository creation was retried through both GraphQL and REST. Both requests failed. GitHub returned `Resource not accessible by integration`; the REST status was 403.
 
 The repository was not created. No source push to GitHub succeeded. Do not report the planned URL as an existing repository.
 
@@ -14,7 +14,7 @@ The local checkout retains the existing `sites` remote. This remote is separate 
 
 1. Open <https://github.com/new> as the intended owner.
 2. Set the name to `noodl-chatgpt-workspace`.
-3. Select private visibility unless the owner requests another audience.
+3. Select public visibility, as requested by the owner.
 4. Leave the repository empty. Do not initialize a README, license, or ignore file.
 5. Confirm that the connected integration has access to this new repository.
 6. From the prepared checkout, add the GitHub remote.
@@ -26,7 +26,7 @@ git push -u github HEAD:main
 
 If a `github` remote already exists, inspect its URL before you change it. Do not force-push an existing repository. Do not remove the `sites` remote.
 
-After the push, verify the repository URL, private visibility, branch, and commit ID. Update the source status in `README.md` and this document.
+After the push, verify the repository URL, public visibility, branch, and commit ID. Update the source status in `README.md` and this document.
 
 ## Transfer files
 
