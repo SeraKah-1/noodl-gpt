@@ -9,7 +9,7 @@ export async function hostApp(): Promise<App> {
  if (!isEmbedded()) throw new Error('Panel ChatGPT tidak tersedia.');
  return connection ??= (async()=>{
   const app=new App({name:'Noodl',version:'1.0.0'},{});
-  app.ontoolresult=(result)=>{const data=result.structuredContent;if(data&&typeof data==='object'&&('packId' in data||'pack' in data||'id' in data))window.dispatchEvent(new CustomEvent('noodl-host-update',{detail:data}));};
+  app.ontoolresult=(result)=>{const data=result.structuredContent;if(data&&typeof data==='object'&&('packId' in data||'pack' in data||'id' in data||'view' in data||'attemptId' in data||'design' in data||'preferences' in data))window.dispatchEvent(new CustomEvent('noodl-host-update',{detail:data}));};
   await app.connect();
   return app;
  })().catch(error=>{connection=undefined;throw error;});

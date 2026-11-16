@@ -1,3 +1,5 @@
+import type {WorkspacePreferences,Preferences} from '../shared/preferences';
+import {defaultPreferences,mergePreferences} from '../shared/preferences';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Attempt, MutationResult, Operation, Pack, ReviewEvent, Snapshot, User } from '../shared/types';
 
@@ -20,6 +22,16 @@ export class LocalStore {
    db.createObjectStore('meta');
   }});
  }
+ async preferences(ownerId:string):Promise<WorkspacePreferences|undefined>{return await (await this.db()).get('meta',`${ownerId}:preferences`) as WorkspacePreferences|undefined;}
+ async pendingPreferences(ownerId:string):Promise<{operationId:string;expectedRevision:number;patch:Preferences}|undefined>{return await (await this.db()).get('meta',`${ownerId}:preferences-pending`) as {operationId:string;expectedRevision:number;patch:Preferences}|undefined;}
+ async queuePreferences(ownerId:string,patch:Partial<Preferences>):Promise<WorkspacePreferences>{
+  const db=await this.db();const tx=db.transaction('meta','readwrite');const current=await tx.store.get(`${ownerId}:preferences`) as WorkspacePreferences|undefined;const pending=await tx.store.get(`${ownerId}:preferences-pending`) as {operationId:string;expectedRevision:number;patch:Preferences}|undefined;
+  const value={...mergePreferences(current?{theme:current.theme,language:current.language,design:current.design,studyOptions:current.studyOptions}:defaultPreferences(),patch),id:'workspace' as const,ownerId,revision:current?.revision??0,updatedAt:new Date().toISOString()};
+  await tx.store.put(value,`${ownerId}:preferences`);await tx.store.put({operationId:crypto.randomUUID(),expectedRevision:pending?.expectedRevision??current?.revision??0,patch:{theme:value.theme,language:value.language,design:value.design,studyOptions:value.studyOptions}},`${ownerId}:preferences-pending`);await tx.done;return value;
+ }
+ async cachePreferences(ownerId:string,value:WorkspacePreferences,operationId?:string){if(value.ownerId!==ownerId)throw new Error('Preferences owner mismatch');const db=await this.db();const tx=db.transaction('meta','readwrite');const pending=await tx.store.get(`${ownerId}:preferences-pending`) as {operationId:string}|undefined;
+  if(!pending||pending.operationId===operationId){await tx.store.put(value,`${ownerId}:preferences`);if(operationId)await tx.store.delete(`${ownerId}:preferences-pending`);}else if(operationId){const queued=await tx.store.get(`${ownerId}:preferences-pending`) as {operationId:string;expectedRevision:number;patch:Preferences};queued.expectedRevision=value.revision;await tx.store.put(queued,`${ownerId}:preferences-pending`);const local=await tx.store.get(`${ownerId}:preferences`) as WorkspacePreferences;await tx.store.put({...local,revision:value.revision},`${ownerId}:preferences`);}await tx.done;}
+ async discardPreferences(ownerId:string){await (await this.db()).delete('meta',`${ownerId}:preferences-pending`);}
  async close() { (await this.db()).close(); this.database=undefined; }
  async profile(): Promise<{user:User;locked:boolean}|undefined> { return await (await this.db()).get('meta','profile') as {user:User;locked:boolean}|undefined; }
  async setProfile(user:User,locked=false) { await (await this.db()).put('meta',{user,locked},'profile'); }

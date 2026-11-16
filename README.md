@@ -28,3 +28,7 @@ Bank/folder/pencarian, kuis tiga tipe dan tiga mode, mixed/retention, snapshot r
 Tes otomatis memeriksa logika, akun, SQLite, sync, replay, dan kontrak MCP. Verifikasi interaksi browser, kamera, dan panel di ChatGPT memerlukan host yang tersedia. Reminder browser bekerja selama aplikasi aktif; tidak menjanjikan pengiriman saat aplikasi ditutup. Bahasa utama Indonesia; sebagian label alat belajar masih Indonesia saat navigasi dipilih Inggris.
 
 Audit upstream: [docs/UPSTREAM_AUDIT.md](docs/UPSTREAM_AUDIT.md). Sumber asli: https://github.com/SeraKah-1/noodl pada ec8342b85213dd7c00b11f367298ee4df8ccb3b7. Pemberitahuan MIT asli dipertahankan dalam LICENSE.
+
+## Kontrol ChatGPT dan skill desain
+
+Kontrol runtime diperluas ke CRUD per soal/artifact, pencarian konten, sesi, SRS, konfigurasi desain langsung, input JSON, dan file output JSON/CSV/HTML/PDF. Lihat [panduan kontrol](docs/CHATGPT_CONTROL.md) dan [skill desain lokal](docs/DESIGN_SKILLS.md).

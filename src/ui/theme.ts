@@ -1,3 +1,4 @@
+import type {WorkspacePreferences} from '../shared/preferences';
 
 /**
  * ==========================================
@@ -212,3 +213,14 @@ export const getThemeList = () => {
     textColor: value.vars['--text-main']
   }));
 };
+
+export function applyWorkspacePreferences(preferences?:WorkspacePreferences){
+ const root=document.documentElement;
+ const keys=['--primary','--app-bg','--glass-bg','--text-main','--text-muted','--glass-border','--n-radius','--n-font-scale','--n-content-width','--n-space'];
+ for(const key of keys)root.style.removeProperty(key);
+ applyTheme(preferences?.theme??'default');
+ root.dataset.density=preferences?.design.density??'comfortable';root.dataset.cardLayout=preferences?.design.cardLayout??'grid';root.dataset.reducedMotion=String(preferences?.design.reduceMotion??false);
+ const d=preferences?.design;if(!d)return;
+ for(const [key,value] of Object.entries({'--primary':d.accent,'--app-bg':d.background,'--glass-bg':d.surface,'--text-main':d.text,'--text-muted':d.muted,'--glass-border':d.border}))if(value)root.style.setProperty(key,value);
+ root.style.setProperty('--n-radius',`${d.radius}px`);root.style.setProperty('--n-font-scale',String(d.fontScale));root.style.setProperty('--n-content-width',`${d.contentWidth}px`);root.style.setProperty('--n-space',d.density==='compact'?'14px':d.density==='spacious'?'30px':'22px');
+}

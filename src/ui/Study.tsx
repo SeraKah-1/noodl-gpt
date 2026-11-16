@@ -13,7 +13,7 @@ function tone(correct:boolean){try{const c=new AudioContext();const o=c.createOs
 export function StudyPlayer({attempt,onChange,onComplete,onExit}:{attempt:Attempt;onChange:(a:Attempt)=>void|Promise<void>;onComplete:(a:Attempt)=>void;onExit:()=>void}){
  const [current,setCurrent]=useState(attempt),[input,setInput]=useState(''),[hint,setHint]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[now,setNow]=useState(Date.now()),[sound,setSound]=useState(false),[failedSave,setFailedSave]=useState<Attempt|null>(null);
  const live=useRef(current);live.current=current;
- useEffect(()=>{if(attempt.id!==live.current.id){setCurrent(attempt);setInput('');setHint(false);}},[attempt]);
+ useEffect(()=>{if(attempt.id!==live.current.id||attempt.revision>live.current.revision){setCurrent(attempt);setInput('');setHint(false);}},[attempt]);
  const item=current.items[current.currentIndex],q=item?.question,answer=current.answers.find(a=>a.occurrenceId===item?.id);
  const commit=useCallback(async(next:Attempt)=>{setBusy(true);setError('');setFailedSave(null);try{await onChange(next);setCurrent(next);if(next.status==='completed')onComplete(next);}catch(e){setFailedSave(next);setError(e instanceof Error?e.message:'Gagal menyimpan. Coba lagi.');}finally{setBusy(false);}},[onChange,onComplete]);
  const submit=useCallback(async(value:string|boolean)=>{if(busy||!q||answer)return;const next=answerAttempt(current,value);await commit(next);if(sound)tone(next.answers.at(-1)?.isCorrect??false);},[busy,q,answer,current,commit,sound]);

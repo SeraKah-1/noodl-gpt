@@ -6,3 +6,6 @@ dist/
 .wrangler/
 
 public/vision/
+
+__pycache__/
+*.pyc

@@ -17,7 +17,7 @@ export interface ReviewEvent { id: string; cardId: string; packId: string; quest
 export interface ReviewCard { id: string; packId: string; questionId: string; question: Question; easiness: number; interval: number; repetition: number; nextReview: string; updatedAt: string }
 export interface User { id: string; name: string; email?: string }
 export interface Publication { id: string; title: string; description: string; questionCount: number; publishedAt: string; pack?: Pick<Pack,'title'|'description'|'tags'|'questions'|'artifacts'> }
-export interface Snapshot { packs: Pack[]; attempts: Attempt[]; reviews: ReviewEvent[]; cursor: number }
+export interface Snapshot { preferences?: import('./preferences').WorkspacePreferences; packs: Pack[]; attempts: Attempt[]; reviews: ReviewEvent[]; cursor: number }
 export interface Operation { id: string; kind: 'pack.put'|'pack.delete'|'attempt.put'|'review.add'; entityId: string; expectedRevision?: number; payload: unknown; createdAt: string }
 export interface MutationResult { operationId: string; ok: boolean; record?: Pack|Attempt|ReviewEvent; error?: string; code?: 'CONFLICT'|'INVALID'|'NOT_FOUND'|'UNAUTHORIZED'; current?: Pack|Attempt }
 export interface Progress { total: number; correct: number; score: number; topics: {name:string;correct:number;total:number}[] }

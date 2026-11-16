@@ -1,0 +1,10 @@
+import {z} from 'zod';
+export const themes=['default','matcha','lilac','blush','sky','vanilla','sunset','midnight','oled','paper'] as const;
+const color=z.string().regex(/^#[\da-fA-F]{6}$/,'Use a six-digit hex color');
+export const designSchema=z.object({accent:color.nullable().optional(),background:color.nullable().optional(),surface:color.nullable().optional(),text:color.nullable().optional(),muted:color.nullable().optional(),border:color.nullable().optional(),radius:z.number().int().min(0).max(32).default(20),density:z.enum(['compact','comfortable','spacious']).default('comfortable'),fontScale:z.number().min(.85).max(1.35).default(1),contentWidth:z.number().int().min(640).max(1800).default(1200),cardLayout:z.enum(['grid','list']).default('grid'),reduceMotion:z.boolean().default(false)}).strict();
+export const preferencesSchema=z.object({theme:z.enum(themes).default('default'),language:z.enum(['id','en']).default('id'),design:designSchema.default(designSchema.parse({})),studyOptions:z.object({mode:z.enum(['STANDARD','SURVIVAL','TIME_RUSH']).default('STANDARD'),shuffle:z.boolean().default(true),retention:z.boolean().default(false),mixed:z.boolean().default(false)}).strict().default({mode:'STANDARD',shuffle:true,retention:false,mixed:false})}).strict();
+export type WorkspaceDesign=z.infer<typeof designSchema>;
+export type Preferences=z.infer<typeof preferencesSchema>;
+export interface WorkspacePreferences extends Preferences {id:'workspace';ownerId:string;revision:number;updatedAt:string}
+export const defaultPreferences=():Preferences=>preferencesSchema.parse({});
+export function mergePreferences(current:Preferences,patch:unknown):Preferences {if(!patch||typeof patch!=='object'||Array.isArray(patch))throw new Error('Preferences patch must be an object');const p=patch as Partial<Preferences>;return preferencesSchema.parse({...current,...p,design:{...current.design,...p.design},studyOptions:{...current.studyOptions,...p.studyOptions}});}
