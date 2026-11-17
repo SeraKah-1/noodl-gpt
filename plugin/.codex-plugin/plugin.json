@@ -1,0 +1,19 @@
+{
+  "apps": "./.app.json",
+  "author": {
+    "name": "App developer"
+  },
+  "description": "Bank soal dan alat belajar terhubung dengan ChatGPT.",
+  "interface": {
+    "capabilities": [],
+    "category": "Other",
+    "defaultPrompt": null,
+    "developerName": "App developer",
+    "displayName": "Noodl — ChatGPT Study Workspace",
+    "longDescription": "Bank soal dan alat belajar terhubung dengan ChatGPT.",
+    "shortDescription": "Bank soal dan alat belajar terhubung dengan ChatGPT.",
+    "websiteURL": "https://noodl-chat-study.sire-e.chatgpt.site"
+  },
+  "name": "dev-7cd21ccec2308191b25e4feb76ae19a4",
+  "version": "1.1.0"
+}

@@ -36,13 +36,13 @@ Current content fields are strings. A later version can add a versioned document
 
 The current hosting manifest has no R2 binding. A media service needs storage, configuration, access checks, and tests. Markdown image syntax does not provide managed storage.
 
-## Proposed: plugin usage skill
+## Plugin visual-learning skill
 
-The installed plugin was inspected on 2026-11-16. Its package contained `.app.json` and `.codex-plugin/plugin.json`. It had no usage skill. Its `defaultPrompt` was null.
+Plugin version `1.1.0` includes the versioned source in `plugin/skills/noodl-visual-learning/SKILL.md`. It requires clarification before design, factual accuracy, the user's chosen style, actual result inspection, corrections, and saved-content readback. The App binding, presentation, and audience are unchanged. The published package was read back on 2026-11-17.
 
-A later plugin update can include a usage skill. Explain tool selection, revisions, retries, UI opening, exports, and media limits. Preserve the plugin identity and audience.
+Comic artifacts use a versioned JSON document inside the existing string content field. They do not implement the general content-block or managed-media proposal above. See [Comics](COMICS.md).
 
-Repository design skills do not install themselves in the plugin. A source push does not publish a plugin package.
+Repository design skills do not install themselves in the plugin. A source push does not publish a plugin package. Update the package separately when its behavior instructions change.
 
 ## Pending reference review
 

@@ -54,3 +54,7 @@ Pack JSON contains title, description, tags, and questions. If `includeAnswers` 
 ## Sources
 
 This document reflects the current definitions in `src/shared/types.ts`, `src/shared/validation.ts`, `src/client/store.ts`, `src/server/index.ts`, `src/server/control.ts`, `src/server/exports.ts`, `drizzle/0000_initial.sql`, and `migrations/0001_initial.sql`. It does not claim formal ASD-STE100 compliance.
+
+## Comic artifacts
+
+The `comic` artifact kind stores versioned JSON in `content`. Shared validation enforces the brief, panel IDs, image restrictions, and draft/reviewed contract. Existing string-based artifacts are unchanged. See [Comics](COMICS.md) and `src/shared/comic.ts`.

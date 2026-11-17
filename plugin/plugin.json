@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dev-7cd21ccec2308191b25e4feb76ae19a4",
+  "version": "1.1.0",
+  "author": {
+    "name": "App developer"
+  },
+  "description": "Bank soal dan alat belajar terhubung dengan ChatGPT.",
+  "extensions": {
+    "com.openai": {
+      "apps": "./.app.json",
+      "interface": {
+        "capabilities": [],
+        "category": "Other",
+        "defaultPrompt": null,
+        "developerName": "App developer",
+        "displayName": "Noodl — ChatGPT Study Workspace",
+        "longDescription": "Bank soal dan alat belajar terhubung dengan ChatGPT.",
+        "shortDescription": "Bank soal dan alat belajar terhubung dengan ChatGPT.",
+        "websiteURL": "https://noodl-chat-study.sire-e.chatgpt.site"
+      }
+    }
+  }
+}

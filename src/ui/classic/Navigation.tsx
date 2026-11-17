@@ -2,7 +2,7 @@ import {useEffect, useRef, useState} from 'react';
 import {Home, FolderOpen, Settings, Brain, Shuffle, MessageSquare, Sparkles, BookOpen, Grid, X, Globe, Network} from 'lucide-react';
 
 export type WorkspaceView = 'home'|'library'|'mix'|'review'|'public'|'settings';
-export type ToolTab = 'material'|'graph'|'visual';
+export type ToolTab = 'material'|'graph'|'visual'|'comic';
 export type Locale = 'id'|'en';
 
 /** Adapts upstream Navigation to the account client without importing its old store. */
@@ -23,6 +23,7 @@ export function Navigation({view,locale,onNavigate,onChat,onTool}:{
   const routes=[
     ...tabs.map(t=>({...t,action:()=>onNavigate(t.view),description:({home:id?'Pilih materi dan mulai latihan':'Choose material and practice',mix:id?'Campurkan bank soal':'Combine question banks',review:id?'Ulangi kartu sesuai jadwal':'Review scheduled cards',library:id?'Bank soal dan hasil belajarmu':'Your banks and study results',settings:id?'Tema, bahasa, dan akun':'Theme, language and account'})[t.view]})),
     {view:'chat',Icon:MessageSquare,label:'ChatGPT',description:id?'Buat soal atau bahas konsep':'Create questions or discuss concepts',action:onChat},
+    {view:'comic',Icon:BookOpen,label:id?'Komik':'Comics',description:id?'Belajar lewat panel cerita':'Learn through illustrated panels',action:()=>onTool('comic')},
     {view:'visual',Icon:Sparkles,label:'Visual Lab',description:id?'Buka visualisasi interaktif':'Open interactive visualizations',action:()=>onTool('visual')},
     {view:'material',Icon:BookOpen,label:id?'Materi':'Materials',description:id?'Baca materi dan insight':'Read materials and insights',action:()=>onTool('material')},
     {view:'graph',Icon:Network,label:id?'Peta konsep':'Concept map',description:id?'Jelajahi hubungan konsep':'Explore concept connections',action:()=>onTool('graph')},

@@ -38,7 +38,7 @@ The website uses the classic Noodl layout: centered practice setup, kaomoji comp
 - Standard, Survival, and Time Rush sessions.
 - Shuffled questions, mixed question types, and retention practice.
 - Saved session snapshots, results, flashcards, and spaced repetition.
-- Markdown materials, insights, a concept graph, and isolated HTML visualizations.
+- Markdown materials, insights, a concept graph, isolated HTML visualizations, and [learning comics](docs/COMICS.md) with explicit briefs and review records.
 - Account preferences and design tokens that ChatGPT can change.
 - JSON input and JSON, CSV, HTML, and PDF output through tools.
 - Publications and copies. Publications include answer keys. They exclude learner responses and progress.
@@ -76,6 +76,6 @@ Public website visitors can continue as guests. Private account APIs and MCP use
 
 The original AI providers, source-file processing, and prompt editor were removed. There is no multiplayer mode. Managed image storage and versioned content blocks are proposed work. They are not current functions.
 
-The installed plugin has tool descriptions and a capability tool. Its last inspected package did not contain a usage skill. Repository design skills guide source changes. They do not automatically become instructions in a user's ChatGPT conversation.
+The installed plugin has tool descriptions and a capability tool. Its visual-learning skill requires clarification before design and inspection of actual output; see `plugin/skills/noodl-visual-learning/SKILL.md`. Repository design skills guide source changes. They do not automatically become instructions in a user's ChatGPT conversation.
 
 Documentation uses an ASD-STE100-inspired technical style. It is not certified as ASD-STE100 compliant. Third-party skill files retain their original text.

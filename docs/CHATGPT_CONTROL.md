@@ -82,3 +82,7 @@ The exact message can give more detail. A repeated `operationId` returns the sto
 The repository contains design skills under `.agents/skills/`. `AGENTS.md` tells coding agents when to use them. They guide work on this repository. They are not runtime MCP tools, do not run on the production server, and do not grant access to accounts or data.
 
 The installed plugin package checked for this repository contained `.app.json` and `.codex-plugin/plugin.json`. It contained no skill files. Its `defaultPrompt` field was `null`. The tools listed above come from the server code in this repository. They do not prove that a particular ChatGPT installation has connected or loaded the plugin.
+
+## Comics and visual design
+
+Read `get_comic_guide` for the comic schema and workflow. Comics use existing artifact CRUD with `kind: comic`. Clarify the user brief before design, inspect actual output, correct issues, save, then read back. Incomplete checks must remain draft. The visual-learning plugin skill carries these instructions into supported hosts. See [Comics](COMICS.md).

@@ -65,3 +65,7 @@ Report the change, its reason, checks, and remaining limitations. A successful N
 ## Write clear technical text
 
 Use `docs/WRITING.md` for project-authored documentation. Use short English sentences and stable terms. Keep exact code names. Explain a prerequisite before an action. Avoid promotional text and unsupported claims of ASD-STE100 compliance.
+
+## User-directed visual work
+
+For a new comic or visual design, clarify the learning objective, facts/sources, audience, language, format and requested style before creating a design. Wait for the user's answer. Reuse preferences explicitly provided in the current conversation. Prioritize factual accuracy and the user's chosen style over aesthetic, minimalist, or other preset directions. These user requirements override generic examples in vendored design skills. Inspect actual rendered output, correct findings, and state any checks that were unavailable. Do not mark unseen output as visually reviewed.
