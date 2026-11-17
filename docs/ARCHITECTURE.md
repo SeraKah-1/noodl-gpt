@@ -2,7 +2,7 @@
 
 ## Runtime parts
 
-Noodl has a React client, shared domain code, an authenticated server worker, a D1 database, and an MCP interface. The client entry point is `src/main.tsx`. The main interface and view state are in `src/App.tsx`; reusable study views are in `src/ui/Study.tsx` and `src/ui/Tools.tsx`.
+Noodl has a React client, shared domain code, an authenticated server worker, a D1 database, and an MCP interface. The client entry point is `src/main.tsx`. The main interface and view state are in `src/App.tsx`. Classic navigation, practice setup, and bank selection components live in `src/ui/classic/`; reusable study views are in `src/ui/Study.tsx` and `src/ui/Tools.tsx`.
 
 `src/shared/` defines the record types, validation rules, preference rules, and study logic. Both the browser client and server import this code. `src/client/` holds the account client, IndexedDB store, and ChatGPT host bridge. `src/server/` handles HTTP routes, MCP tools, database writes, preferences, and exports. `scripts/build-worker.mjs` bundles the client assets and server worker. It also creates the service worker and copies the migration into the build output.
 

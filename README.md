@@ -26,6 +26,10 @@ This repository is a derivative of [SeraKah-1/noodl](https://github.com/SeraKah-
 | Review the original code | [Upstream audit](docs/UPSTREAM_AUDIT.md) | Pinned upstream checkout |
 | Write documentation | [Writing rules](docs/WRITING.md) | Keep names consistent with code |
 
+## Interface
+
+The website uses the classic Noodl layout: centered practice setup, kaomoji companion, floating bottom navigation, and a quick-jump menu. See [Classic UI](docs/CLASSIC_UI.md) for source mapping and intentional adaptations.
+
 ## Current functions
 
 - Private question banks, folders, tags, and content search.
