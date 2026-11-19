@@ -63,6 +63,15 @@ try{
  await page.getByRole('button',{name:/Pengaturan/i}).click();
  await page.getByRole('heading',{name:/Pengaturan/i}).waitFor();
  await save('10-settings-mobile');
+ const themeButtons=page.locator('.theme-grid button');
+ assert.equal(await themeButtons.count(),10,'All ten existing themes must remain selectable');
+ for(let i=0;i<await themeButtons.count();i++){
+  await themeButtons.nth(i).click();
+  await fits(390);
+  if(i===7)await save('11-settings-midnight');
+  if(i===8)await save('12-settings-oled');
+ }
+ await fits(320);await save('13-settings-paper-320');
  assert.deepEqual(errors,[],`Browser exceptions: ${errors.join('; ')}`);
  console.log('Noodl browser smoke PASS: guest, Today, import, Library, pack detail, quiz answer, resume, Review, settings, 320/390/768/1440 widths.');
 }catch(error){
