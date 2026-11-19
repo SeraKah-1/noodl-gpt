@@ -108,3 +108,7 @@
 @media(max-width:600px){.desk-batch-jump{flex-wrap:wrap}.desk-batch-jump button{width:100%}.desk-batch-index button{min-width:40px;min-height:40px}.desk-review-extra{align-items:stretch;flex-direction:column}.desk-review .review-stats strong{font-size:1.3rem}}
 
 html[data-reduced-motion="true"] .desk-today *,html[data-reduced-motion="true"] .desk-pack *,html[data-reduced-motion="true"] .desk-nav *{animation:none!important;transition:none!important;scroll-behavior:auto!important;transform:none!important}
+
+.desk-catalog-loading{display:grid;gap:10px;margin:18px 0;color:var(--desk-muted);font-size:.9rem}
+.desk-catalog-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px}
+.desk-catalog-card{height:172px;border:1px solid var(--desk-border);border-radius:var(--desk-radius)}
