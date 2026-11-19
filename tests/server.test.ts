@@ -26,3 +26,73 @@ test('anonymous catalog exposes only published snapshots and rejects private rou
  for(const path of ['/api/snapshot','/api/preferences','/api/exports/private'])assert.equal((await request(path))!.status,401);
  for(const path of ['/api/mutate','/api/public/catalog','/mcp'])assert.equal((await request(path,'POST'))!.status,401);
 });
+
+test('guest browser can save a bank, publish an anonymous link, and revoke it', async () => {
+ const env = {DB: database()};
+ const call = async (path: string, method = 'GET', headers?: HeadersInit, data?: unknown) =>
+  (await handleRequest(new Request('https://app' + path, {
+   method, headers, body: data === undefined ? undefined : JSON.stringify(data)
+  }), env, null))!;
+ const guest = await call('/api/guest', 'POST');
+ assert.equal(guest.status, 200);
+ const user = await guest.json() as {id: string};
+ const setCookie = guest.headers.get('set-cookie')!;
+ assert.match(setCookie, /^__Host-noodl-guest=[a-f0-9]{64}; Path=\/; Secure; HttpOnly; SameSite=Strict/);
+ const cookie = setCookie.split(';')[0];
+ const headers = {cookie, 'x-noodl-guest': user.id, origin: 'https://app'};
+ const restored = await call('/api/guest', 'POST', {cookie});
+ assert.deepEqual(await restored.json(), user);
+ assert.equal((await call('/api/guest', 'POST', {origin: 'https://other'})).status, 403);
+
+ const saved = await call('/api/mutate', 'POST', headers, {operations: [op('guest-save')]});
+ assert.equal((await saved.json() as {results: {ok: boolean}[]}).results[0].ok, true);
+ const snapshot = await call('/api/snapshot', 'GET', headers);
+ assert.equal((await snapshot.json() as {packs: Pack[]}).packs[0].ownerId, user.id);
+ assert.equal((await call('/api/snapshot', 'GET', {'x-noodl-guest': user.id})).status, 401);
+ assert.equal((await call('/api/snapshot', 'GET', {...headers, 'x-noodl-guest': 'other'})).status, 401);
+ assert.equal((await call('/mcp', 'POST', headers, {method: 'tools/list'})).status, 401);
+
+ const published = await call('/api/publications', 'POST', headers, {
+  operationId: 'guest-share', packId: 'p', expectedRevision: 1
+ });
+ const publication = await published.json() as {id: string};
+ const path = '/' + encodeURIComponent(publication.id);
+ assert.equal(published.status, 200);
+ assert.equal((await call('/api/public/catalog' + path)).status, 200);
+ await call('/api/publications' + path, 'DELETE', {'oai-authenticated-user-id': 'other'});
+ assert.equal((await call('/api/public/catalog' + path)).status, 200);
+ await call('/api/publications' + path, 'DELETE', headers);
+ assert.equal((await call('/api/public/catalog' + path)).status, 404);
+});
+
+test('Supabase backup uses private paths and includes only the active owner’s banks', async t => {
+ const db = database();
+ const secret = 'sb_secret_fixture';
+ const env = {DB: db, SUPABASE_URL: 'https://example.supabase.co',
+  SUPABASE_STORAGE_BUCKET: 'noodl', SUPABASE_SECRET_KEY: secret};
+ await mutate(db, 'a', op('bank-a'));
+ await mutate(db, 'b', op('bank-b', 0, {...input, title: 'Private bank B'}));
+ let body: string | undefined;
+ let storedPath: string | undefined;
+ t.mock.method(globalThis, 'fetch', async (url: URL, init: RequestInit) => {
+  assert.equal(url.origin, 'https://example.supabase.co');
+  assert.equal(new Headers(init.headers).get('apikey'), secret);
+  if (init.method === 'POST') {
+   assert.equal(new Headers(init.headers).get('x-upsert'), 'true');
+   assert.match(url.pathname, /^\/storage\/v1\/object\/noodl\/noodl\/[a-f0-9]{64}\/banks\.json$/);
+   storedPath = url.pathname;
+   body = new TextDecoder().decode(init.body as Uint8Array<ArrayBuffer>);
+   return Response.json({Key: 'fixture'});
+  }
+  assert.equal(url.pathname, storedPath!.replace('/object/', '/object/authenticated/'));
+  return new Response(body);
+ });
+ const call = (method: string) => handleRequest(new Request('https://app/api/storage/banks', {
+  method, headers: {'oai-authenticated-user-id': 'a'}
+ }), env, null);
+ assert.deepEqual(await (await call('PUT'))!.json(), {ok: true, count: 1});
+ const backup = await (await call('GET'))!.json() as {banks: Pack[]};
+ assert.equal(backup.banks.length, 1);
+ assert.equal(backup.banks[0].title, 'Test');
+ assert.equal(backup.banks[0].ownerId, undefined);
+});

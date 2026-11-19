@@ -1,3 +1,5 @@
+import {guestIdentity,startGuestSession} from './guest';
+import {bankBackup,storageConfigured,type SupabaseEnv} from './supabase';
 import {controlTools,callControlTool} from './control';
 import {preferenceTools,callPreferenceTool,getPreferences,updatePreferences} from './preferences';
 import {exportTools,callExportTool,handleExportRequest} from './exports';
@@ -6,7 +8,7 @@ import { evaluate, progressFor, correctAnswerText } from '../shared/engine';
 import { validateAttempt, validatePackInput, validateQuestion, validateReviewEvent, validateArtifact } from '../shared/validation';
 export interface Statement { bind(...values:unknown[]):Statement; first<T=Record<string,unknown>>():Promise<T|null>; all<T=Record<string,unknown>>():Promise<{results:T[]}>; run():Promise<unknown> }
 export interface Database {prepare(sql:string):Statement;batch(statements:Statement[]):Promise<unknown[]>}
-export interface Env { DB:Database }
+export interface Env extends SupabaseEnv { DB:Database }
 export type Assets=Record<string,{body:string;type:string;base64?:boolean}>;
 const json=(v:unknown,status=200)=>new Response(JSON.stringify(v),{status,headers:{'content-type':'application/json','cache-control':'no-store'}});
 const uuid=()=>crypto.randomUUID();
@@ -185,8 +187,30 @@ export async function handleRequest(request:Request,env:Env,_ctx:unknown,assets:
   if(request.method==='GET'&&url.pathname==='/api/public/catalog')return json(await publications(env.DB));
   const publicMatch=url.pathname.match(/^\/api\/public\/catalog\/([^/]+)$/);
   if(request.method==='GET'&&publicMatch){const row=await env.DB.prepare('SELECT data FROM publications WHERE id=?').bind(decodeURIComponent(publicMatch[1])).first<{data:string}>();return row?json(JSON.parse(row.data)):json({error:'Publication not found'},404);}
-  const user=identity(request);if(!env.DB)return json({error:'Database binding unavailable'},503);
   if(['POST','PATCH','PUT','DELETE'].includes(request.method)&&url.pathname!=='/mcp'){const origin=request.headers.get('origin');if(origin&&origin!==url.origin)return json({error:'Invalid request origin'},403);}
+  if(!env.DB)return json({error:'Database binding unavailable'},503);
+  if(url.pathname==='/api/guest'&&request.method==='POST')return startGuestSession(request);
+  // Embedded/MCP calls continue to require the hosting identity. A guest browser
+  // opts into its separate workspace explicitly, even when ChatGPT is signed in.
+  const guestOwner=url.pathname==='/mcp'?null:request.headers.get('x-noodl-guest');
+  const user=guestOwner?await guestIdentity(request):identity(request);
+  if(!user||(guestOwner&&guestOwner!==user.id))throw new AccessError();
+  if(url.pathname==='/api/storage'&&request.method==='GET')return json({configured:storageConfigured(env)});
+  if(url.pathname==='/api/storage/banks'){
+   if(request.method==='GET')return json(await bankBackup(env,user.id,'GET'));
+   if(request.method==='PUT'){
+    if(!storageConfigured(env))return json({error:'Supabase Storage belum dikonfigurasi.'},503);
+    const rows=await env.DB.prepare("SELECT data FROM records WHERE owner_id=? AND kind='pack' AND json_extract(data,'$.deletedAt') IS NULL LIMIT 1001").bind(user.id).all<{data:string}>();
+    if(rows.results.length>1000)throw Object.assign(new Error('Cadangan mendukung hingga 1000 bank.'),{status:413});
+    let size=0;
+    const banks=rows.results.map(row=>{
+     size+=row.data.length;
+     if(size>8*1024*1024)throw Object.assign(new Error('Cadangan melebihi batas 8 MB.'),{status:413});
+     return validatePackInput(JSON.parse(row.data));
+    });
+    return json(await bankBackup(env,user.id,'PUT',banks));
+   }
+  }
   const exportResponse=await handleExportRequest(request,env.DB,user.id);if(exportResponse)return exportResponse;
   if(url.pathname==='/api/preferences'){if(request.method==='GET')return json(await getPreferences(env.DB,user.id));if(request.method==='PATCH')return json(await updatePreferences(env.DB,user.id,await body(request)));}
   if(url.pathname==='/mcp'){

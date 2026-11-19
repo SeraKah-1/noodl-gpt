@@ -36,6 +36,8 @@ Automated repository tests cover server and client logic, storage, validation, s
 
 ## Guest access
 
-Guests can study copied publications or imported JSON, save local progress, and use local preferences. Guest data stays in the browser and is not migrated automatically after login. Server publishing and MCP require login. Anonymous catalog availability also requires the Sites audience to be public.
+Guests can create, sync, study, and publish banks without an account. Private guest data uses a browser cookie. Clearing cookies or switching browsers loses access to that guest workspace. Local-only guests can activate server storage to copy their existing banks once. Older local progress remains available in the local workspace. MCP requires ChatGPT sign-in. Public links and catalog access require a public Site audience.
+
+[Supabase Storage](SUPABASE.md) is optional. It backs up bank content to a private bucket once configured. Live records and public sharing use D1.
 
 Comic review flags are creator reports. Schema validation cannot prove factual correctness, actual user confirmation, or visual inspection. Image transfer from ChatGPT is not automatic.

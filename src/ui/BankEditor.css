@@ -1,0 +1,29 @@
+.bank-editor.n-modal {
+  width: min(640px, calc(100vw - 32px));
+  max-height: 90dvh;
+  overflow: auto;
+  margin: auto;
+  color: var(--text-main);
+}
+.bank-editor::backdrop { background: rgb(0 0 0 / 58%); }
+.bank-editor.n-modal label:not(.n-check) { min-width: 0; font-size: 14px; }
+.bank-editor :is(textarea, select) {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: var(--app-bg);
+  color: inherit;
+  font: inherit;
+}
+.bank-editor select { min-height: 44px; }
+.bank-editor textarea { resize: vertical; }
+.bank-editor-controls, .bank-editor-fields, .bank-editor-option {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+.bank-editor-controls > label, .bank-editor-fields > label, .bank-editor-option > label { flex: 1 1 140px; }
+.bank-editor-option > button, .bank-editor-controls > button { margin-bottom: 10px; }
+.bank-editor .n-row { margin-top: 16px; }

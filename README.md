@@ -33,7 +33,8 @@ The website uses the classic Noodl layout: centered practice setup, kaomoji comp
 ## Current functions
 
 - Private question banks, folders, tags, and content search.
-- Guest website access with browser-local banks, study progress, preferences, JSON import, and copies of published banks.
+- Guest website access with a question editor, server sync, public bank links, and offline drafts.
+- Optional private bank backups through [Supabase Storage](docs/SUPABASE.md).
 - Multiple choice, true or false, and fill-in-the-blank questions.
 - Standard, Survival, and Time Rush sessions.
 - Shuffled questions, mixed question types, and retention practice.
@@ -70,7 +71,7 @@ The source includes the existing Sites project configuration. A new GitHub repos
 
 The example input is [examples/pack.input.json](examples/pack.input.json). It contains all three question types. It is a bank input, not an HTTP or MCP request wrapper.
 
-Public website visitors can continue as guests. Private account APIs and MCP use Sites identity headers. The server uses a D1 binding named `DB`. There is no R2 binding. Do not expose the Worker behind a proxy that accepts identity headers from visitors.
+Public website visitors can create, edit, save, and publish banks as guests. A browser cookie scopes guest server data. Signed-in users and MCP use trusted Sites identity headers. The server uses a D1 binding named `DB` for live records. Do not expose the Worker behind a proxy that accepts identity headers from visitors.
 
 ## Scope and status
 

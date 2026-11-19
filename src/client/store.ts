@@ -35,6 +35,7 @@ export class LocalStore {
  async close() { (await this.db()).close(); this.database=undefined; }
  async profile(): Promise<{user:User;locked:boolean}|undefined> { return await (await this.db()).get('meta','profile') as {user:User;locked:boolean}|undefined; }
  async setProfile(user:User,locked=false) { await (await this.db()).put('meta',{user,locked},'profile'); }
+ async clearProfile() { await (await this.db()).delete('meta','profile'); }
  async lock() { const profile=await this.profile(); if(profile) await this.setProfile(profile.user,true); }
  async read(ownerId:string) {
   const db=await this.db(); const tx=db.transaction(['records','outbox','meta'],'readonly');
@@ -65,6 +66,31 @@ export class LocalStore {
   let user=await tx.store.get('guest-profile') as User|undefined;
   if(!user){user={id:'guest:'+crypto.randomUUID(),name:'Guest'};await tx.store.put(user,'guest-profile');}
   await tx.done;return user;
+ }
+ async adoptLocalGuestBanks(ownerId: string): Promise<void> {
+  const db = await this.db();
+  const tx = db.transaction(['meta', 'records', 'outbox'], 'readwrite');
+  const meta = tx.objectStore('meta');
+  const local = await meta.get('guest-profile') as User | undefined;
+  const marker = `${ownerId}:adopted-local-banks`;
+  if (!local || await meta.get(marker)) { await tx.done; return; }
+  const records = tx.objectStore('records');
+  const outbox = tx.objectStore('outbox');
+  const source = await records.index('owner').getAll(local.id);
+  let sequence = Number(await meta.get(`${ownerId}:sequence`) ?? 0);
+  for (const row of source) {
+   if (row.kind !== 'packs') continue;
+   const pack = row.value as Pack;
+   if (pack.deletedAt || await records.get([ownerId, 'packs', pack.id])) continue;
+   const value = {...pack, ownerId, revision: 1};
+   const operation = {id: crypto.randomUUID(), kind: 'pack.put' as const, entityId: pack.id,
+    expectedRevision: 0, payload: value, createdAt: new Date().toISOString()};
+   await records.put({...row, ownerId, value});
+   await outbox.put({ownerId, id: operation.id, sequence: ++sequence, operation, status: 'pending'});
+  }
+  await meta.put(sequence, `${ownerId}:sequence`);
+  await meta.put(true, marker);
+  await tx.done;
  }
  async saveGuest(ownerId:string,kind:Operation['kind'],value:RecordValue):Promise<RecordValue>{
   if(!ownerId.startsWith('guest:')||('ownerId' in value&&value.ownerId!==ownerId))throw new Error('Invalid guest owner');
