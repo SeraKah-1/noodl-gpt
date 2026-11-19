@@ -91,3 +91,18 @@
 @media(max-width:720px){.desk-today-lower{grid-template-columns:1fr}.desk-next{grid-template-columns:1fr;align-items:stretch}.desk-next>.desk-primary{width:100%}.desk-page-head{padding:6px 0 20px}.desk-companion{gap:12px;padding:12px 14px}.desk-face{min-width:68px;font-size:18px}.desk-pack-actions>.desk-primary{flex:1}.desk-pack-actions>.desk-secondary{flex:1}}
 @media(max-width:420px){.desk-pack-actions{gap:8px}.desk-primary,.desk-secondary{padding:.75rem .85rem}.desk-section-heading{align-items:start}.desk-section-heading>.desk-link{font-size:.78rem}.desk-nav{max-width:100%!important}.desk-nav .classic-nav-inner button{font-size:.7rem}}
 @media(prefers-reduced-motion:reduce){.desk-today *, .desk-pack *, .desk-nav *{animation:none!important;transition:none!important;scroll-behavior:auto!important;transform:none!important}}
+
+/* Practice navigation remains separate from global navigation and never resets the session. */
+.desk-batch-jump{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 0 12px;padding:12px 15px;border:1px solid var(--desk-border);border-radius:12px;background:var(--desk-surface);font-size:.88rem}
+.desk-batch-jump>span{color:var(--desk-muted)}
+.desk-batch-index{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 18px}
+.desk-batch-index button{min-width:42px;min-height:42px;border-radius:10px;background:var(--desk-surface);border:1px solid var(--desk-border);color:var(--desk-ink);font-size:.85rem;font-weight:700}
+.desk-batch-index button[aria-pressed=true]{background:color-mix(in srgb,var(--desk-action) 12%,var(--desk-surface));border-color:var(--desk-action)}
+.desk-batch-index button:focus-visible{outline:3px solid var(--desk-action);outline-offset:2px}
+.batch-quiz .question-card{scroll-margin-top:20px}
+.desk-review .review-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.desk-review-extra{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:16px 0}
+.desk-review-extra p{margin:0;color:var(--desk-muted)}
+.desk-review .review-ratings button{min-height:52px}
+.desk-review .due-row{min-height:58px}
+@media(max-width:600px){.desk-batch-jump{flex-wrap:wrap}.desk-batch-jump button{width:100%}.desk-batch-index button{min-width:40px;min-height:40px}.desk-review-extra{align-items:stretch;flex-direction:column}.desk-review .review-stats strong{font-size:1.3rem}}
