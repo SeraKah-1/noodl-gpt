@@ -44,7 +44,14 @@ try{
  await page.getByRole('button',{name:/Mulai kuis/i}).click();
  await page.locator('.quiz-screen').waitFor();
  await save('05-focused-quiz');
- await page.locator('.quiz-screen .study-option').first().click();
+ const options=page.locator('.quiz-screen .study-option');
+ if(await options.count())await options.first().click();
+ else{
+  const field=page.locator('.quiz-screen .study-fill input');
+  if(!await field.count())throw new Error('No usable answer controls in quiz');
+  await field.fill('-2');
+  await page.locator('.quiz-screen .study-fill button[type="submit"]').click();
+ }
  await page.getByRole('button',{name:/Simpan dan keluar/i}).click();
  await page.locator('#desk-pack-title').waitFor();
  await page.getByRole('button',{name:/Kembali ke Library/i}).click();
