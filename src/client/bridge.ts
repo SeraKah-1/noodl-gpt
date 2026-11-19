@@ -16,7 +16,10 @@ export async function hostApp(): Promise<App> {
 }
 export async function callHost<T>(name:string,args:Record<string,unknown>={}):Promise<T> {
  const result=await (await hostApp()).callServerTool({name,arguments:args});
- if(result.isError) throw new Error(result.content?.filter(x=>x.type==='text').map(x=>x.text).join('\n')||'Operasi gagal.');
+ if(result.isError) {
+  const error = new Error(result.content?.filter(x=>x.type==='text').map(x=>x.text).join('\n')||'Operasi gagal.');
+  throw Object.assign(error,{status:result._meta?.['noodl/status']});
+ }
  if(result.structuredContent!==undefined) return result.structuredContent as T;
  const block=result.content?.find(x=>x.type==='text');
  if(block?.type==='text') return JSON.parse(block.text) as T;

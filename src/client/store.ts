@@ -5,6 +5,19 @@ import type { Attempt, MutationResult, Operation, Pack, ReviewEvent, Snapshot, U
 
 type RecordValue = Pack | Attempt | ReviewEvent;
 type Kind = 'packs' | 'attempts' | 'reviews';
+type PackMetadata = Pick<Pack, 'title' | 'folder'>;
+type Adoption = { localRevision: number; cloudRevision: number };
+const recordKind = (kind: Operation['kind']): Kind =>
+ kind.startsWith('pack.') ? 'packs' : kind === 'attempt.put' ? 'attempts' : 'reviews';
+const entityKey = ({operation}: PendingOperation) => JSON.stringify([recordKind(operation.kind), operation.entityId]);
+function unblocked(rows: PendingOperation[]) {
+ const blocked = new Set(rows.filter(row => row.status === 'conflict').map(entityKey));
+ return rows.filter(row => row.status === 'pending' && !blocked.has(entityKey(row)));
+}
+export function samePackContent(a: Pack, b: Pack) {
+ const content = ({title,folder,description,tags,questions,artifacts}: Pack) => ({title,folder,description,tags,questions,artifacts});
+ return JSON.stringify(content(a)) === JSON.stringify(content(b));
+}
 export interface StoredRecord { ownerId: string; id: string; kind: Kind; value: RecordValue; downloaded?: boolean }
 export interface PendingOperation { ownerId: string; id: string; sequence: number; operation: Operation; status: 'pending'|'conflict'; failure?: MutationResult; leaseOwner?: string; leaseUntil?: number }
 interface LocalSchema extends DBSchema {
@@ -40,26 +53,65 @@ export class LocalStore {
  async read(ownerId:string) {
   const db=await this.db(); const tx=db.transaction(['records','outbox','meta'],'readonly');
   const [records,pending,lastSync] = await Promise.all([tx.objectStore('records').index('owner').getAll(ownerId),tx.objectStore('outbox').index('owner').getAll(ownerId),tx.objectStore('meta').get(`${ownerId}:lastSync`)]);
-  await tx.done; return {records,pending:pending.sort((a,b)=>a.sequence-b.sequence),lastSync:lastSync as string|undefined};
+  await tx.done; return {records,pending:pending.sort((a,b)=>a.sequence-b.sequence),lastSync:lastSync as string|undefined,hasSyncable:unblocked(pending).length>0};
  }
- async enqueue(ownerId:string,kind:Operation['kind'],value:RecordValue):Promise<RecordValue> {
-  if('ownerId' in value && value.ownerId!==ownerId) throw new Error('Data ini milik akun lain.');
-  const db=await this.db(); const tx=db.transaction(['records','outbox','meta'],'readwrite');
-  const recordKind:Kind=kind.startsWith('pack.')?'packs':kind==='attempt.put'?'attempts':'reviews';
-  const key:[string,Kind,string]=[ownerId,recordKind,value.id];
-  const existing=await tx.objectStore('records').get(key);
-  if(kind==='review.add'&&existing) {await tx.done;return existing.value;}
-  const now=new Date().toISOString();
-  const expectedRevision=existing&&'revision' in existing.value?existing.value.revision:0;
-  const next=structuredClone(value);
-  if('revision' in next) { next.revision=expectedRevision+1; next.updatedAt=now; }
-  if(kind==='pack.delete') (next as Pack).deletedAt=now;
-  const sequence=Number(await tx.objectStore('meta').get(`${ownerId}:sequence`)??0)+1;
-  const operation:Operation={id:crypto.randomUUID(),kind,entityId:value.id,expectedRevision:recordKind==='reviews'?undefined:expectedRevision,payload:next,createdAt:now};
-  await tx.objectStore('records').put({ownerId,kind:recordKind,id:value.id,value:next,downloaded:existing?.downloaded});
-  await tx.objectStore('outbox').put({ownerId,id:operation.id,sequence,operation,status:'pending'});
-  await tx.objectStore('meta').put(sequence,`${ownerId}:sequence`);
-  await tx.done; return next;
+ async enqueue(ownerId:string,kind:Operation['kind'],value:RecordValue) {
+  return (await this.write(ownerId,kind,[value],false))[0];
+ }
+ async saveGuest(ownerId:string,kind:Operation['kind'],value:RecordValue) {
+  return (await this.write(ownerId,kind,[value],true))[0];
+ }
+ async saveBanks(ownerId:string,packs:Pack[],localOnly:boolean) {
+  return await this.write(ownerId,'pack.put',packs,localOnly) as Pack[];
+ }
+ async renamePack(ownerId:string,id:string,metadata:PackMetadata,localOnly:boolean) {
+  await this.write(ownerId,'pack.put',[],localOnly,{id,metadata});
+ }
+ private async write(ownerId:string,kind:Operation['kind'],values:RecordValue[],localOnly:boolean,rename?:{id:string;metadata:PackMetadata}){
+  if(localOnly&&!ownerId.startsWith('guest:'))throw new Error('Invalid guest owner');
+  const db=await this.db();
+  const tx=db.transaction(['records','outbox','meta'],'readwrite');
+  // Attach a rejection handler before the first request. A failed write aborts the whole batch.
+  const committed=tx.done.catch(()=>{});
+  const records=tx.objectStore('records'),outbox=tx.objectStore('outbox'),meta=tx.objectStore('meta');
+  const sequenceKey=`${ownerId}:sequence`;
+  const kindOfRecord=recordKind(kind);
+  try {
+   if(rename){
+    const current=(await records.get([ownerId,'packs',rename.id]))?.value as Pack|undefined;
+    if(!current||current.deletedAt)throw new Error('Bank tidak ditemukan.');
+    if(!rename.metadata.title.trim())throw new Error('Nama bank tidak boleh kosong.');
+    values=[{...current,...rename.metadata}];
+   }
+   let sequence=localOnly?0:Number(await meta.get(sequenceKey)??0);
+   const result:RecordValue[]=[];
+   for(const value of values){
+    if('ownerId' in value&&value.ownerId!==ownerId)throw new Error('Data ini milik akun lain.');
+    const existing=await records.get([ownerId,kindOfRecord,value.id]);
+    if(kind==='review.add'&&existing){result.push(existing.value);continue;}
+    const expectedRevision=existing&&'revision' in existing.value?existing.value.revision:0;
+    if(kind==='pack.put'&&(('revision' in value&&value.revision!==expectedRevision)||(existing?.value as Pack|undefined)?.deletedAt)){
+     throw new Error('Bank sudah berubah. Buka kembali untuk mengambil versi terbaru.');
+    }
+    const next=structuredClone(value);
+    const now=new Date().toISOString();
+    if('revision' in next){next.revision=expectedRevision+1;next.updatedAt=now;}
+    if(kind==='pack.delete')(next as Pack).deletedAt=now;
+    await records.put({ownerId,kind:kindOfRecord,id:value.id,value:next,downloaded:existing?.downloaded});
+    if(!localOnly){
+     const operation:Operation={id:crypto.randomUUID(),kind,entityId:value.id,expectedRevision:kindOfRecord==='reviews'?undefined:expectedRevision,payload:next,createdAt:now};
+     await outbox.put({ownerId,id:operation.id,sequence:++sequence,operation,status:'pending'});
+    }
+    result.push(next);
+   }
+   if(!localOnly)await meta.put(sequence,sequenceKey);
+   await tx.done;
+   return result;
+  }catch(error){
+   try{tx.abort();}catch{/* A failed request may already have aborted the transaction. */}
+   await committed;
+   throw error;
+  }
  }
  async guestUser():Promise<User>{
   const db=await this.db();const tx=db.transaction('meta','readwrite');
@@ -67,38 +119,50 @@ export class LocalStore {
   if(!user){user={id:'guest:'+crypto.randomUUID(),name:'Guest'};await tx.store.put(user,'guest-profile');}
   await tx.done;return user;
  }
- async adoptLocalGuestBanks(ownerId: string): Promise<void> {
+ async adoptLocalGuestBanks(ownerId: string): Promise<string[]> {
   const db = await this.db();
   const tx = db.transaction(['meta', 'records', 'outbox'], 'readwrite');
+  void tx.done.catch(()=>{});
   const meta = tx.objectStore('meta');
   const local = await meta.get('guest-profile') as User | undefined;
-  const marker = `${ownerId}:adopted-local-banks`;
-  if (!local || await meta.get(marker)) { await tx.done; return; }
+  if (!local) { await tx.done; return []; }
+  const legacyAdoption = await meta.get(`${ownerId}:adopted-local-banks`);
   const records = tx.objectStore('records');
   const outbox = tx.objectStore('outbox');
   const source = await records.index('owner').getAll(local.id);
+  const conflicts: string[] = [];
   let sequence = Number(await meta.get(`${ownerId}:sequence`) ?? 0);
   for (const row of source) {
    if (row.kind !== 'packs') continue;
    const pack = row.value as Pack;
-   if (pack.deletedAt || await records.get([ownerId, 'packs', pack.id])) continue;
-   const value = {...pack, ownerId, revision: 1};
-   const operation = {id: crypto.randomUUID(), kind: 'pack.put' as const, entityId: pack.id,
-    expectedRevision: 0, payload: value, createdAt: new Date().toISOString()};
-   await records.put({...row, ownerId, value});
-   await outbox.put({ownerId, id: operation.id, sequence: ++sequence, operation, status: 'pending'});
+   if (pack.deletedAt) continue;
+   const marker = JSON.stringify([ownerId,'adopted-bank',pack.id]);
+   const adoption = await meta.get(marker) as Adoption | undefined;
+   const targetRow = await records.get([ownerId, 'packs', pack.id]);
+   const target = targetRow?.value as Pack | undefined;
+   if (target&&!target.deletedAt&&samePackContent(pack,target)) {
+    await meta.put({localRevision:pack.revision,cloudRevision:target.revision},marker);
+    continue;
+   }
+   if (adoption?.localRevision===pack.revision&&target&&!target.deletedAt&&target.revision>adoption.cloudRevision) continue;
+   const unchangedTarget = target && (adoption
+    ? target.revision===adoption.cloudRevision&&pack.revision>adoption.localRevision
+    : legacyAdoption && target.revision===1);
+   if (target?.deletedAt||(!target&&adoption)||(target&&!unchangedTarget)) {
+    conflicts.push(pack.id);
+    continue;
+   }
+   const expectedRevision=target?.revision??0;
+   const value={...pack,ownerId,revision:expectedRevision+1,createdAt:target?.createdAt??pack.createdAt};
+   const operation:Operation={id:crypto.randomUUID(),kind:'pack.put',entityId:pack.id,
+    expectedRevision,payload:value,createdAt:new Date().toISOString()};
+   await records.put({...row,ownerId,value,downloaded:row.downloaded||targetRow?.downloaded});
+   await outbox.put({ownerId,id:operation.id,sequence:++sequence,operation,status:'pending'});
+   await meta.put({localRevision:pack.revision,cloudRevision:value.revision},marker);
   }
-  await meta.put(sequence, `${ownerId}:sequence`);
-  await meta.put(true, marker);
+  await meta.put(sequence,`${ownerId}:sequence`);
   await tx.done;
- }
- async saveGuest(ownerId:string,kind:Operation['kind'],value:RecordValue):Promise<RecordValue>{
-  if(!ownerId.startsWith('guest:')||('ownerId' in value&&value.ownerId!==ownerId))throw new Error('Invalid guest owner');
-  const db=await this.db();const tx=db.transaction('records','readwrite');const recordKind:Kind=kind.startsWith('pack.')?'packs':kind==='attempt.put'?'attempts':'reviews';
-  const old=await tx.store.get([ownerId,recordKind,value.id]);
-  const next=structuredClone(value);if('revision' in next){next.revision=(old&&'revision' in old.value?old.value.revision:0)+1;next.updatedAt=new Date().toISOString();}
-  if(kind==='pack.delete')(next as Pack).deletedAt=new Date().toISOString();
-  await tx.store.put({ownerId,kind:recordKind,id:value.id,value:next,downloaded:old?.downloaded});await tx.done;return next;
+  return conflicts;
  }
  async markDownloaded(ownerId:string,pack:Pack) {
   const db=await this.db();const tx=db.transaction('records','readwrite');
@@ -108,8 +172,7 @@ export class LocalStore {
  }
  async claim(ownerId:string,leaseOwner:string):Promise<PendingOperation|undefined> {
   const db=await this.db();const tx=db.transaction('outbox','readwrite');const rows=await tx.store.index('owner').getAll(ownerId);
-  const blocked=new Set(rows.filter(r=>r.status==='conflict').map(r=>`${r.operation.kind.split('.')[0]}:${r.operation.entityId}`));
-  const row=rows.sort((a,b)=>a.sequence-b.sequence).find(r=>r.status==='pending'&&!blocked.has(`${r.operation.kind.split('.')[0]}:${r.operation.entityId}`));
+  const row=unblocked(rows).sort((a,b)=>a.sequence-b.sequence)[0];
   // Keep order: another tab owns the first operation; do not overtake it.
   if(!row||(row.leaseUntil&&row.leaseUntil>Date.now()&&row.leaseOwner!==leaseOwner)){await tx.done;return;}
   row.leaseOwner=leaseOwner;row.leaseUntil=Date.now()+30000;await tx.store.put(row);await tx.done;return row;

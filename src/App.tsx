@@ -2,9 +2,9 @@ import {useEffect,useMemo,useRef,useState,useSyncExternalStore} from 'react';
 import {ArrowRight,BookOpen,BrainCircuit,Check,Cloud,CloudOff,Download,Folder,Layers,LogOut,Plus,Search,Shuffle,Sparkles,Trash2,RefreshCw,Play,ChevronRight,Globe,MoreHorizontal,X} from 'lucide-react';
 import {client} from './client/index';
 import {isEmbedded,requestTutor,sendChatRequest} from './client/bridge';
-import {createAttempt,progressFor} from './shared/engine';
+import {createAttempt,itemsToRetry,progressFor} from './shared/engine';
 import type {Attempt,Pack,Publication,StudyOptions} from './shared/types';
-import {validatePackInput,type PackInput} from './shared/validation';
+import {MAX_REQUEST_BYTES,type PackInput} from './shared/validation';
 import {BankEditor} from './ui/BankEditor';
 import {BankBackup} from './ui/BankBackup';
 import {StudyPlayer,Flashcards,Results} from './ui/Study';
@@ -28,7 +28,13 @@ export default function App(){
  const [bankEditor,setBankEditor]=useState<Pack|'new'|null>(null);
  const [shareLink,setShareLink]=useState('');
  const sharePanel=useRef<HTMLElement>(null);
- const sharedId=useRef(isEmbedded()?null:new URLSearchParams(location.search).get('bank'));
+ const linkParams=new URLSearchParams(location.search);
+ const sharedId=useRef(isEmbedded()?null:linkParams.get('bank'));
+ const visualPackId=useRef(isEmbedded()||linkParams.has('bank')||linkParams.get('tool')!=='visual'?null:linkParams.get('pack'));
+ const [catalogState,setCatalogState]=useState<'loading'|'ready'|'error'>('loading');
+ const [catalogRetry,setCatalogRetry]=useState(0);
+ const showLibraryCatalog=view==='library'&&state.packs.length===0;
+ const showCatalog=view==='public'||showLibraryCatalog;
  const [sharedBank,setSharedBank]=useState<Publication|null>(null);
  const [options,setOptions]=useState<StudyOptions>({mode:'STANDARD',shuffle:true,retention:false,mixed:false});
  const w=words[lang];
@@ -55,23 +61,39 @@ export default function App(){
   setView('public');
   void client.getPublication(id).then(setSharedBank).catch(e=>setNotice(e.message));
  },[state.user?.id]);
- useEffect(()=>{if(view==='public'&&state.user)void client.listPublications().then(setPublications).catch(e=>setNotice(e.message));},[view,state.user?.id]);
+ useEffect(()=>{
+  if(!ready||!state.user||!visualPackId.current)return;
+  const pack=state.packs.find(p=>p.id===visualPackId.current);
+  if(!pack)return;
+  visualPackId.current=null;
+  setView('library');
+  setToolTab('visual');
+  setTools(pack);
+ },[ready,state.user,state.packs]);
+ useEffect(()=>{
+  if(!showCatalog||!state.user||!state.online)return;
+  let current=true;
+  setCatalogState('loading');
+  client.listPublications().then(items=>{
+   if(current){setPublications(items);setCatalogState('ready');}
+  }).catch(()=>{if(current)setCatalogState('error');});
+  return ()=>{current=false;};
+ },[showCatalog,state.user?.id,state.online,catalogRetry]);
  useEffect(()=>{if(active&&seenAttempts.current.has(active.id)&&!state.attempts.some(a=>a.id===active.id)&&!state.pending)setActive(null);for(const a of state.attempts)seenAttempts.current.add(a.id);},[state.attempts,state.pending,active]);
  const packs=state.packs.filter(p=>!p.deletedAt),completed=state.attempts.filter(a=>a.status==='completed');
  const folders=[...new Set(packs.map(p=>p.folder).filter(Boolean))].sort();
  const visible=useMemo(()=>packs.filter(p=>(!folder||p.folder===folder)&&`${p.title} ${p.description} ${p.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())&&(filter!=='unplayed'||!state.attempts.some(a=>a.packId===p.id))).sort((a,b)=>sort==='alphabet'?a.title.localeCompare(b.title):sort==='low'?score(a.id)-score(b.id):b.updatedAt.localeCompare(a.updatedAt)),[packs,folder,query,filter,sort,state.attempts]);
  function score(id:string){const matches=completed.filter(a=>a.packId===id);return matches.length?progressFor(matches[matches.length-1]).score:-1;}
  async function run(action:()=>Promise<unknown>){setBusy(true);try{await action();}catch(e){setNotice(e instanceof Error?e.message:String(e));}finally{setBusy(false);}}
- async function start(pack:Pack,wrongOnly=false){if(!state.user)return;await client.updatePreferences({studyOptions:options});const previous=active;const selection=wrongOnly&&previous?previous.items.filter(i=>previous.answers.some(a=>a.occurrenceId===i.id&&!a.isCorrect)).map(i=>({question:i.question,sourcePackId:i.sourcePackId})):undefined;const next=createAttempt(pack,options,state.user.id,selection);setActive(await client.saveAttempt(next));setLaunch(null);}
+ async function start(pack:Pack,wrongOnly=false){if(!state.user)return;await client.updatePreferences({studyOptions:options});const previous=active;const selection=wrongOnly&&previous?itemsToRetry(previous).map(i=>({question:i.question,sourcePackId:i.sourcePackId})):undefined;const next=createAttempt(pack,options,state.user.id,selection);setActive(await client.saveAttempt(next));setLaunch(null);}
  function ask(){const pack=packs[0];void run(()=>pack?requestTutor(pack,undefined,w.request):requestTutor({id:'',title:'Noodl',questions:[],description:'',ownerId:state.user?.id??'',folder:'',tags:[],artifacts:[],revision:0,createdAt:'',updatedAt:''},undefined,w.request));}
  async function saveAttempt(next:Attempt){const saved=await client.saveAttempt(next);for(const answer of next.answers.filter(a=>!a.isCorrect&&!active?.answers.some(old=>old.occurrenceId===a.occurrenceId))){const item=next.items.find(i=>i.id===answer.occurrenceId);if(item)await client.addReview({id:`${next.id}:${item.id}:wrong`,cardId:`${item.sourcePackId}:${item.sourceQuestionId}`,packId:item.sourcePackId,questionId:item.sourceQuestionId,question:item.question,rating:0,reviewedAt:answer.answeredAt});}setActive(saved);}
  async function importBank(file:File) {
-  if(file.size>8*1024*1024)throw new Error(lang==='id'?'JSON maksimal 8 MB':'JSON must be at most 8 MB');
+  if(file.size>MAX_REQUEST_BYTES)throw new Error(lang==='id'?'JSON maksimal 8 MB':'JSON must be at most 8 MB');
   const data=JSON.parse(await file.text());
   if(data?.version===1&&Array.isArray(data.banks)){
    if(data.banks.length>1000)throw new Error(lang==='id'?'Cadangan melebihi 1000 bank':'Backup exceeds 1000 banks');
-   const banks=data.banks.map(validatePackInput);
-   for(const bank of banks)await client.importLocalPack(bank);
+   await client.importLocalBanks(data.banks);
   }else await client.importLocalPack(data);
  }
  function createBank(){setBankEditor('new');}
@@ -102,6 +124,19 @@ export default function App(){
  }
  function navigate(next:View){setLaunch(null);setFlash(null);setTools(null);setToolPicker(null);setView(next);window.scrollTo({top:0,behavior:'instant'});}
  function mix(){const chosen=packs.filter(p=>selected.includes(p.id));if(!chosen.length||!state.user)return;const time=new Date().toISOString();const pack:Pack={id:crypto.randomUUID(),ownerId:state.user.id,title:`Mix · ${chosen.map(p=>p.title).join(' + ')}`,description:chosen.map(p=>p.title).join(' · '),folder:'Mix Room',tags:['mix'],questions:chosen.flatMap(p=>p.questions.map(q=>({...q,id:crypto.randomUUID()}))),artifacts:[],revision:0,createdAt:time,updatedAt:time};void run(async()=>{setLaunch(await client.savePack(pack));});}
+ const catalog=<>
+  {!state.online?<p role="status">{lang==='id'?'Sambungkan ke internet untuk mengakses bank publik.':'Connect to the internet to access public banks.'}</p>
+   :catalogState==='loading'?<p role="status">{lang==='id'?'Memuat bank publik…':'Loading public banks…'}</p>
+   :catalogState==='error'?<p role="alert">{lang==='id'?'Bank publik gagal dimuat.':'Could not load public banks.'} <button className="n-button" onClick={()=>setCatalogRetry(n=>n+1)}>{lang==='id'?'Coba lagi':'Try again'}</button></p>
+   :publications.length===0&&!sharedBank?<p>{w.emptyShared}</p>:null}
+  {state.online&&catalogState==='ready'&&<div className="n-card-grid">{publications.filter(p=>view!=='public'||p.id!==sharedBank?.id).map(p=>
+   <article className="n-panel pack-card" key={p.id}>
+    <span className="pack-icon"><Globe/></span><h3>{p.title}</h3><p>{p.description}</p>
+    <span className="n-muted">{p.questionCount} {w.questions}</span>
+    <button className="n-button primary" disabled={busy} onClick={()=>void run(()=>copySharedBank(p,true))}>{w.study}</button>
+    <button className="n-button" disabled={busy} onClick={()=>void run(()=>copySharedBank(p))}>{w.copyPack}</button>
+   </article>)}</div>}
+ </>;
  if(!ready)return <div className="noodl-loading"><BrainCircuit size={44}/><p>{w.loading}</p></div>;
  if(!state.user)return <div className="noodl-login"><div className="mesh-bg"/><div className="noodl-login-card"><div className="brand-mark"><BrainCircuit size={34}/></div><h1>Noodl<span>✦</span></h1><p className="eyebrow">USE YOUR NOODLE</p><h2>{w.newHere}</h2><p>{w.signBody}</p><a className="n-button primary" href="/signin-with-chatgpt?returnTo=%2F" target="_top" onClick={e=>{e.preventDefault();void (isEmbedded()?client.login():client.prepareLogin().then(()=>{window.location.assign('/signin-with-chatgpt?returnTo=%2F');}));}}>{w.sign}<ArrowRight size={18}/></a><button className="n-button" disabled={busy} onClick={()=>void run(()=>client.startGuest())}>{lang==='id'?'Lanjut sebagai guest':'Continue as guest'}</button><p>{lang==='id'?'Guest bisa membuat bank dan latihan tanpa login.':'Guests can create banks and practice without signing in.'}</p>{state.error&&<p role="alert">{state.error}</p>}</div></div>;
  if(active)return active.status==='completed'?<Results attempt={active} onRetry={wrong=>{const p=packs.find(p=>p.id===active.packId)??{id:active.packId,ownerId:active.ownerId,title:active.title,description:'',folder:'',tags:[],artifacts:[],questions:active.items.map(i=>i.question),revision:active.packRevision,createdAt:active.createdAt,updatedAt:active.updatedAt};void run(()=>start(p,wrong));}} onFlashcards={()=>{setFlash(packs.find(p=>p.id===active.packId)??null);setActive(null);}} onClose={()=>setActive(null)}/>:<StudyPlayer attempt={active} onChange={saveAttempt} onComplete={()=>{}} onExit={()=>setActive(null)}/>;
@@ -118,7 +153,7 @@ export default function App(){
   </details>}
   {(!state.online||state.syncing||state.pending>0)&&<div className="classic-island" role="status">{state.online?<Cloud size={16}/>:<CloudOff size={16}/>}<span>{!state.online?w.offlineState:state.syncing?(lang==='id'?'Menyinkronkan…':'Syncing…'):`${state.pending} ${w.pending}`}</span></div>}
   {state.error&&<div role="alert" className="n-error">{state.error}</div>}
-  {state.conflicts.map(c=><div className="n-conflict" key={c.id}><strong>{w.conflict}</strong><span>{c.operation.entityId}</span><button onClick={()=>void run(()=>client.resolveConflict(c.id,'server'))}>{w.server}</button>{c.operation.kind.startsWith('pack.')&&<button onClick={()=>void run(()=>client.resolveConflict(c.id,'copy'))}>{w.copy}</button>}</div>)}
+  {state.conflicts.map(c=><div className="n-conflict" key={c.id}><strong>{c.failure?.code==='CONFLICT'?w.conflict:lang==='id'?'Perubahan gagal disinkronkan.':'This change could not sync.'}</strong><span>{c.failure?.error||c.operation.entityId}</span><button onClick={()=>void run(()=>client.resolveConflict(c.id,'server'))}>{w.server}</button>{c.operation.kind.startsWith('pack.')&&<button onClick={()=>void run(()=>client.resolveConflict(c.id,'copy'))}>{w.copy}</button>}</div>)}
   {view==='settings'?<section><PageTitle title={w.settings} text={w.appearance}/><div className="n-panel settings-panel"><h3>{w.theme}</h3><div className="theme-grid">{getThemeList().map(t=><button key={t.id} className={theme===t.id?'chosen':''} style={{background:t.previewColor,color:t.textColor}} onClick={()=>void run(()=>client.updatePreferences({theme:t.id}))}><span>{t.name}</span>{theme===t.id&&<Check size={18}/>}</button>)}</div><h3>{w.language}</h3><div className="n-row"><button className={`n-button ${lang==='id'?'primary':''}`} onClick={()=>void run(()=>client.updatePreferences({language:'id'}))}>Bahasa Indonesia</button><button className={`n-button ${lang==='en'?'primary':''}`} onClick={()=>void run(()=>client.updatePreferences({language:'en'}))}>English</button></div><DesignControls preferences={state.preferences??{...defaultPreferences(),id:'workspace',ownerId:state.user.id,revision:0,updatedAt:''}} onSave={patch=>client.updatePreferences(patch)} pending={state.preferencesPending??false} conflict={state.preferencesConflict??false} onUseServer={()=>client.useServerPreferences()}/>{!isEmbedded()&&!state.localOnly&&<BankBackup key={state.user.id} locale={lang} ownerId={state.user.id} online={state.online}/>}<h3>{w.account}</h3><p>{state.user.name}{state.user.email?' · '+state.user.email:''}</p>{state.guest&&!state.localOnly&&<button className="n-button" onClick={()=>void run(()=>client.useLocalGuest())}>{lang==='id'?'Buka ruang guest lokal':'Open local guest workspace'}</button>}<button className="n-button" onClick={()=>void run(async()=>{await client.logout();if(!state.guest&&!isEmbedded())window.location.assign('/signout-with-chatgpt?returnTo=%2F');})}><LogOut size={17}/>{w.logout}</button><p className="n-muted">{state.lastSync?`${lang==='id'?'Sinkronisasi terakhir':'Last sync'}: ${new Date(state.lastSync).toLocaleString()}`:''}</p></div></section>:
   view==='review'?<><PageTitle title="Neuro-Sync" text={lang==='id'?'Sedikit diulang, lebih lama diingat.':'Review a little. Remember longer.'}/><ReviewDashboard packs={packs} reviews={state.reviews} onReview={event=>client.addReview(event).then(()=>{})}/></>:
   view==='public'?<><PageTitle title={w.shared} text={w.sharedBody}/>
@@ -130,12 +165,20 @@ export default function App(){
         <button className="n-button" disabled={busy||!state.online} onClick={()=>void run(()=>copySharedBank(sharedBank))}>{w.copyPack}</button>
       </div>
     </section>}
-    <div className="n-card-grid">{publications.map(p=><article className="n-panel pack-card" key={p.id}><span className="pack-icon"><Globe/></span><h3>{p.title}</h3><p>{p.description}</p><span className="n-muted">{p.questionCount} {w.questions}</span><button className="n-button primary" disabled={busy||!state.online} onClick={()=>void run(()=>copySharedBank(p))}>{w.copyPack}<Plus size={16}/></button></article>)}</div>{!publications.length&&!sharedBank&&<Empty title={w.emptyShared} text={w.sharedBody}/>}</>:
+    {catalog}</>:
   <>{view==='home'?<ClassicHome locale={lang} packs={packs} attempts={state.attempts} options={options} busy={busy} onOptions={setOptions} onStart={p=>void run(()=>start(p))} onFlash={setFlash} onResume={setActive} onLibrary={()=>navigate('library')} onReview={()=>navigate('review')} onImport={importBank} onCreate={createBank} onChat={message=>void run(()=>sendChatRequest(message))}/>:<>
   <PageTitle title={view==='mix'?w.choose:w.library} text={view==='mix'?w.mixBody:undefined} action={view!=='mix'?<button className="n-button primary" onClick={createBank}><Plus size={17}/>{lang==='id'?'Buat bank soal':'Create question bank'}</button>:<button className="n-button primary" disabled={!selected.length||busy} onClick={mix}><Shuffle size={17}/>{selected.length} {w.selected}<ArrowRight size={17}/></button>}/>
-  {view==='library'&&<div className="classic-library-bar"><div className="classic-input-tabs"><button aria-pressed="true">{lang==='id'?'Bank saya':'My banks'}</button><button aria-pressed="false" onClick={()=>navigate('public')}>{w.public}</button></div><label className="classic-secondary classic-upload-label"><Download size={17}/>{lang==='id'?'Impor JSON':'Import JSON'}<input type="file" accept=".json,application/json" aria-label={lang==='id'?'Impor bank JSON':'Import JSON bank'} onChange={e=>{const f=e.target.files?.[0];if(f)void run(()=>importBank(f));e.target.value='';}}/></label></div>}
+  {view==='library'&&<div className="classic-library-bar"><div className="classic-input-tabs"><button aria-pressed="true">{lang==='id'?'Bank saya':'My banks'}</button><button aria-pressed="false" onClick={()=>navigate('public')}>{lang==='id'?'Bank publik':'Public banks'}</button></div><label className="classic-secondary classic-upload-label"><Download size={17}/>{lang==='id'?'Impor JSON':'Import JSON'}<input type="file" accept=".json,application/json" aria-label={lang==='id'?'Impor bank JSON':'Import JSON bank'} onChange={e=>{const f=e.target.files?.[0];if(f)void run(()=>importBank(f));e.target.value='';}}/></label></div>}
+  {showLibraryCatalog?<section>
+   <h2>{lang==='id'?'Bank publik':'Public banks'}</h2>
+   <p>{state.guest?(lang==='id'?'Belajar sebagai guest atau salin bank ke File. Untuk melihat bank privat dari ChatGPT, masuk dengan akun pembuatnya.':'Study as a guest or copy a bank to Files. Sign in with the account that created your private ChatGPT banks to see them here.')
+    :(lang==='id'?'Belum ada bank di akun ini. Pilih bank publik untuk mulai belajar.':'No banks in this account yet. Choose a public bank to start studying.')}</p>
+   {state.guest&&!isEmbedded()&&<button className="n-button" onClick={()=>void run(async()=>{await client.prepareAccountLogin();window.location.assign('/signin-with-chatgpt?returnTo=%2F');})}>{w.sign}</button>}
+   {catalog}
+  </section>:<>
   <div className="n-library-controls"><label className="n-search"><Search size={18}/><input aria-label={w.search} placeholder={w.search} value={query} onChange={e=>setQuery(e.target.value)}/></label><select aria-label={w.folder} value={folder} onChange={e=>setFolder(e.target.value)}><option value="">{w.all}</option>{folders.map(f=><option key={f}>{f}</option>)}</select><select aria-label="Sort" value={sort} onChange={e=>setSort(e.target.value)}><option value="recent">{w.recent}</option><option value="alphabet">{w.alphabet}</option><option value="low">{w.low}</option></select></div><div className="n-filters"><button className={filter==='all'?'active':''} onClick={()=>setFilter('all')}>{w.allPacks}<span>{packs.length}</span></button><button className={filter==='unplayed'?'active':''} onClick={()=>setFilter('unplayed')}>{w.unplayed}</button></div>
   {!visible.length?<Empty title={packs.length?w.noResults:w.empty} text={packs.length?'':w.emptyBody} action={!packs.length?<><button className="n-button primary" onClick={createBank}>{lang==='id'?'Buat bank soal':'Create question bank'}</button></>:undefined}/>:<div className="n-card-grid">{visible.map((p,i)=><article className={`n-panel pack-card ${selected.includes(p.id)&&view==='mix'?'selected':''}`} key={p.id}><div className="pack-heading"><span className={`pack-icon tint-${i%4}`}><BookOpen size={23}/></span>{view==='mix'?<input type="checkbox" aria-label={p.title} checked={selected.includes(p.id)} onChange={e=>setSelected(e.target.checked?[...selected,p.id]:selected.filter(id=>id!==p.id))}/>:<details className="pack-menu"><summary aria-label="Actions"><MoreHorizontal size={20}/></summary><div><button onClick={()=>setBankEditor(p)}>{lang==='id'?'Edit soal':'Edit questions'}</button><button onClick={()=>setEditing(p)}>{w.rename}</button><button onClick={()=>void run(()=>client.downloadPack(p))}><Download size={14}/>{w.offline}</button><button disabled={!state.online||busy} onClick={()=>void run(()=>publishBank(p))}>{w.publish}</button><button disabled={!state.online||busy||state.localOnly} onClick={()=>void run(async()=>{await client.unpublishPack(p.id);setShareLink('');setNotice(lang==='id'?'Salinan berbagi dicabut.':'Shared copy removed.');})}>{lang==='id'?'Cabut salinan berbagi':'Unpublish shared copy'}</button><button className="danger" onClick={()=>{if(confirm(w.deleteConfirm))void run(()=>client.deletePack(p));}}><Trash2 size={14}/>{w.remove}</button></div></details>}</div><small className="pack-folder"><Folder size={12}/>{p.folder||'Workspace'}</small><h3>{p.title}</h3><p>{p.description||p.tags.join(' · ')}</p><div className="pack-meta"><span>{p.questions.length} {w.questions}</span><span>{score(p.id)>=0?`${score(p.id)}%`:w.unplayed}</span></div>{client.isDownloaded(p.id)&&<small className="pack-downloaded"><Check size={12}/>{w.downloaded}</small>}{view!=='mix'&&<><button className="n-button primary pack-start" onClick={()=>setLaunch(p)}>{w.study}<ArrowRight size={16}/></button><div className="pack-secondary"><button onClick={()=>setFlash(p)}><Layers size={15}/>{w.cards}</button><button onClick={()=>{setToolTab('material');setTools(p);}}><Sparkles size={15}/>{w.tools}</button><ExportMenu pack={p}/></div></>}</article>)}</div>}
+  </>}
   </>}</>}
   {shareLink&&<section ref={sharePanel} tabIndex={-1} className="n-panel settings-panel" aria-label={lang==='id'?'Tautan publik':'Public link'}>
    <h3>{lang==='id'?'Bank sudah publik':'Bank published'}</h3>
@@ -148,9 +191,9 @@ export default function App(){
   <footer className="n-footer"><BrainCircuit size={15}/> Noodl · use your noodle.<span>{lang==='id'?'Dibuat untuk memahami, bukan sekadar mengingat.':'Made for understanding, one question at a time.'}</span></footer></main>
   {bankEditor&&<BankEditor pack={bankEditor==='new'?undefined:bankEditor} locale={lang} onClose={()=>setBankEditor(null)} onSave={saveBank}/>}
   {launch&&<div className="n-modal-backdrop"><section className="n-modal" role="dialog" aria-modal="true" aria-label={w.mode}><button className="n-modal-close" aria-label={w.close} onClick={()=>setLaunch(null)}><X/></button><span className="pack-icon"><Play/></span><h2>{launch.title}</h2><p>{launch.questions.length} {w.questions} · {w.mode}</p><StudyModeOptions value={options} onChange={setOptions} locale={lang}/><button className="n-button primary" disabled={busy} onClick={()=>void run(()=>start(launch))}>{w.start}<ArrowRight size={18}/></button></section></div>}
-  {editing&&<div className="n-modal-backdrop"><form className="n-modal" role="dialog" aria-modal="true" onSubmit={e=>{e.preventDefault();void run(async()=>{await client.savePack(editing);setEditing(null);});}}><h2>{w.rename}</h2><label>{w.title}<input required maxLength={200} value={editing.title} onChange={e=>setEditing({...editing,title:e.target.value})}/></label><label>{w.folder}<input maxLength={200} list="folders" value={editing.folder} onChange={e=>setEditing({...editing,folder:e.target.value})}/></label><datalist id="folders">{folders.map(f=><option key={f}>{f}</option>)}</datalist><div className="n-row"><button className="n-button" type="button" onClick={()=>setEditing(null)}>{w.cancel}</button><button className="n-button primary" disabled={busy}>{w.save}</button></div></form></div>}
+  {editing&&<div className="n-modal-backdrop"><form className="n-modal" role="dialog" aria-modal="true" onSubmit={e=>{e.preventDefault();void run(async()=>{await client.renamePack(editing.id,editing.ownerId,{title:editing.title,folder:editing.folder});setEditing(null);});}}><h2>{w.rename}</h2><label>{w.title}<input required maxLength={200} value={editing.title} onChange={e=>setEditing({...editing,title:e.target.value})}/></label><label>{w.folder}<input maxLength={200} list="folders" value={editing.folder} onChange={e=>setEditing({...editing,folder:e.target.value})}/></label><datalist id="folders">{folders.map(f=><option key={f}>{f}</option>)}</datalist><div className="n-row"><button className="n-button" type="button" onClick={()=>setEditing(null)}>{w.cancel}</button><button className="n-button primary" disabled={busy}>{w.save}</button></div></form></div>}
   {flash&&<div className="n-fullscreen"><Flashcards pack={flash} onReview={event=>client.addReview(event).then(()=>{})} onClose={()=>setFlash(null)}/></div>}
-  {tools&&<div className="n-fullscreen"><LearningTools key={`${tools.id}:${toolTab}`} initialTab={toolTab} pack={tools} attempts={state.attempts.filter(a=>a.packId===tools.id)} onClose={()=>setTools(null)}/></div>}
+  {tools?.ownerId===state.user.id&&<div className="n-fullscreen"><LearningTools key={`${tools.id}:${toolTab}`} initialTab={toolTab} pack={tools} attempts={state.attempts.filter(a=>a.packId===tools.id)} onClose={()=>setTools(null)}/></div>}
   <ToolPicker tab={toolPicker} packs={packs} locale={lang} onClose={()=>setToolPicker(null)} onLibrary={()=>navigate('library')} onSelect={p=>{setToolTab(toolPicker??'material');setToolPicker(null);setTools(p);}}/>
   {notice&&<div className="n-toast" role="alert">{notice}<button aria-label={w.close} onClick={()=>setNotice('')}><X size={15}/></button></div>}
  </div>;

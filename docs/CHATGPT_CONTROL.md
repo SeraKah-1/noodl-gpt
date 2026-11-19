@@ -22,6 +22,8 @@ A question can be multiple choice, true or false, or fill in the blank. A multip
 
 Each update to a bank needs its current `expectedRevision`. Read the bank first. If another change has advanced the revision, the server returns a conflict. Read the current bank and make the intended change again. Do not send a stale full bank to replace newer content.
 
+The embedded `app_mutate` tool requires `expectedOwner` to match the current account.
+
 Every write that accepts `operationId` needs a new ID for a new change. Keep the same ID only when you retry that change. The server returns the saved result for a repeated ID. `unpublish_pack` accepts no operation ID. The embedded app tool `app_unpublish` also accepts no operation ID.
 
 `duplicate_pack` makes a private copy with new question and artifact IDs. It does not copy learner history. Bank-level tools are also available: `create_pack`, `update_pack`, `append_questions`, `save_artifacts`, and `delete_pack`. `create_pack` saves a new bank. The other tools use `expectedRevision` when they replace or extend an existing bank. `get_pack` reads a bank. Its optional `offset` and `limit` page through questions.

@@ -74,6 +74,12 @@ export function progressFor(attempt:Attempt):Progress {
   for(const item of attempt.items){const name=item.question.conceptName||'Umum';const topic=topics.get(name)??{name,correct:0,total:0};topic.total++;if(answers.get(item.id)?.isCorrect){correct++;topic.correct++;}topics.set(name,topic);}
   return {total:attempt.items.length,correct,score:attempt.items.length?Math.round(correct/attempt.items.length*100):0,topics:[...topics.values()]};
 }
+export function itemsToRetry(attempt:Attempt):Occurrence[] {
+  const correct = new Set(attempt.answers.filter(answer=>answer.isCorrect).map(answer=>answer.occurrenceId));
+  return attempt.items.filter(item=>!correct.has(item.id));
+}
+const MAX_REVIEW_INTERVAL_DAYS = 365;
+const MAX_DATE_MS = 8_640_000_000_000_000;
 export function replayReviews(events:ReviewEvent[]):ReviewCard[]{
   const cards=new Map<string,ReviewCard>();const seen=new Set<string>();
   const sorted=[...events].sort((a,b)=>Date.parse(a.reviewedAt)-Date.parse(b.reviewedAt)||a.id.localeCompare(b.id));
@@ -81,11 +87,15 @@ export function replayReviews(events:ReviewEvent[]):ReviewCard[]{
     const old=cards.get(e.cardId);let easiness=old?.easiness??2.5,interval=old?.interval??0,repetition=old?.repetition??0;
     const q=[0,3,4,5][e.rating];easiness=Math.max(1.3,easiness+(0.1-(5-q)*(0.08+(5-q)*0.02)));let minutes=0;
     if(e.rating===0){repetition=0;interval=0;minutes=1;}
-    else if(e.rating===1){if(repetition===0)minutes=10;else{interval=Math.max(1,Math.round(interval*1.2));minutes=interval*1440;}}
-    else if(e.rating===2){interval=repetition===0?1:repetition===1?3:Math.round(interval*easiness);repetition++;minutes=interval*1440;}
-    else{interval=repetition===0?4:Math.round(interval*easiness*1.3);repetition++;minutes=interval*1440;}
-    if(minutes>60) minutes*=0.95+seededRandom(e.id)()*0.1;
-    cards.set(e.cardId,{id:e.cardId,packId:e.packId,questionId:e.questionId,question:structuredClone(e.question),easiness,interval,repetition,nextReview:new Date(Date.parse(e.reviewedAt)+minutes*60000).toISOString(),updatedAt:e.reviewedAt});
+    else if(e.rating===1){if(repetition===0)minutes=10;else interval=Math.max(1,Math.round(interval*1.2));}
+    else if(e.rating===2){interval=repetition===0?1:repetition===1?3:Math.round(interval*easiness);repetition++;}
+    else{interval=repetition===0?4:Math.round(interval*easiness*1.3);repetition++;}
+    interval=Math.min(interval,MAX_REVIEW_INTERVAL_DAYS);
+    if(interval>0) {
+      minutes=interval*1440*(0.95+seededRandom(e.id)()*0.1);
+      minutes=Math.min(minutes,MAX_REVIEW_INTERVAL_DAYS*1440);
+    }
+    cards.set(e.cardId,{id:e.cardId,packId:e.packId,questionId:e.questionId,question:structuredClone(e.question),easiness,interval,repetition,nextReview:new Date(Math.min(MAX_DATE_MS,Date.parse(e.reviewedAt)+minutes*60000)).toISOString(),updatedAt:e.reviewedAt});
   }
   return [...cards.values()].sort((a,b)=>a.nextReview.localeCompare(b.nextReview)||a.id.localeCompare(b.id));
 }

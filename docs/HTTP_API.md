@@ -23,7 +23,7 @@ The body reader limits `request.text().length` to 8,000,000 JavaScript string un
 | GET | `/api/health` | None | Database readiness; 503 if the binding is missing |
 | GET | `/api/me` | None | Account ID, name, optional email |
 | GET | `/api/snapshot` | None | Packs, attempts, reviews, preferences, time cursor |
-| POST | `/api/mutate` | `{operations: Operation[]}` | `{results: MutationResult[]}` |
+| POST | `/api/mutate` | `{expectedOwner: string, operations: Operation[]}` | `{results: MutationResult[]}` |
 | GET | `/api/preferences` | None | Current preferences and revision |
 | PATCH | `/api/preferences` | Operation ID, expected revision, patch | Updated preferences |
 | GET | `/api/publications` | None | Publication summaries |
@@ -73,6 +73,10 @@ A versioned update uses the revision returned by the latest read. A retry of the
 ## Errors
 
 The outer handler returns `{error: string}` for request failures. A missing identity returns 401. A rejected origin returns 403. An unmatched API route returns 404. Other failures normally return 400 unless a handler specifies another status.
+
+Send the signed-in workspace ID as `expectedOwner` in mutation batches. The server compares it with the authenticated identity before applying any operations. The optional `X-Noodl-Owner` header also checks the active workspace on other account requests. It does not authenticate the caller. A mismatched owner returns HTTP 401. Reload an older open client to get the new mutation format.
+
+JSON request bodies larger than 8 MiB return HTTP 413. The client keeps rejected operations for review and continues syncing changes on other records.
 
 Mutation failures return `ok: false` inside `results`. Codes include `CONFLICT`, `INVALID`, and `NOT_FOUND`. Read each result before you remove an outbox entry. Inspect `mutate` and `LocalStore.acknowledge` for the actual handling.
 

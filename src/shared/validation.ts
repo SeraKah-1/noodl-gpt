@@ -4,6 +4,8 @@ import type { Artifact, Attempt, Pack, Question, ReviewEvent, StudyOptions } fro
 export class DomainError extends Error {
   constructor(message: string, public code: 'INVALID' | 'CONFLICT' = 'INVALID') { super(message); this.name = 'DomainError'; }
 }
+export const MAX_REQUEST_BYTES = 8 * 1024 * 1024;
+export const requestTooLarge = (body:string) => new TextEncoder().encode(body).length > MAX_REQUEST_BYTES;
 export type PackInput = Pick<Pack, 'title'|'description'|'folder'|'tags'|'questions'|'artifacts'>;
 const record = (v: unknown, label: string): Record<string, unknown> => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw new DomainError(`${label} must be an object`);

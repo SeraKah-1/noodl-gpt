@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {evaluate,correctAnswerText,createAttempt,answerAttempt,advanceAttempt,progressFor,replayReviews,transformToMixed} from '../src/shared/engine';
+import {evaluate,correctAnswerText,createAttempt,answerAttempt,advanceAttempt,finishAttempt,itemsToRetry,progressFor,replayReviews,transformToMixed} from '../src/shared/engine';
 import {validateQuestion,validatePackInput,validateAttempt} from '../src/shared/validation';
 import type {Pack,Question,ReviewEvent,StudyOptions} from '../src/shared/types';
 const now=Date.parse('2026-11-15T10:00:00Z');
@@ -58,4 +58,23 @@ test('SRS replay is deterministic across arrival order and duplicate event retri
  const a=event('e1',2,0),b=event('e2',3,60000),c=event('e3',0,120000);
  assert.deepEqual(replayReviews([b,a,b]),replayReviews([a,b]));const before=replayReviews([a,b]);assert.equal(before[0].repetition,2);
  const after=replayReviews([c,b,a]);assert.equal(after[0].repetition,0);assert.equal(Date.parse(after[0].nextReview),now+180000);
+});
+
+test('retry includes unanswered Survival questions and excludes correct answers',()=>{
+ let a=createAttempt(pack([mcq('first'),mcq('second'),mcq('third')]),{...opts,mode:'SURVIVAL'},'a',undefined,now);
+ a=advanceAttempt(answerAttempt(a,'b',now),now);
+ a=finishAttempt(answerAttempt(a,'a',now),now);
+ assert.deepEqual(itemsToRetry(a).map(item=>item.sourceQuestionId),['second','third']);
+});
+
+test('a long review history caps Easy intervals at one year',()=>{
+ const reviews:ReviewEvent[]=Array.from({length:30},(_,i)=>({
+  id:`review-${i}`,cardId:'p:q',packId:'p',questionId:'q',question:mcq(),rating:3,
+  reviewedAt:new Date(now+i*60_000).toISOString()
+ }));
+ const [card]=replayReviews(reviews);
+ assert.equal(card.interval,365);
+ assert.equal(card.repetition,30);
+ assert.ok(Date.parse(card.nextReview)>Date.parse(card.updatedAt));
+ assert.ok(Date.parse(card.nextReview)-Date.parse(card.updatedAt)<=365*86_400_000);
 });

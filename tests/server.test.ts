@@ -44,7 +44,7 @@ test('guest browser can save a bank, publish an anonymous link, and revoke it', 
  assert.deepEqual(await restored.json(), user);
  assert.equal((await call('/api/guest', 'POST', {origin: 'https://other'})).status, 403);
 
- const saved = await call('/api/mutate', 'POST', headers, {operations: [op('guest-save')]});
+ const saved = await call('/api/mutate', 'POST', headers, {expectedOwner:user.id,operations: [op('guest-save')]});
  assert.equal((await saved.json() as {results: {ok: boolean}[]}).results[0].ok, true);
  const snapshot = await call('/api/snapshot', 'GET', headers);
  assert.equal((await snapshot.json() as {packs: Pack[]}).packs[0].ownerId, user.id);
@@ -103,4 +103,32 @@ test('Supabase backup uses private paths and includes only the active owner’s 
   headers: {'oai-authenticated-user-id': 'b'}
  }), env, null);
  assert.equal(missing!.status, 404);
+});
+
+test('sync requires the active workspace ID in both HTTP and MCP batches',async()=>{
+ const env={DB:database()};
+ const headers={'oai-authenticated-user-id':'a'};
+ const request=(path:string,body:unknown)=>handleRequest(new Request('https://app'+path,{method:'POST',headers,body:JSON.stringify(body)}),env,null);
+ assert.equal((await request('/api/mutate',{operations:[]}))?.status,401);
+ assert.equal((await request('/api/mutate',{expectedOwner:'another-workspace',operations:[]}))?.status,401);
+ assert.equal((await request('/api/mutate',{expectedOwner:'a',operations:[]}))?.status,200);
+ const response=await request('/mcp',{jsonrpc:'2.0',id:1,method:'tools/call',
+  params:{name:'app_mutate',arguments:{expectedOwner:'another-workspace',operations:[]}}});
+ const rpc=await response!.json() as {result:{isError:boolean;_meta:Record<string,unknown>}};
+ assert.equal(rpc.result.isError,true);
+ assert.equal(rpc.result._meta['noodl/status'],401);
+});
+
+test('starting a large session reads pack version history once per source bank',async()=>{
+ const db=database();
+ let historyQueries=0;
+ const counted:Database={...db,prepare(sql){
+  if(sql.startsWith('SELECT data FROM pack_versions'))historyQueries++;
+  return db.prepare(sql);
+ }};
+ const pack=(await mutate(db,'a',op('many',0,{...input,questions:Array.from({length:120},(_,i)=>({...input.questions[0],id:'q'+i}))}))).record as Pack;
+ const attempt=createAttempt(pack,{mode:'STANDARD',shuffle:false,retention:false,mixed:false},'a');
+ const result=await mutate(counted,'a',{id:'new-session',kind:'attempt.put',entityId:attempt.id,expectedRevision:0,payload:attempt,createdAt:attempt.createdAt});
+ assert.equal(result.ok,true,result.error);
+ assert.equal(historyQueries,1);
 });

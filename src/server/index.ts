@@ -5,7 +5,7 @@ import {preferenceTools,callPreferenceTool,getPreferences,updatePreferences} fro
 import {exportTools,callExportTool,handleExportRequest} from './exports';
 import type { Attempt, MutationResult, Operation, Pack, Publication, Snapshot, User } from '../shared/types';
 import { evaluate, progressFor, correctAnswerText } from '../shared/engine';
-import { validateAttempt, validatePackInput, validateQuestion, validateReviewEvent, validateArtifact } from '../shared/validation';
+import { requestTooLarge, validateAttempt, validatePackInput, validateQuestion, validateReviewEvent, validateArtifact } from '../shared/validation';
 export interface Statement { bind(...values:unknown[]):Statement; first<T=Record<string,unknown>>():Promise<T|null>; all<T=Record<string,unknown>>():Promise<{results:T[]}>; run():Promise<unknown> }
 export interface Database {prepare(sql:string):Statement;batch(statements:Statement[]):Promise<unknown[]>}
 export interface Env extends SupabaseEnv { DB:Database }
@@ -66,10 +66,29 @@ export async function mutate(db:Database,owner:string,op:Operation):Promise<Muta
    for(const key of ['items','options','packId','packRevision','createdAt'])if(JSON.stringify(record[key])!==JSON.stringify(current[key]))throw new Error('Attempt snapshot is immutable');
    for(const previous of current.answers){const next=record.answers.find((a:any)=>a.occurrenceId===previous.occurrenceId);if(!next||next.value!==previous.value||next.answeredAt!==previous.answeredAt)throw new Error('Existing answers are immutable');}
   }else{
-   for(const item of record.items){
-    const versions=await db.prepare('SELECT data FROM pack_versions WHERE owner_id=? AND id=?').bind(owner,item.sourcePackId).all<{data:string}>();
-    const valid=versions.results.some(row=>{const pack=JSON.parse(row.data) as Pack;return pack.questions.some(q=>q.id===item.sourceQuestionId&&sameQuestion(item.question,q,record.options.mixed));});
-    if(!valid)throw new Error('Question snapshot does not match an owned saved revision');
+   const itemsByPack = new Map<string, Attempt['items']>();
+   for (const item of (record as Attempt).items) {
+    const items = itemsByPack.get(item.sourcePackId) ?? [];
+    items.push(item);
+    itemsByPack.set(item.sourcePackId, items);
+   }
+   for (const [sourcePackId, items] of itemsByPack) {
+    const versions=await db.prepare('SELECT data FROM pack_versions WHERE owner_id=? AND id=?').bind(owner,sourcePackId).all<{data:string}>();
+    const questionIds = new Set(items.map(item=>item.sourceQuestionId));
+    const history = new Map<string, Pack['questions']>();
+    for (const row of versions.results) {
+     for (const question of (JSON.parse(row.data) as Pack).questions) {
+      if (!questionIds.has(question.id)) continue;
+      const revisions = history.get(question.id) ?? [];
+      revisions.push(question);
+      history.set(question.id,revisions);
+     }
+    }
+    for (const item of items) {
+     if (!history.get(item.sourceQuestionId)?.some(question=>sameQuestion(item.question,question,record.options.mixed))) {
+      throw new Error('Question snapshot does not match an owned saved revision');
+     }
+    }
    }
   }
   validateAnswerHistory(record,current);
@@ -112,6 +131,7 @@ async function publish(db:Database,owner:string,args:any){
 async function copyPublication(db:Database,owner:string,args:any){const publication=await db.prepare('SELECT data FROM publications WHERE id=?').bind(text(args.publicationId,'publicationId')).first<{data:string}>();if(!publication)throw new Error('Publication not found');const p=JSON.parse(publication.data) as Publication;const operationId=text(args.operationId,'operationId');const duplicate=await db.prepare('SELECT result FROM operations WHERE owner_id=? AND id=?').bind(owner,operationId).first<{result:string}>();if(duplicate)return JSON.parse(duplicate.result).record;const pack={...p.pack,folder:'',questions:p.pack!.questions.map(q=>({...q,id:uuid()})),artifacts:p.pack!.artifacts.map(a=>({...a,id:uuid()}))};const result=await mutate(db,owner,{id:operationId,kind:'pack.put',entityId:uuid(),expectedRevision:0,payload:pack,createdAt:now()});if(!result.ok)throw new Error(result.error);return result.record;}
 async function unpublish(db:Database,owner:string,id:string){await db.prepare('DELETE FROM publications WHERE id=? AND owner_id=?').bind(id,owner).run();return {ok:true};}
 const stringSchema={type:'string'};
+const ownerArgument={expectedOwner:stringSchema};
 const questionSchema={type:'object',properties:{id:stringSchema,type:{type:'string',enum:['MULTIPLE_CHOICE','TRUE_FALSE','FILL_BLANK']},text:stringSchema,explanation:stringSchema,difficulty:{type:'string',enum:['Easy','Medium','Hard']},options:{type:'array',items:{type:'object',properties:{id:stringSchema,text:stringSchema},required:['id','text']}},correctOptionId:stringSchema,correctBoolean:{type:'boolean'},acceptedAnswers:{type:'array',items:stringSchema},hint:stringSchema,keyPoint:stringSchema,conceptName:stringSchema,conceptPriority:{type:'string',enum:['HIGH','MODERATE','FILLER']}},required:['id','type','text','explanation','difficulty']};
 const packSchema={type:'object',properties:{title:stringSchema,description:stringSchema,folder:stringSchema,tags:{type:'array',items:stringSchema},questions:{type:'array',items:questionSchema},artifacts:{type:'array',items:{type:'object',additionalProperties:true}}},required:['title','questions']};
 function tool(name:string,description:string,properties:Record<string,unknown>={},required:string[]=[],app=false,readOnly=false,ui=false){return {name,description,inputSchema:{type:'object',properties,required,additionalProperties:false},annotations:{readOnlyHint:readOnly,destructiveHint:/delete|unpublish/.test(name),idempotentHint:true},_meta:{ui:{visibility:app?['app']:['model','app'],...(ui?{resourceUri:'ui://noodl/workspace'}:{})}}};}
@@ -126,16 +146,17 @@ export const toolsList=[
  tool('get_progress','Read actual attempts and topic scores for one owned pack.',{packId:stringSchema},['packId'],false,true),
  tool('save_artifacts','Save material, insight, visualization HTML or comic JSON. For comics read get_comic_guide, clarify user style first and inspect the actual result before marking reviewed.',{operationId:stringSchema,packId:stringSchema,expectedRevision:{type:'integer'},artifacts:{type:'array',items:{type:'object',additionalProperties:true}}},['operationId','packId','expectedRevision','artifacts']),
  tool('delete_pack','Delete an owned pack. Historical attempt snapshots remain.',{operationId:stringSchema,packId:stringSchema,expectedRevision:{type:'integer'}},['operationId','packId','expectedRevision']),
- tool('publish_pack','Publish a content-only snapshot; excludes all progress and answers.',{operationId:stringSchema,packId:stringSchema,expectedRevision:{type:'integer'}},['operationId','packId','expectedRevision']),
+ tool('publish_pack','Publish a public snapshot with questions, answer keys, and artifacts. Excludes learner responses, attempts, and review history.',{operationId:stringSchema,packId:stringSchema,expectedRevision:{type:'integer'}},['operationId','packId','expectedRevision']),
  tool('browse_publications','Browse content-only shared packs.',{},[],false,true),
  tool('copy_publication','Copy a shared pack into a new private pack with fresh question IDs.',{publicationId:stringSchema,operationId:stringSchema},['publicationId','operationId']),
  tool('unpublish_pack','Remove one of your published snapshots.',{publicationId:stringSchema},['publicationId']),
- tool('app_identity','Authenticated user.',{},[],true,true),tool('app_snapshot','Account snapshot.',{},[],true,true),
- tool('app_mutate','Synchronize pending offline changes.',{operations:{type:'array',items:{type:'object',additionalProperties:true}}},['operations'],true),
- tool('app_publications','Publication list.',{},[],true,true),tool('app_publish','Publish content.',{packId:stringSchema,expectedRevision:{type:'integer'},operationId:stringSchema},['packId','expectedRevision','operationId'],true),
- tool('app_unpublish','Unpublish content.',{publicationId:stringSchema},['publicationId'],true),tool('app_copy_publication','Copy content.',{publicationId:stringSchema,operationId:stringSchema},['publicationId','operationId'],true)
+ tool('app_identity','Authenticated user.',{},[],true,true),tool('app_snapshot','Account snapshot.',ownerArgument,[],true,true),
+ tool('app_mutate','Synchronize pending offline changes.',{...ownerArgument,operations:{type:'array',items:{type:'object',additionalProperties:true}}},['operations','expectedOwner'],true),
+ tool('app_publications','Publication list.',ownerArgument,[],true,true),tool('app_publish','Publish content including answer keys.',{...ownerArgument,packId:stringSchema,expectedRevision:{type:'integer'},operationId:stringSchema},['packId','expectedRevision','operationId'],true),
+ tool('app_unpublish','Unpublish content.',{...ownerArgument,publicationId:stringSchema},['publicationId'],true),tool('app_copy_publication','Copy content.',{...ownerArgument,publicationId:stringSchema,operationId:stringSchema},['publicationId','operationId'],true)
 ];
 async function callTool(db:Database,user:User,name:string,args:any,origin:string){
+ if(name.startsWith('app_')&&args.expectedOwner!==undefined&&args.expectedOwner!==user.id)throw new AccessError('Akun aktif sudah berubah. Masuk kembali untuk menyinkronkan.');
  const control=await callControlTool(db,user,name,args,{read:readRecord,snapshot,mutate});if(control!==undefined)return control;
  const preference=await callPreferenceTool(db,user.id,name,args);if(preference!==undefined)return preference;
  const exported=await callExportTool(db,user.id,name,args,origin);if(exported!==undefined)return exported;
@@ -162,7 +183,16 @@ async function callTool(db:Database,user:User,name:string,args:any,origin:string
  else throw new Error('Unknown tool');
  const result=await mutate(db,user.id,{id:text(args.operationId,'operationId'),kind,entityId:pack.id,expectedRevision:args.expectedRevision,payload,createdAt:now()});if(!result.ok)throw new Error(`${result.code}: ${result.error}`);return result.record;
 }
-async function mutateBatch(db:Database,owner:string,args:any){if(!Array.isArray(args.operations)||args.operations.length>50)throw new Error('Expected at most 50 operations');const results=[];for(const op of args.operations)results.push(await mutate(db,owner,op));return {results};}
+async function mutateBatch(db:Database,owner:string,args:any){
+ if(args?.expectedOwner!==owner)throw new AccessError('Akun aktif sudah berubah. Masuk kembali untuk menyinkronkan.');
+ if(!Array.isArray(args.operations)||args.operations.length>50)throw Object.assign(new Error('Expected at most 50 operations'),{status:400});
+ for(const op of args.operations){
+  try{text(op?.id,'operation id');}catch(error){throw Object.assign(error as Error,{status:400});}
+ }
+ const results=[];
+ for(const op of args.operations)results.push(await mutate(db,owner,op));
+ return {results};
+}
 function validateArguments(schema:any,value:any,label='arguments',depth=0):void{
  if(depth>20)throw new Error('Arguments nested too deeply');
  if(schema.anyOf){if(!schema.anyOf.some((candidate:any)=>{try{validateArguments(candidate,value,label,depth+1);return true}catch{return false}}))throw new Error(`Invalid ${label}`);return;}
@@ -179,7 +209,11 @@ function validateArguments(schema:any,value:any,label='arguments',depth=0):void{
  else if(schema.type==='boolean'){if(typeof value!=='boolean')throw new Error(`Invalid ${label}`);}
  else if(schema.type==='integer'||schema.type==='number'){if(typeof value!=='number'||!Number.isFinite(value)||(schema.type==='integer'&&!Number.isSafeInteger(value))||(schema.minimum!==undefined&&value<schema.minimum)||(schema.maximum!==undefined&&value>schema.maximum))throw new Error(`Invalid ${label}`);}
 }
-async function body(req:Request){const value=await req.text();if(value.length>8_000_000)throw new Error('Request exceeds 8 MB');return JSON.parse(value);}
+async function body(req:Request){
+ const value=await req.text();
+ if(requestTooLarge(value))throw Object.assign(new Error('Request exceeds 8 MiB'),{status:413});
+ try{return JSON.parse(value);}catch{throw Object.assign(new Error('Invalid request JSON'),{status:400});}
+}
 export async function handleRequest(request:Request,env:Env,_ctx:unknown,assets:Assets={}):Promise<Response|null>{
  const url=new URL(request.url);if(!url.pathname.startsWith('/api/')&&url.pathname!=='/mcp')return null;
  try{
@@ -194,7 +228,8 @@ export async function handleRequest(request:Request,env:Env,_ctx:unknown,assets:
   // opts into its separate workspace explicitly, even when ChatGPT is signed in.
   const guestOwner=url.pathname==='/mcp'?null:request.headers.get('x-noodl-guest');
   const user=guestOwner?await guestIdentity(request):identity(request);
-  if(!user||(guestOwner&&guestOwner!==user.id))throw new AccessError();
+  const expectedOwner=request.headers.get('x-noodl-owner');
+  if(!user||(guestOwner&&guestOwner!==user.id)||(expectedOwner&&expectedOwner!==user.id))throw new AccessError();
   if(url.pathname==='/api/storage'&&request.method==='GET')return json({configured:storageConfigured(env)});
   if(url.pathname==='/api/storage/banks'){
    if(request.method==='GET')return json(await bankBackup(env,user.id,'GET'));
@@ -231,14 +266,21 @@ export async function handleRequest(request:Request,env:Env,_ctx:unknown,assets:
      result={contents:[{uri:'ui://noodl/workspace',mimeType:'text/html;profile=mcp-app',text:rendered,_meta:{ui:{csp:{connectDomains:[url.origin],resourceDomains:[url.origin],frameDomains:[url.origin]}},'openai/ui':{preferredDisplayMode:'fullscreen',availableDisplayModes:['inline','fullscreen']}}}]};
     }else if(rpc.method==='tools/call'){
      const def=toolsList.find(t=>t.name===rpc.params?.name);if(!def)throw new Error('Unknown tool');
-     try{validateArguments(def.inputSchema,rpc.params.arguments??{});const data=await callTool(env.DB,user,def.name,rpc.params.arguments??{},url.origin);result={content:[{type:'text',text:JSON.stringify(data)}],structuredContent:data};}catch(e){result={isError:true,content:[{type:'text',text:e instanceof Error?e.message:'Tool failed'}]};}
+     try{validateArguments(def.inputSchema,rpc.params.arguments??{});const data=await callTool(env.DB,user,def.name,rpc.params.arguments??{},url.origin);result={content:[{type:'text',text:JSON.stringify(data)}],structuredContent:data};}catch(e){result={isError:true,content:[{type:'text',text:e instanceof Error?e.message:'Tool failed'}],...(e instanceof AccessError?{_meta:{'noodl/status':401}}:{})};}
     }else return json({jsonrpc:'2.0',id:rpc.id,error:{code:-32601,message:'Method not found'}});
     return json({jsonrpc:'2.0',id:rpc.id,result});
    }catch(e){return json({jsonrpc:'2.0',id:rpc.id,error:{code:-32602,message:e instanceof Error?e.message:'Invalid request'}});}
   }
   if(url.pathname==='/api/me'&&request.method==='GET')return json(user);
   if(url.pathname==='/api/snapshot'&&request.method==='GET')return json(await snapshot(env.DB,user.id));
-  if(url.pathname==='/api/mutate'&&request.method==='POST')return json(await mutateBatch(env.DB,user.id,await body(request)));
+  if(url.pathname==='/api/mutate'&&request.method==='POST'){
+   const args=await body(request);
+   try{return json(await mutateBatch(env.DB,user.id,args));}
+   catch(error){
+    if(error instanceof AccessError||(error as {status?:number}).status===400)throw error;
+    return json({error:'Synchronization temporarily unavailable'},503);
+   }
+  }
   if(url.pathname==='/api/publications'){
    if(request.method==='GET')return json(await publications(env.DB));
    if(request.method==='POST')return json(await publish(env.DB,user.id,await body(request)));

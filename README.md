@@ -71,7 +71,7 @@ The source includes the existing Sites project configuration. A new GitHub repos
 
 The example input is [examples/pack.input.json](examples/pack.input.json). It contains all three question types. It is a bank input, not an HTTP or MCP request wrapper.
 
-Public website visitors can create, edit, save, and publish banks as guests. A browser cookie scopes guest server data. Signed-in users and MCP use trusted Sites identity headers. The server uses a D1 binding named `DB` for live records. Do not expose the Worker behind a proxy that accepts identity headers from visitors.
+Public website visitors can create, edit, save, and publish banks as guests. In **File**, an empty library shows public banks that visitors can study or copy. Select **Bank publik** to browse them from a library that already contains banks. Sign in with the account that saved a bank in ChatGPT to access the private original. A browser cookie scopes guest server data. Signed-in users and MCP use trusted Sites identity headers. The server uses a D1 binding named `DB` for live records. Do not expose the Worker behind a proxy that accepts identity headers from visitors.
 
 ## Scope and status
 

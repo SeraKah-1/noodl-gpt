@@ -50,4 +50,4 @@ Keep the key in the Worker environment. It grants privileged project access. Use
 
 **Cadangkan bank** saves the current synchronized banks and their artifacts. It replaces that workspace's previous backup. The file includes questions and answer keys. Personal progress, preferences, and public listings stay in the live workspace. Guest and signed-in workspaces each have their own backup.
 
-Use **Unduh cadangan** to keep a copy before clearing browser site data. To restore, import that JSON from **Bank soal → Impor JSON**. The importer creates new bank copies. The backup limit is 8 MiB and 1,000 banks per workspace. Keep the original guest cookie to access a backup from the original workspace.
+Use **Unduh cadangan** to keep a copy before clearing browser site data. To restore, import that JSON from **Bank soal → Impor JSON**. The importer creates new bank copies in a single local transaction. If that transaction fails, the import saves no banks. The backup limit is 8 MiB and 1,000 banks per workspace. Keep the original guest cookie to access a backup from the original workspace.

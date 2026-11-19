@@ -20,19 +20,26 @@ test('login keeps local guest records separate from signed-in account records',a
 test('activating guest storage stages the existing local bank once and keeps it available offline', async () => {
  const store = new LocalStore('guest-' + crypto.randomUUID());
  const owner = {id: 'web-guest:server', name: 'Guest'};
- let remote: Awaited<ReturnType<NoodlClient['importLocalPack']>> | undefined;
+ const remote = new Map<string, Awaited<ReturnType<NoodlClient['importLocalPack']>>>();
  let writes = 0;
  const client = new NoodlClient(store, async (path, init) => {
-  if (path === '/api/me' && !remote) return new Response('{}', {status: 401});
+  if (path === '/api/me' && !remote.size) return new Response('{}', {status: 401});
   if (path === '/api/guest') return Response.json(owner);
   assert.equal(new Headers(init?.headers).get('X-Noodl-Guest'), owner.id);
   if (path === '/api/mutate') {
    writes++;
    const [op] = JSON.parse(String(init?.body)).operations;
-   remote = op.payload;
-   return Response.json({results: [{operationId: op.id, ok: true, record: remote}]});
+   assert.equal(op.expectedRevision, remote.get(op.entityId)?.revision ?? 0);
+   remote.set(op.entityId, op.payload);
+   return Response.json({results: [{operationId: op.id, ok: true, record: op.payload}]});
   }
-  if (path === '/api/snapshot') return Response.json({packs: remote ? [remote] : [], attempts: [], reviews: [], cursor: 1});
+  if (path === '/api/snapshot') return Response.json({packs: [...remote.values()], attempts: [], reviews: [], cursor: 2});
+  if (path === '/api/publications' && init?.method === 'POST') {
+   const {packId,expectedRevision} = JSON.parse(String(init.body));
+   const pack = remote.get(packId);
+   assert.equal(pack?.revision,expectedRevision);
+   return Response.json({pack});
+  }
   if (path === '/api/preferences') return Response.json({...await import('../src/shared/preferences').then(m => m.defaultPreferences()), ownerId: owner.id, revision: 0});
   return Response.json(owner);
  });
@@ -44,6 +51,25 @@ test('activating guest storage stages the existing local bank once and keeps it 
  assert.equal(client.getState().pending, 0);
  await client.enableGuestStorage();
  assert.equal(writes, 1);
- assert.equal((await store.read(pack.ownerId)).records.length, 1);
+ // Existing browsers may have only the workspace-wide marker from the old implementation.
+ const metadata = (await store.db()).transaction('meta','readwrite');
+ await metadata.store.delete(JSON.stringify([owner.id,'adopted-bank',pack.id]));
+ await metadata.store.put(true,`${owner.id}:adopted-local-banks`);
+ await metadata.done;
+ await client.useLocalGuest();
+ await client.renamePack(pack.id,pack.ownerId,{title:'Updated locally',folder:''});
+ const newBank = await client.importLocalPack({...input,title:'New local bank'});
+ assert.equal((await client.publishPack(pack.id)).pack?.title,'Updated locally');
+ assert.equal((await client.publishPack(newBank.id)).pack?.title,'New local bank');
+ assert.equal(writes,3);
+ await client.useLocalGuest();
+ await client.renamePack(pack.id,pack.ownerId,{title:'Divergent local edit',folder:''});
+ const cloudPack = remote.get(pack.id)!;
+ const remoteEdit = {...cloudPack,title:'Changed independently',revision:cloudPack.revision+1};
+ remote.set(pack.id,remoteEdit);
+ await store.merge(owner.id,{packs:[...remote.values()],attempts:[],reviews:[],cursor:2});
+ await assert.rejects(()=>client.publishPack(pack.id),/belum tersalin/);
+ assert.equal(remote.get(pack.id)?.title,'Changed independently');
+ assert.equal(writes,3);
  await client.dispose();
 });
