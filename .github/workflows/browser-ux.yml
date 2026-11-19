@@ -18,11 +18,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm install --no-save --ignore-scripts playwright@1.58.2
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-1.58.2-${{ runner.os }}
-      - run: npx playwright install --with-deps chromium
+      - run: command -v google-chrome || command -v google-chrome-stable
       - name: Start Vite
         run: |
           npx vite --host 127.0.0.1 --port 4173 > /tmp/noodl-vite.log 2>&1 &
@@ -33,7 +29,7 @@ jobs:
           done
           cat /tmp/noodl-vite.log
           exit 1
-      - run: node scripts/smoke-ui.mjs
+      - run: PLAYWRIGHT_BROWSER_CHANNEL=chrome node scripts/smoke-ui.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
