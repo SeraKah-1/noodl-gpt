@@ -27,7 +27,7 @@ export function DashboardMascot({count,locale}:{count:number;locale:Locale}){
 }
 export function Home(props:Props){
  const {packs,attempts,reviews,locale,busy,onResume,onStart,onLibrary,onReview,onOpenPack,onCreate}=props;
- const id=locale==='id',reduce=useReducedMotion();
+ const id=locale==='id',reduce=useReducedMotion() || (typeof document!=='undefined'&&document.documentElement.dataset.reducedMotion==='true');
  const active=attempts.filter(a=>a.status==='active').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0];
  const completed=attempts.filter(a=>a.status==='completed');
  const queue=buildReviewQueues(packs,reviews);
