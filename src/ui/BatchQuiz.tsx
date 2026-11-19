@@ -9,6 +9,7 @@ export function BatchQuiz({attempt,save,onExit,english}:{attempt:Attempt;save:(a
   const [values,setValues]=useState<BatchDraft>(attempt.draft??{});
   const [busy,setBusy]=useState(false),[error,setError]=useState('');
   const latest=useRef(attempt),pending=useRef<BatchDraft|null>(null),task=useRef<Promise<void>|null>(null);
+  const fields=useRef(new Map<string,HTMLFieldSetElement>());
   useEffect(()=>{
     if(attempt.revision<=latest.current.revision)return;
     latest.current=attempt;
@@ -41,11 +42,15 @@ export function BatchQuiz({attempt,save,onExit,english}:{attempt:Attempt;save:(a
     finally{setBusy(false);}
   }
   const count=Object.keys(values).length;
+  const firstUnanswered=attempt.items.find(item=>!Object.hasOwn(values,item.id));
+  function jumpTo(id:string){fields.current.get(id)?.scrollIntoView({block:'start',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});}
   return <section className="study-player practice-screen batch-quiz"><div className="practice-head"><header className="study-top">
     <button className="study-icon" aria-label={english?'Save and exit':'Simpan dan keluar'} disabled={busy} onClick={async()=>{try{await flush();onExit();}catch(e){setError(String(e));}}}><ArrowLeft size={20}/></button>
     <div><small>Batch Quiz</small><h2>{attempt.title}</h2></div></header>
-    <div className="study-progress"><span style={{width:count/attempt.items.length*100+'%'}}/></div><p className="study-counter" role="status">{count} / {attempt.items.length} {english?'answered':'dijawab'}</p></div><main className="practice-scroll"><div className="practice-column">
-    {attempt.items.map(({id,question:q},i)=><fieldset key={id} className="study-surface question-card"><legend className="sr-only">{english?'Question':'Soal'} {i+1}</legend><div className="study-tags"><span>{english?'Question':'Soal'} {i+1}</span>{Object.hasOwn(values,id)&&<span><Check size={13}/> {english?'Answered':'Dijawab'}</span>}</div>
+    <div className="study-progress"><span style={{width:count/attempt.items.length*100+'%'}}/></div><p className="study-counter" role="status">{count} / {attempt.items.length} {english?'answered':'dijawab'} · {error?english?'Save failed':'Gagal menyimpan':busy?english?'Saving locally':'Menyimpan lokal':english?'Saved on device':'Tersimpan di perangkat'}</p></div><main className="practice-scroll"><div className="practice-column">
+    {firstUnanswered&&<div className="desk-batch-jump"><span>{english?'Unanswered questions remain':'Masih ada soal kosong'}</span><button className="study-secondary" onClick={()=>jumpTo(firstUnanswered.id)}>{english?'Jump to first unanswered':'Ke soal belum dijawab'}</button></div>}
+    <nav className="desk-batch-index" aria-label={english?'Jump to question':'Lompat ke soal'}>{attempt.items.map((item,i)=><button key={item.id} type="button" aria-label={`${english?'Question':'Soal'} ${i+1}${Object.hasOwn(values,item.id)?' · '+(english?'answered':'dijawab'):''}`} aria-pressed={Object.hasOwn(values,item.id)} onClick={()=>jumpTo(item.id)}>{i+1}</button>)}</nav>
+    {attempt.items.map(({id,question:q},i)=><fieldset key={id} ref={node=>{if(node)fields.current.set(id,node);else fields.current.delete(id);}} className="study-surface question-card"><legend className="sr-only">{english?'Question':'Soal'} {i+1}</legend><div className="study-tags"><span>{english?'Question':'Soal'} {i+1}</span>{Object.hasOwn(values,id)&&<span><Check size={13}/> {english?'Answered':'Dijawab'}</span>}</div>
       <div className="study-question"><StudyText>{q.text}</StudyText></div>
       {q.type==='FILL_BLANK'?<label>{english?'Answer':'Jawaban'}<input maxLength={2000} value={String(values[id]??'')} onChange={e=>change(id,e.target.value)}/></label>:
       (q.type==='TRUE_FALSE'?[{value:true,text:english?'True':'Benar'},{value:false,text:english?'False':'Salah'}]:
