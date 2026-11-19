@@ -149,3 +149,10 @@ html[data-reduced-motion="true"] .desk-today *,html[data-reduced-motion="true"] 
 .desk-advanced-options label>span{display:grid;gap:3px}
 .desk-advanced-options small{font-size:.79rem;font-weight:400;color:var(--desk-muted);line-height:1.45}
 @media(max-width:420px){.desk-mode-grid{grid-template-columns:1fr}.desk-mode{min-height:82px;display:grid;grid-template-columns:28px 1fr;align-items:center;gap:4px 12px}.desk-mode>svg{grid-row:span 2}.desk-mode small{grid-column:2}}
+
+/* Results reveal depth on demand; the score and retry remain the first decision. */
+.desk-results-disclosure{margin:14px 0 0;border:1px solid var(--desk-border);border-radius:14px;padding:6px 16px;background:var(--desk-surface)}
+.desk-results-disclosure>summary{min-height:48px;display:flex;align-items:center;font-weight:750;font-size:.95rem;line-height:1.4;color:var(--desk-ink)}
+.desk-results-disclosure[open]>summary{border-bottom:1px solid var(--desk-border);margin-bottom:14px}
+.desk-results-disclosure .study-topic-list{padding:0 0 16px}
+.desk-results-disclosure .study-review-list{margin:0;padding-bottom:12px}
