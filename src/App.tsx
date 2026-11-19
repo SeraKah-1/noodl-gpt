@@ -29,6 +29,7 @@ export default function App(){
  const [toolTab,setToolTab]=useState<ToolTab>('material'),[toolPicker,setToolPicker]=useState<ToolTab|null>(null);
  const seenAttempts=useRef(new Set<string>());
  const [ready,setReady]=useState(false),[lang,setLang]=useState<'id'|'en'>('id'),[theme,setTheme]=useState<ThemeName>('default'),[view,setView]=useState<View>('home'),[query,setQuery]=useState(''),[folder,setFolder]=useState(''),[sort,setSort]=useState('recent'),[filter,setFilter]=useState('all'),[selected,setSelected]=useState<string[]>([]),[launch,setLaunch]=useState<Pack|null>(null),[editing,setEditing]=useState<Pack|null>(null),[active,setActive]=useState<Attempt|null>(null),[flash,setFlash]=useState<Pack|null>(null),[tools,setTools]=useState<Pack|null>(null),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[publications,setPublications]=useState<Publication[]>([]);
+ const [homeBankId,setHomeBankId]=useState('');
  const [debuggerOpen,setDebuggerOpen]=useState(false);
  const [autoPack,setAutoPack]=useState<string|null>(null);
  const [bankEditor,setBankEditor]=useState<Pack|'new'|null>(null);
@@ -42,11 +43,15 @@ export default function App(){
  const showLibraryCatalog=view==='library'&&state.packs.length===0;
  const showCatalog=view==='public'||showLibraryCatalog;
  const [sharedBank,setSharedBank]=useState<Publication|null>(null);
- const [options,setOptions]=useState<StudyOptions>({mode:'STANDARD',shuffle:true,retention:false,mixed:false});
+ const [studyDraft,setStudyDraft]=useState<{owner:string;value:StudyOptions}|null>(null);
+ const savedOptions=state.preferences?.studyOptions;
+ const options:StudyOptions=studyDraft&&studyDraft.owner===state.user?.id?studyDraft.value:
+   savedOptions??{mode:'STANDARD',shuffle:true,retention:false,mixed:false};
+ function setOptions(value:StudyOptions){if(state.user)setStudyDraft({owner:state.user.id,value});}
  const w=words[lang];
  useEffect(()=>{if(shareLink)sharePanel.current?.focus();},[shareLink]);
  useEffect(()=>{void client.initialize().finally(()=>setReady(true));},[]);
- useEffect(()=>{const p=state.preferences;setTheme(p?.theme??'default');setLang(p?.language??'id');if(p)setOptions(p.studyOptions);applyWorkspacePreferences(p);},[state.preferences]);
+ useEffect(()=>{const p=state.preferences;setTheme(p?.theme??'default');setLang(p?.language??'id');applyWorkspacePreferences(p);},[state.preferences]);
  useEffect(()=>{document.documentElement.lang=lang;},[lang]);
  useEffect(()=>{if(!notice)return;const t=setTimeout(()=>setNotice(''),6000);return()=>clearTimeout(t);},[notice]);
  useEffect(()=>{const open=(event:Event)=>{
@@ -127,9 +132,14 @@ export default function App(){
   return sort==='old'?a.updatedAt.localeCompare(b.updatedAt):b.updatedAt.localeCompare(a.updatedAt);
  });
  async function run(action:()=>Promise<unknown>){setBusy(true);try{await action();}catch(e){setNotice(e instanceof Error?e.message:String(e));}finally{setBusy(false);}}
- async function start(pack:Pack,wrongOnly=false){if(!state.user)return;await client.updatePreferences({studyOptions:options});const previous=active;const selection=wrongOnly&&previous?itemsToRetry(previous).map(i=>({question:i.question,sourcePackId:i.sourcePackId})):undefined;const batchRetry=previous?.options.mode==='BATCH';
+ async function start(pack:Pack,wrongOnly=false){if(!state.user)return;
+  if(!savedOptions||options.mode!==savedOptions.mode||options.shuffle!==savedOptions.shuffle||
+    options.mixed!==savedOptions.mixed||options.retention!==savedOptions.retention||options.batchSize!==savedOptions.batchSize){
+   await client.updatePreferences({studyOptions:options});
+  }
+  const previous=active;const selection=wrongOnly&&previous?itemsToRetry(previous).map(i=>({question:i.question,sourcePackId:i.sourcePackId})):undefined;const batchRetry=previous?.options.mode==='BATCH';
  const retryItems=batchRetry?(wrongOnly?itemsToRetry(previous):previous.items):undefined;
- const next=createAttempt(pack,batchRetry?previous.options:options,state.user.id,retryItems?.map(i=>({question:i.question,sourcePackId:i.sourcePackId}))??selection,Date.now(),batchRetry);setActive(await client.saveAttempt(next));setLaunch(null);}
+ const next=createAttempt(pack,batchRetry?previous.options:options,state.user.id,retryItems?.map(i=>({question:i.question,sourcePackId:i.sourcePackId}))??selection,Date.now(),batchRetry);setActive(await client.saveAttempt(next));setStudyDraft(null);setLaunch(null);}
  function probe(pack:Pack){
   void run(async()=>{
    const question=firstProbe(pack,state.attempts);
@@ -153,13 +163,14 @@ export default function App(){
   const data=JSON.parse(await file.text());
   if(data?.version===1&&Array.isArray(data.banks)){
    if(data.banks.length>1000)throw new Error(lang==='id'?'Cadangan melebihi 1000 bank':'Backup exceeds 1000 banks');
-   await client.importLocalBanks(data.banks);
-  }else await client.importLocalPack(data);
+   const saved=await client.importLocalBanks(data.banks);
+   if(saved.length)setHomeBankId(saved[0].id);
+  }else setHomeBankId((await client.importLocalPack(data)).id);
  }
  function createBank(){setBankEditor('new');}
  async function saveBank(content:PackInput) {
   if(!bankEditor)return;
-  if(bankEditor==='new')await client.importLocalPack(content);
+  if(bankEditor==='new')setHomeBankId((await client.importLocalPack(content)).id);
   else {
    const latest=client.getState().packs.find(pack=>pack.id===bankEditor.id);
    if(!latest||latest.revision!==bankEditor.revision)throw new Error(lang==='id'?'Bank sudah berubah. Buka ulang editor untuk mengambil versi terbaru.':'This bank changed. Reopen the editor to get the latest version.');
@@ -182,6 +193,10 @@ export default function App(){
   setView('library');
   if(study)setLaunch(pack);
  }
+ function openTool(tab:ToolTab){
+  if(packs.length===1){setToolTab(tab);setTools(packs[0]);}
+  else setToolPicker(tab);
+ }
  function navigate(next:View){setLaunch(null);setFlash(null);setTools(null);setToolPicker(null);setView(next);window.scrollTo({top:0,behavior:'instant'});}
  function mix(){const chosen=packs.filter(p=>selected.includes(p.id));if(!chosen.length||!state.user)return;const time=new Date().toISOString();const pack:Pack={id:crypto.randomUUID(),ownerId:state.user.id,title:`Mix · ${chosen.map(p=>p.title).join(' + ')}`,description:chosen.map(p=>p.title).join(' · '),folder:'Mix Room',tags:['mix'],questions:chosen.flatMap(p=>p.questions.map(q=>({...q,id:crypto.randomUUID()}))),artifacts:[],revision:0,createdAt:time,updatedAt:time};void run(async()=>{setLaunch(await client.savePack(pack));});}
  const catalog=<>
@@ -197,13 +212,13 @@ export default function App(){
     <button className="n-button" disabled={busy} onClick={()=>void run(()=>copySharedBank(p))}>{w.copyPack}</button>
    </article>)}</div>}
  </>;
- if(!ready)return <div className="noodl-loading"><BrainCircuit size={44}/><p>{w.loading}</p></div>;
+ if(!ready&&!(state.initialized&&packs.length))return <div className="noodl-loading" role="status"><BrainCircuit size={44}/><p>{w.loading}</p></div>;
  if(!state.user)return <div className="noodl-login"><div className="mesh-bg"/><div className="noodl-login-card"><div className="brand-mark"><BrainCircuit size={34}/></div><h1>Noodl<span>✦</span></h1><p className="eyebrow">USE YOUR NOODLE</p><h2>{w.newHere}</h2><p>{w.signBody}</p><a className="n-button primary" href="/signin-with-chatgpt?returnTo=%2F" target="_top" onClick={e=>{e.preventDefault();void (isEmbedded()?client.login():client.prepareLogin().then(()=>{window.location.assign('/signin-with-chatgpt?returnTo=%2F');}));}}>{w.sign}<ArrowRight size={18}/></a><button className="n-button" disabled={busy} onClick={()=>void run(()=>client.startGuest())}>{lang==='id'?'Lanjut sebagai guest':'Continue as guest'}</button><p>{lang==='id'?'Guest bisa membuat bank dan latihan tanpa login.':'Guests can create banks and practice without signing in.'}</p>{state.error&&<p role="alert">{state.error}</p>}</div></div>;
  if(debuggerOpen)return <GastricDebugger onClose={()=>setDebuggerOpen(false)}/>;
  if(active&&active.ownerId===state.user.id)return active.status==='completed'?<Results onOpenAttempt={setActive} attempt={active} onRetry={wrong=>{const p=packs.find(p=>p.id===active.packId)??{id:active.packId,ownerId:active.ownerId,title:active.title,description:'',folder:'',tags:[],artifacts:[],questions:active.items.map(i=>i.question),revision:active.packRevision,createdAt:active.createdAt,updatedAt:active.updatedAt};void run(()=>start(p,wrong));}} key={active.id} packs={packs} attempts={state.attempts} guest={!!state.guest} onReview={event=>client.addReview(event).then(()=>{})} onClose={()=>setActive(null)}/>:active.options.mode==='BATCH'?<BatchQuiz key={active.id} attempt={active} english={lang==='en'} save={saveAttempt} onExit={()=>setActive(null)}/>:<StudyPlayer key={active.id} attempt={active} onChange={async next=>{await saveAttempt(next);}} onComplete={()=>{}} onExit={()=>setActive(null)}/>;
  if(flash?.ownerId===state.user.id)return <Flashcards key={flash.id} initialAuto={autoPack===flash.id} onOpenAttempt={a=>{setFlash(null);setAutoPack(null);setActive(a);}} pack={flash} onReview={event=>client.addReview(event).then(()=>{})} onClose={()=>{setFlash(null);setAutoPack(null);}}/>;
  return <div className="noodl-app classic-workspace"><div className="mesh-bg"/><div className="noise-bg"/>
-  <Navigation view={view} locale={lang} onNavigate={navigate} onChat={ask} onTool={setToolPicker}/>
+  <Navigation view={view} locale={lang} onNavigate={navigate} onChat={ask} onTool={openTool}/>
   <main className={`n-main classic-main view-${view}`}>
   <header className="classic-toolbar"><button className="classic-wordmark" onClick={()=>navigate('home')} aria-label="Noodl home">noodl<span>✦</span></button><div className="classic-account-actions"><button className="classic-account" onClick={()=>navigate('settings')}>{state.guest?'Guest':state.user.name}</button><button className="classic-icon" aria-label={lang==='id'?'Ganti ke bahasa Inggris':'Switch to Indonesian'} onClick={()=>void run(()=>client.updatePreferences({language:lang==='id'?'en':'id'}))}>{lang.toUpperCase()}</button>{!state.localOnly&&<button className="classic-icon" aria-label={w.sync} title={w.sync} disabled={state.syncing} onClick={()=>void run(()=>client.sync())}><RefreshCw size={18} className={state.syncing?'spinning':''}/></button>}</div></header>
   {state.guest&&<details className="classic-guest">
@@ -228,7 +243,7 @@ export default function App(){
       </div>
     </section>}
     {catalog}</>:
-  <>{view==='home'?<ClassicHome onProbe={probe} onDebugger={()=>setDebuggerOpen(true)} locale={lang} packs={packs} attempts={state.attempts} options={options} busy={busy} onOptions={setOptions} onStart={p=>void run(()=>start(p))} onFlash={p=>{setAutoPack(null);setFlash(p);}} onResume={setActive} onLibrary={()=>navigate('library')} onReview={()=>navigate('review')} onImport={importBank} onCreate={createBank} onBrainDump={()=>void run(async()=>{
+  <>{view==='home'?<ClassicHome onProbe={probe} onDebugger={()=>setDebuggerOpen(true)} locale={lang} packs={packs} attempts={state.attempts} options={options} busy={busy} onOptions={setOptions} onStart={p=>void run(()=>start(p))} onFlash={p=>{setAutoPack(null);setFlash(p);}} onResume={setActive} selectedId={homeBankId} onSelect={setHomeBankId} onExplore={()=>navigate('public')} onReview={()=>navigate('review')} onImport={importBank} onCreate={createBank} onBrainDump={()=>void run(async()=>{
      await sendChatRequest(lang==='id'?'Bantu aku latihan Brain Dump di Noodl. Minta aku unggah PPT di chat ini. Tawarkan per slide atau per topik, lalu gunakan start_brain_dump dan tunggu penjelasanku sebelum memberi umpan balik.':'Help me practice Brain Dump in Noodl. Ask me to attach my slides here. Offer per-slide or per-topic recall, then use start_brain_dump and wait for my explanation before giving feedback.');
      setNotice(isEmbedded()?'Brain Dump · ChatGPT':lang==='id'?'Tempel permintaan di ChatGPT, lalu lampirkan PPT.':'Paste the request in ChatGPT and attach your slides.');
    })} onChat={message=>void run(async()=>{
