@@ -17,6 +17,14 @@ npx --yes supabase@3.2.0 db push --remote
 
 Check the dry run before applying it. It should include the Noodl backup bucket migration. If the remote project already has migrations that are absent from this checkout, reconcile the histories before applying a migration.
 
+If this environment cannot connect to the Postgres pooler, use the CLI's remote SQL command:
+
+```sh
+npx --yes supabase@3.2.0 db query --remote --file supabase/migrations/20261119014530_create_noodl_backup_bucket.sql
+```
+
+This applies the bucket settings without recording the migration in CLI history. A later migration push can apply the same file safely.
+
 The migration creates a private `noodl-backups` bucket restricted to JSON uploads up to 8 MiB. It accepts a bucket that already has the expected settings. If the same name has different settings, the migration stops for a review.
 
 For local verification with Docker, run `npx --yes supabase@3.2.0 start`. The CLI applies the same migration locally. Run this query to check the bucket:

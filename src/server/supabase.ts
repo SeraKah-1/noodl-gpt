@@ -48,13 +48,19 @@ export async function bankBackup(env: SupabaseEnv, owner: string, method: 'GET' 
     headers.set('x-upsert', 'true');
   }
 
-  const response = await fetch(url, {
+  const response = await fetch(url.href, {
     method: method === 'PUT' ? 'POST' : 'GET', headers, body, redirect: 'error',
     signal: AbortSignal.timeout(15000)
-  }).catch(() => { throw storageError('Supabase Storage belum bisa dijangkau.', 502); });
+  }).catch(error => {
+    const message = (error instanceof Error ? error.message : 'Unknown network error')
+      .replaceAll(env.SUPABASE_SECRET_KEY!, '[redacted]').slice(0, 240);
+    console.error('Supabase Storage request failed', method, message);
+    throw storageError('Supabase Storage belum bisa dijangkau.', 502);
+  });
   if (method === 'GET' && !response.ok) {
-    const details = await response.json().catch(() => null) as {statusCode?: string; error?: string} | null;
-    if (response.status === 404 || details?.error === 'NoSuchKey') {
+    const details = await response.json().catch(() => null) as {statusCode?: string | number; code?: string; error?: string} | null;
+    if (response.status === 404 || String(details?.statusCode) === '404' ||
+        details?.code === 'NoSuchKey' || details?.error === 'NoSuchKey') {
       throw storageError('Belum ada cadangan bank di Supabase.', 404);
     }
   }

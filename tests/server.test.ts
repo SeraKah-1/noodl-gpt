@@ -74,7 +74,8 @@ test('Supabase backup uses private paths and includes only the active owner’s 
  await mutate(db, 'b', op('bank-b', 0, {...input, title: 'Private bank B'}));
  let body: string | undefined;
  let storedPath: string | undefined;
- t.mock.method(globalThis, 'fetch', async (url: URL, init: RequestInit) => {
+ t.mock.method(globalThis, 'fetch', async (requestUrl: string, init: RequestInit) => {
+  const url = new URL(requestUrl);
   assert.equal(url.origin, 'https://example.supabase.co');
   assert.equal(new Headers(init.headers).get('apikey'), secret);
   if (init.method === 'POST') {
@@ -84,7 +85,9 @@ test('Supabase backup uses private paths and includes only the active owner’s 
    body = new TextDecoder().decode(init.body as Uint8Array<ArrayBuffer>);
    return Response.json({Key: 'fixture'});
   }
-  assert.equal(url.pathname, storedPath!.replace('/object/', '/object/authenticated/'));
+  if (url.pathname !== storedPath!.replace('/object/', '/object/authenticated/')) {
+   return Response.json({statusCode: '404', code: 'NoSuchKey', error: 'not_found'}, {status: 400});
+  }
   return new Response(body);
  });
  const call = (method: string) => handleRequest(new Request('https://app/api/storage/banks', {
@@ -95,4 +98,8 @@ test('Supabase backup uses private paths and includes only the active owner’s 
  assert.equal(backup.banks.length, 1);
  assert.equal(backup.banks[0].title, 'Test');
  assert.equal(backup.banks[0].ownerId, undefined);
+ const missing = await handleRequest(new Request('https://app/api/storage/banks', {
+  headers: {'oai-authenticated-user-id': 'b'}
+ }), env, null);
+ assert.equal(missing!.status, 404);
 });
