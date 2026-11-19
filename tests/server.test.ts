@@ -132,3 +132,18 @@ test('starting a large session reads pack version history once per source bank',
  assert.equal(result.ok,true,result.error);
  assert.equal(historyQueries,1);
 });
+
+test('cross-bank Mix session keeps source provenance without saving a new bank',async()=>{
+ const db=database();
+ const first=(await mutate(db,'a',op('mix-one'))).record as Pack;
+ const second=(await mutate(db,'a',{...op('mix-two',0,{...input,title:'Another bank'}),entityId:'p2'})).record as Pack;
+ const selection=[{question:first.questions[0],sourcePackId:first.id},{question:second.questions[0],sourcePackId:second.id}];
+ const attempt=createAttempt({...first,title:'Mix · Test + Another bank'},{mode:'STANDARD',shuffle:false,retention:false,mixed:false},'a',selection);
+ assert.equal(attempt.packId,'p');
+ assert.deepEqual(attempt.items.map(i=>i.sourcePackId),['p','p2']);
+ const saved=await mutate(db,'a',{id:'mix-session',kind:'attempt.put',entityId:attempt.id,expectedRevision:0,payload:attempt,createdAt:new Date().toISOString()});
+ assert.equal(saved.ok,true,saved.error);
+ const response=await handleRequest(new Request('https://app/api/snapshot',{headers:{'oai-authenticated-user-id':'a'}}),{DB:db},null);
+ const data=await response!.json() as {packs:Pack[]};
+ assert.equal(data.packs.length,2,'Starting Mix must not create a third persistent bank');
+});
