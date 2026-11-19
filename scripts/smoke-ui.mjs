@@ -5,7 +5,7 @@ import {chromium} from 'playwright';
 const url=process.env.NOODL_UI_URL??'http://127.0.0.1:4173';
 const out='artifacts/ui';
 await mkdir(out,{recursive:true});
-const browser=await chromium.launch({headless:true});
+const browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_BROWSER_CHANNEL?{channel:process.env.PLAYWRIGHT_BROWSER_CHANNEL}:{})});
 const context=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:1,locale:'id-ID'});
 const page=await context.newPage();
 const errors=[];
