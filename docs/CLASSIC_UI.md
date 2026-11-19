@@ -44,3 +44,7 @@ Open practice history on a bank in File to resume a session or review its result
 Home and Results support optional Bloom percentages, source references, and instructions. The percentages must sum to 100. Noodl assigns whole questions before sending the brief. The daily study calendar exports a recurring 30-minute event at the selected local time. Import the file into a calendar to schedule it.
 
 Concept map search and branch focus operate on the saved bank. Edges indicate shared wording in explanations or key points. Visual Lab lets the learner select a topic and format, then ask ChatGPT for a design proposal before creating the visual.
+
+## Study screens
+
+The quiz follows the fixed progress header and scrollable question column in upstream `QuizInterface.tsx`. Batch Quiz uses the same card and option layout, with a persistent submission button. Flashcards follow the header, flexible card, and rating footer in upstream `FlashcardScreen.tsx`. Long explanations scroll inside the card.

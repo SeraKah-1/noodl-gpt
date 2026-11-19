@@ -66,3 +66,10 @@ html[data-reduced-motion="true"] .classic-companion>button{animation:none}
 .classic-workspace .n-modal .classic-toggles label{display:flex;align-items:center;margin:0;gap:9px}
 .classic-file-input:focus-visible+button{outline:3px solid var(--primary);outline-offset:3px}
 @media(forced-colors:active){.classic-home-heading h1{background:none;color:CanvasText}.classic-nav button[aria-current="page"],.classic-mode[aria-pressed="true"]{outline:2px solid Highlight}}
+
+.classic-home {grid-template-columns:minmax(0,1fr);}
+.classic-home > *, .classic-companion-body, .classic-resume > span {min-inline-size:0;overflow-wrap:anywhere;}
+@media (max-width:420px) {
+  .classic-home .classic-input-tabs > button {flex:1 1 0;min-width:0;flex-direction:column;white-space:normal;}
+  .classic-start-actions {grid-template-columns:minmax(0,1fr);}
+}

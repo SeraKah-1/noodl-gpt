@@ -73,8 +73,8 @@ export function Autopilot({pack,questions,onReview,onClose,onCheck}:Props){
     }catch(e){setError(String(e));}finally{busy.current=false;}
   }
   const attempts=client.getState().attempts;
-  return <section className="study-player"><header className="study-top"><button className="study-secondary" disabled={rating} onClick={onClose}>Kembali</button><div><small>Autopilot Recall</small><h2>{pack.title}</h2></div></header>
-    {!deck.length?<div className="study-surface"><h3>Latihan tanpa klik</h3>
+  return <section className="study-player practice-screen"><div className="practice-head"><header className="study-top"><button className="study-secondary" disabled={rating} onClick={onClose}>Kembali</button><div><small>Autopilot Recall</small><h2>{pack.title}</h2></div></header></div><main className="practice-scroll"><div className="practice-column">
+    {!deck.length?<div className="study-surface question-card"><h3>Latihan tanpa klik</h3>
       <p>Pikirkan jawaban sampai kartu berbalik. Kartu yang lewat dicatat sebagai ditampilkan. Kamu bisa menjeda kapan saja.</p>
       <div className="recall-controls"><label>Mulai dari kartu <input type="number" min={1} max={questions.length} value={start+1} onChange={e=>setStart(Math.max(0,Math.min(questions.length-1,Math.trunc(+e.target.value)-1)))}/></label>
       <label>Jumlah kartu <input type="number" min={1} max={questions.length-start} value={Math.min(count,questions.length-start)} onChange={e=>setCount(Math.max(1,Math.min(questions.length-start,Math.trunc(+e.target.value))))}/></label></div>
@@ -87,7 +87,7 @@ export function Autopilot({pack,questions,onReview,onClose,onCheck}:Props){
               attempt||question?<button className="study-secondary" onClick={()=>void check(s,question)}> {attempt?'Lanjutkan cek':'Cek dengan 1 soal lain'}</button>:
               <span> {Date.now()-s.lastShownAt<recallDelay?'Tersedia '+new Date(s.lastShownAt+recallDelay).toLocaleString('id-ID'):'Belum ada soal baru bertopik sama.'}</span>}</li>;
         })}</ul></>}
-    </div>:q?<article className="study-surface"><p>{index+1} / {deck.length} · {back?'Pembahasan':'Ingat dari ingatan'}{paused?' · Dijeda':''}</p>
+    </div>:q?<article className="study-surface question-card"><p>{index+1} / {deck.length} · {back?'Pembahasan':'Ingat dari ingatan'}{paused?' · Dijeda':''}</p>
       {q.type==='TRUE_FALSE'&&<strong>Benar atau salah?</strong>}<StudyText>{q.text}</StudyText>
       {!back&&q.type==='MULTIPLE_CHOICE'&&!needsOptions(q)&&!showChoices&&<button className="study-secondary" onClick={()=>setShowChoices(true)}>Lihat pilihan</button>}
       {!back&&q.type==='MULTIPLE_CHOICE'&&(needsOptions(q)||showChoices)&&<ol type="A">{q.options?.map(o=><li key={o.id}><StudyText>{o.text}</StudyText></li>)}</ol>}
@@ -96,7 +96,7 @@ export function Autopilot({pack,questions,onReview,onClose,onCheck}:Props){
       <button className="study-secondary" disabled={rating} onClick={()=>back?next():setBack(true)}>{back?'Berikutnya':'Ungkap sekarang'}</button>
       <label>Tempo <select value={pace} onChange={e=>setPace(+e.target.value)}><option value={1}>Normal</option><option value={1.75}>Lambat</option><option value={0.7}>Cepat</option></select></label>
       {back&&<button className="study-secondary" disabled={rating||rated} onClick={()=>void flag()}>{rated?'Terjadwal':'Lupa · jadwalkan ulang'}</button>}</div>
-    </article>:<article className="study-surface"><h3>Sesi selesai</h3><p>{session.current?.shown.length} kartu ditampilkan · {Math.round((session.current?.activeMs??0)/1000)} detik aktif.</p><button className="study-secondary" onClick={async()=>{setDeck([]);try{if(session.current)await saveExposure(pack.ownerId,pack.id,session.current);await refresh();}catch(e){setError(String(e));}}}>Lihat riwayat</button></article>}
+    </article>:<article className="study-surface question-card"><h3>Sesi selesai</h3><p>{session.current?.shown.length} kartu ditampilkan · {Math.round((session.current?.activeMs??0)/1000)} detik aktif.</p><button className="study-secondary" onClick={async()=>{setDeck([]);try{if(session.current)await saveExposure(pack.ownerId,pack.id,session.current);await refresh();}catch(e){setError(String(e));}}}>Lihat riwayat</button></article>}
     {error&&<p role="alert">{error}</p>}
-  </section>;
+  </div></main></section>;
 }
