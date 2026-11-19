@@ -5,14 +5,14 @@ import type {ToolTab} from './classic/Navigation';
 import React, {useCallback,useEffect,useRef,useState} from 'react';
 import {ArrowLeft,ArrowRight,Check,ChevronRight,Clock,Heart,Lightbulb,RotateCcw,Volume2,VolumeX,X} from 'lucide-react';
 import confetti from 'canvas-confetti';
-import ReactMarkdown from 'react-markdown';
-import remarkMath from 'remark-math';
-import rehypeKatex from 'rehype-katex';
+import {StudyText as Text} from './StudyText';
+import {Autopilot} from './Autopilot';
+import {client} from '../client';
+import {diagnosticQuestion,diagnosticAttempt} from '../shared/practice';
 import type {Attempt,Pack,Question,ReviewEvent} from '../shared/types';
 import {advanceAttempt,answerAttempt,correctAnswerText,itemsToRetry,progressFor} from '../shared/engine';
 import './Study.css';
 import {Assistive} from './Assistive';
-const Text=({children}:{children:string})=><div className="study-rich"><ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{children}</ReactMarkdown></div>;
 function tone(correct:boolean){try{const c=new AudioContext();const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=correct?660:200;g.gain.setValueAtTime(.06,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.18);o.start();o.stop(c.currentTime+.18);o.onended=()=>void c.close();}catch{/* Audio is optional. */}}
 function ignoreStudyKey(event:KeyboardEvent){
  if(event.defaultPrevented||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey||event.isComposing)return true;
@@ -73,7 +73,16 @@ export function StudyPlayer({attempt,onChange,onComplete,onExit}:{attempt:Attemp
  <footer className="study-bottom"><button className="study-secondary" disabled={busy||index===0} onClick={previous}>← Sebelumnya</button><span>{busy?'Menyimpan…':answer?'→ atau Enter untuk lanjut':q.type==='FILL_BLANK'?'Enter untuk periksa':'Gunakan angka untuk memilih'}</span>{answer&&<button className="study-primary" disabled={busy} onClick={next}>{!browsing&&(current.currentIndex===current.items.length-1||current.lives===0)?'Lihat hasil':'Lanjut'}<ArrowRight size={18}/></button>}</footer></article>
  </section>;
 }
-export function Flashcards({pack,questions=pack.questions,onReview,onClose}:{pack:Pack;questions?:Question[];onReview:(e:ReviewEvent)=>void|Promise<void>;onClose:()=>void}){
+interface FlashProps {
+ pack:Pack;questions?:Question[];initialAuto?:boolean;onReview:(e:ReviewEvent)=>void|Promise<void>;
+ onClose:()=>void;onOpenAttempt:(a:Attempt)=>void;
+}
+export function Flashcards(props:FlashProps){
+ const [auto,setAuto]=useState(props.initialAuto??false);
+ if(auto)return <Autopilot pack={props.pack} questions={props.questions??props.pack.questions} onReview={props.onReview} onClose={props.onClose} onCheck={props.onOpenAttempt}/>;
+ return <ManualFlashcards {...props} onAuto={()=>setAuto(true)}/>;
+}
+function ManualFlashcards({pack,questions=pack.questions,onReview,onClose,onAuto}:FlashProps&{onAuto:()=>void}){
  const [index,setIndex]=useState(0),[flipped,setFlipped]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');const start=useRef<number|null>(null),skipClick=useRef(false),saving=useRef(false);
  const [offset,setOffset]=useState(0);
  const q=questions[index];
@@ -92,14 +101,14 @@ export function Flashcards({pack,questions=pack.questions,onReview,onClose}:{pac
   window.addEventListener('keydown',listener);
   return ()=>window.removeEventListener('keydown',listener);
  },[q,flipped,rate,onClose]);
- return <section className="study-player"><header className="study-top"><button className="study-icon" onClick={onClose} aria-label="Kembali"><X size={20}/></button><div><small>FLASHCARDS</small><h2>{pack.title}</h2></div><Assistive flashcards/><span>{Math.min(index+1,questions.length)} / {questions.length}</span></header><div className="study-progress"><span style={{width:`${questions.length?index/questions.length*100:100}%`}}/></div>{!q?<div className="study-surface study-done"><span className="study-mascot">( ✧ ▽ ✧ )</span><h2>Sesi kartu selesai.</h2><p>{questions.length} kartu sudah lo review. Jadwal pengulangan diperbarui dari rating lo.</p><button className="study-primary" onClick={onClose}>Kembali ke bank</button></div>:<><button ref={cardButton} className={`study-flashcard ${flipped?'flipped':''}`} disabled={busy} style={{'--drag-x':offset+'px','--drag-angle':offset/28+'deg'} as React.CSSProperties}
+ return <section className="study-player"><header className="study-top"><button className="study-icon" onClick={onClose} aria-label="Kembali"><X size={20}/></button><div><small>FLASHCARDS</small><h2>{pack.title}</h2></div><button className="study-secondary" disabled={busy} onClick={onAuto}>Autopilot</button><Assistive flashcards/><span>{Math.min(index+1,questions.length)} / {questions.length}</span></header><div className="study-progress"><span style={{width:`${questions.length?index/questions.length*100:100}%`}}/></div>{!q?<div className="study-surface study-done"><span className="study-mascot">( ✧ ▽ ✧ )</span><h2>Sesi kartu selesai.</h2><p>{questions.length} kartu sudah lo review. Jadwal pengulangan diperbarui dari rating lo.</p><button className="study-primary" onClick={onClose}>Kembali ke bank</button></div>:<><button ref={cardButton} className={`study-flashcard ${flipped?'flipped':''}`} disabled={busy} style={{'--drag-x':offset+'px','--drag-angle':offset/28+'deg'} as React.CSSProperties}
  onClick={e=>{if((e.detail===0||!skipClick.current)&&!saving.current)setFlipped(f=>!f);skipClick.current=false;}}
  onPointerDown={e=>{if(!e.isPrimary||e.button!==0)return;skipClick.current=false;if(flipped){start.current=e.clientX;e.currentTarget.setPointerCapture(e.pointerId);}}}
  onPointerMove={e=>{if(e.isPrimary&&start.current!==null)setOffset(Math.max(-120,Math.min(120,e.clientX-start.current)));}}
  onPointerCancel={()=>{start.current=null;setOffset(0);}}
  onPointerUp={e=>{if(!e.isPrimary||start.current===null)return;const dx=e.clientX-start.current;start.current=null;setOffset(0);skipClick.current=Math.abs(dx)>12;if(Math.abs(dx)>=80)void rate(dx>0?3:0);}} aria-label={flipped?'Tampilkan pertanyaan':'Balik kartu untuk melihat jawaban'}><small>{flipped?'JAWABAN':'PERTANYAAN'} · {q.conceptName||q.difficulty}</small><Text>{flipped?correctAnswerText(q):q.text}</Text>{flipped&&<div className="study-flash-explanation"><Text>{q.explanation}</Text></div>}<span className="study-flip-cue"><RotateCcw size={16}/>{flipped?(Math.abs(offset)>12?(offset>0?'→ Mudah':'← Lupa'):'Geser kiri untuk Lupa · kanan untuk Mudah'):'Klik, Spasi, atau Enter untuk balik'}</span></button>{flipped?<div className="study-ratings">{(['Lupa','Sulit','Bagus','Mudah'] as const).map((label,i)=><button key={label} disabled={busy} onClick={()=>void rate(i as 0|1|2|3)}><b>{['←','↓','↑','→'][i]} · {i+1}</b>{label}<small>{['1 menit','10 menit / ulang','Jadwal normal','Interval lebih jauh'][i]}</small></button>)}</div>:<p className="study-center-note">Pikirkan jawabannya dulu. Rating muncul setelah kartu dibalik.</p>}{error&&<p className="study-error" role="alert">{error}</p>}</>}</section>;
 }
-export function Results({attempt,packs,attempts,guest,onReview,onRetry,onClose}:{attempt:Attempt;packs:Pack[];attempts:Attempt[];guest:boolean;onReview:(e:ReviewEvent)=>Promise<void>;onRetry:(wrongOnly:boolean)=>void;onClose:()=>void}){
+export function Results({attempt,packs,attempts,guest,onReview,onRetry,onOpenAttempt,onClose}:{onOpenAttempt:(a:Attempt)=>void;attempt:Attempt;packs:Pack[];attempts:Attempt[];guest:boolean;onReview:(e:ReviewEvent)=>Promise<void>;onRetry:(wrongOnly:boolean)=>void;onClose:()=>void}){
  const [tool,setTool]=useState<ToolTab|null>(null);
  const [cards,setCards]=useState<{pack:Pack;questions:Question[]}|null>(null);
  const [message,setMessage]=useState(''),[sending,setSending]=useState(false),[count,setCount]=useState(5);
@@ -118,14 +127,26 @@ export function Results({attempt,packs,attempts,guest,onReview,onRetry,onClose}:
    setMessage(isEmbedded()?'Permintaan dikirim ke ChatGPT.':'Tempel permintaan yang sudah disalin ke ChatGPT.');
   }catch(error){setMessage(error instanceof Error?error.message:String(error));}finally{setSending(false);}
  }
- const p=progressFor(attempt);useEffect(()=>{if(p.score>=80)void confetti({particleCount:65,spread:65,origin:{y:.65},disableForReducedMotion:true});},[attempt.id,p.score]);
+ const p=progressFor(attempt);useEffect(()=>{if(!attempt.diagnostic&&p.score>=80)void confetti({particleCount:65,spread:65,origin:{y:.65},disableForReducedMotion:true});},[attempt.id,p.score]);
  const answers=new Map(attempt.answers.map(a=>[a.occurrenceId,a]));const wrong=itemsToRetry(attempt);
  const weakTopics=p.topics.filter(topic=>topic.correct<topic.total);
- if(cards)return <Flashcards pack={cards.pack} questions={cards.questions} onReview={onReview} onClose={()=>setCards(null)}/>;
+ const existingCheck=attempts.find(a=>a.diagnostic?.attemptId===attempt.id);
+ const candidate=React.useMemo(()=>existingCheck?undefined:diagnosticQuestion(attempt,packs,attempts),[attempt,packs,attempts,existingCheck]);
+ const launching=useRef(false);
+ async function checkConcept(){
+  if(launching.current)return;
+  if(existingCheck){onOpenAttempt(existingCheck);return;}
+  if(!candidate)return;
+  launching.current=true;setSending(true);
+  try{onOpenAttempt(await client.saveAttempt(await diagnosticAttempt(attempt,candidate)));}
+  catch(e){setMessage(String(e));}finally{launching.current=false;setSending(false);}
+ }
+ if(cards)return <Flashcards onOpenAttempt={onOpenAttempt} pack={cards.pack} questions={cards.questions} onReview={onReview} onClose={()=>setCards(null)}/>;
  if(tool&&pack)return <LearningTools pack={pack} attempts={attempts} initialTab={tool} onClose={()=>setTool(null)}/>;
 
- return <section className="study-player"><header className="study-top"><button className="study-icon" aria-label="Kembali" onClick={onClose}><ArrowLeft size={20}/></button><div><small>HASIL LATIHAN</small><h2>{attempt.title}</h2></div></header><div className="study-surface"><div className="study-result-hero"><div className="study-score" style={{background:`conic-gradient(var(--study-accent) ${p.score}%,var(--study-border) 0)`}}><div><b>{p.score}<small>%</small></b><span>akurasi</span></div></div><div><span className="study-mascot">{p.score>=80?'( ✧ ▽ ✧ )':'( ◕ ‿ ◕ )'}</span><h2>{p.score>=80?'Kerja bagus.':'Sekarang tahu bagian yang perlu diulang.'}</h2><p>{p.correct} benar dari {p.total} soal · {attempt.answers.length} dijawab</p></div></div><div className="study-result-actions"><button className="study-primary" disabled={!wrong.length} onClick={()=>onRetry(true)}>Ulangi {wrong.length} soal belum benar</button><button className="study-secondary" onClick={()=>onRetry(false)}><RotateCcw size={17}/>Ulangi semua</button>{pack&&<button className="study-secondary" onClick={()=>setCards({pack,questions:pack.questions})}>Flashcards<ChevronRight size={17}/></button>}
+ return <section className="study-player"><header className="study-top"><button className="study-icon" aria-label="Kembali" onClick={onClose}><ArrowLeft size={20}/></button><div><small>HASIL LATIHAN</small><h2>{attempt.title}</h2></div></header><div className="study-surface">{attempt.diagnostic?<div><h2>Cek konsep · {attempt.items[0].question.conceptName}</h2><p>{attempt.answers.length===1?`${attempt.answers[0].isCorrect?1:0} dari 2 benar. Jawaban awal salah, jawaban susulan ${attempt.answers[0].isCorrect?'benar':'salah'}.`:'Soal susulan belum dijawab.'}</p></div>:<div className="study-result-hero"><div className="study-score" style={{background:`conic-gradient(var(--study-accent) ${p.score}%,var(--study-border) 0)`}}><div><b>{p.score}<small>%</small></b><span>akurasi</span></div></div><div><span className="study-mascot">{p.score>=80?'( ✧ ▽ ✧ )':'( ◕ ‿ ◕ )'}</span><h2>{p.score>=80?'Kerja bagus.':'Sekarang tahu bagian yang perlu diulang.'}</h2><p>{p.correct} benar dari {p.total} soal · {attempt.answers.length} dijawab</p></div></div>}<div className="study-result-actions"><button className="study-primary" disabled={!wrong.length} onClick={()=>onRetry(true)}>Ulangi {wrong.length} soal belum benar</button><button className="study-secondary" onClick={()=>onRetry(false)}><RotateCcw size={17}/>Ulangi semua</button>{pack&&<button className="study-secondary" onClick={()=>setCards({pack,questions:pack.questions})}>Flashcards<ChevronRight size={17}/></button>}
  {pack&&(['material','graph','visual','comic'] as const).map(tab=><button key={tab} className="study-secondary" onClick={()=>setTool(tab)}>{{material:'Materi',graph:'Peta konsep',visual:'Visual Lab',comic:'Komik'}[tab]}</button>)}</div>
+ {(candidate||existingCheck)&&<button className="study-secondary" disabled={sending} onClick={()=>void checkConcept()}>{existingCheck?'Buka cek konsep':'Cek konsep dengan 1 soal lain'} · {candidate?.question.conceptName??existingCheck?.items[0].question.conceptName}</button>}
  <details className="study-plan"><summary>Soal lanjutan dari hasil latihan</summary>
  <label>Jumlah soal<input type="number" min={1} max={20} value={count} onChange={e=>setCount(Math.max(1,Math.min(20,Math.trunc(Number(e.target.value)))))}/></label>
  <GenerationOptions count={count} disabled={sending} label="Buat soal lanjutan di ChatGPT" onRequest={brief=>void ask(`Buat ${count} soal lanjutan untuk topik latihan ini. Prioritaskan topik yang belum dikuasai. ${brief}`,{

@@ -105,3 +105,48 @@ test('slide recall keeps independent evidence, resumes, repeats and excludes pri
  assert.equal(retry.current.unitNumber,1);assert.equal(retry.current.initial,undefined);
  assert.equal((await ok(db,'list_brain_dumps')).items[0].id,sessionId);
 });
+
+test('diagnostic reuses one saved check for an explicit miss and grades a different question',async()=>{
+ const db=database();
+ const p=await ok(db,'create_pack',{operationId:'pack',pack:{title:'Lab',questions:[question]}});
+ const a=await ok(db,'start_attempt',{packId:p.id,operationId:'start',options:{mode:'STANDARD',shuffle:false,retention:false,mixed:false}});
+ await ok(db,'answer_attempt',{attemptId:a.id,operationId:'wrong',expectedRevision:1,value:'X'});
+ await ok(db,'advance_attempt',{attemptId:a.id,operationId:'end',expectedRevision:2});
+ assert.equal((await ok(db,'start_diagnostic',{attemptId:a.id,operationId:'none'})).available,false);
+ await ok(db,'append_questions',{packId:p.id,operationId:'add',expectedRevision:1,questions:[{...question,id:'new',text:'Symbol of sodium?',acceptedAnswers:['Na']}]});
+ const start={attemptId:a.id,operationId:'check'},d=await ok(db,'start_diagnostic',start);
+ assert.equal(d.questions.length,1);assert.equal(d.questions[0].text,'Symbol of sodium?');
+ assert.deepEqual(await ok(db,'start_diagnostic',start),d);
+ assert.equal((await ok(db,'start_diagnostic',{...start,operationId:'again'})).attemptId,d.attemptId);
+ assert.equal((await call(db,'start_diagnostic',start,'b')).isError,true);
+ await ok(db,'update_batch_draft',{attemptId:d.attemptId,operationId:'draft',expectedRevision:1,changes:[{number:1,value:'Na'}]});
+ const result=await ok(db,'submit_batch',{attemptId:d.attemptId,operationId:'submit',expectedRevision:2});
+ assert.equal(result.answers[0].isCorrect,true);assert.equal(result.diagnostic.attemptId,a.id);
+ const summary=await ok(db,'start_diagnostic',{...start,operationId:'summary'});
+ assert.equal(summary.originalCorrect,false);assert.equal(summary.followupCorrect,true);
+ assert.equal((await ok(db,'open_autopilot',{packId:p.id})).view,'autopilot');
+ assert.equal((await call(db,'open_autopilot',{packId:p.id},'b')).isError,true);
+ assert.equal((await ok(db,'open_knowledge_debugger')).view,'gastric-debugger');
+});
+
+test('objective-driven Brain Dump accepts a terse response and validates any optional follow-up target',async()=>{
+ const db=database(),s=await ok(db,'start_brain_dump',{operationId:'new',title:'Test',units:[{objective:'Name the symbol',prompt:'What symbol?',slides:[1],points:[{slide:1,concept:'K'}]}]});
+ const args={sessionId:s.sessionId,operationId:'first',expectedRevision:1,answer:'K'};
+ assert.equal((await call(db,'record_recall',{...args,hint:'Explain more?'})).isError,true);
+ assert.equal((await call(db,'record_recall',{...args,hint:'Which symbol?',hintPoint:3})).isError,true);
+ await ok(db,'record_recall',args);
+ const done=await ok(db,'review_recall',{sessionId:s.sessionId,operationId:'grade',expectedRevision:2,feedback:[{point:1,verdict:'recalled',explanation:'K matches the slide.'}]});
+ assert.equal(done.status,'completed');assert.equal(done.reviewed.hint,undefined);
+});
+
+test('an initial concept probe reserves a second unanswered question',async()=>{
+ const db=database(),p=await pack(db);
+ assert.equal((await ok(db,'start_concept_probe',{packId:p.id,operationId:'no-pair'})).available,false);
+ await ok(db,'append_questions',{packId:p.id,operationId:'more',expectedRevision:1,questions:[{...question,id:'second',text:'Symbol for sodium?',acceptedAnswers:['Na']}]});
+ const probe=await ok(db,'start_concept_probe',{packId:p.id,operationId:'probe'});
+ assert.equal(probe.questions.length,1);
+ await ok(db,'update_batch_draft',{attemptId:probe.attemptId,operationId:'draft',expectedRevision:1,changes:[{number:1,value:'X'}]});
+ await ok(db,'submit_batch',{attemptId:probe.attemptId,operationId:'submit',expectedRevision:2});
+ const next=await ok(db,'start_diagnostic',{attemptId:probe.attemptId,operationId:'follow'});
+ assert.notEqual(next.questions[0].text,probe.questions[0].text);
+});

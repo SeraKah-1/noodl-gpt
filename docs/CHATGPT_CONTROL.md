@@ -103,3 +103,15 @@ The installed plugin package checked for this repository contained `.app.json` a
 ## Comics and visual design
 
 Read `get_comic_guide` for the comic schema and workflow. Comics use existing artifact CRUD with `kind: comic`. Clarify the user brief before design, inspect actual output, correct issues, save, then read back. Incomplete checks must remain draft. The visual-learning plugin skill carries these instructions into supported hosts. See [Comics](COMICS.md).
+
+## Hands-free flashcards and concept checks
+
+Call `open_autopilot` with the owned bank ID to open the flashcards panel. The learner sets the range and pace. Switching tabs pauses playback. Only an explicit rating schedules a card. The guest website also supports this flow offline.
+
+The most recent 30 exposure sessions per bank are kept on the current device under the active owner. Active seconds measure visible playback time. They do not measure thinking. After 48 hours, open Flashcards and select Autopilot to see eligible checks. A check uses a different question with a matching concept label and excludes recorded exposures and quiz items. The answer is saved as a regular one-question batch attempt.
+
+Call `start_concept_probe` to begin with one question. A bank needs two distinct unanswered questions on the same labeled concept. After an explicit miss on a completed quiz, call `start_diagnostic` with the original attempt ID. The server selects one unanswered question with a matching concept from the owned banks. Use `update_batch_draft` and `submit_batch` to answer. If the learner returns to the original result, reopen the saved follow-up. A blank timeout provides no basis for this check. Report the initial response and follow-up together.
+
+Call `open_knowledge_debugger` to open the gastric acid diagram. The exercise has one incorrect causal label. Checking the response shows the corrected pathway and references. This pilot does not update mastery or SRS.
+
+For new Brain Dump units, set `objective` to the task a student should perform. If the initial response satisfies it, proceed directly to feedback. For an objective-bearing unit, supply `hintPoint` with any follow-up. It must identify a reference point from the unit.

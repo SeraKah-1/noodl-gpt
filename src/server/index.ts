@@ -1,3 +1,4 @@
+import {validDiagnostic} from '../shared/practice';
 import {brainTools,callBrainTool} from './brainDump';
 import {guestIdentity,startGuestSession} from './guest';
 import {bankBackup,storageConfigured,type SupabaseEnv} from './supabase';
@@ -64,9 +65,13 @@ export async function mutate(db:Database,owner:string,op:Operation):Promise<Muta
   if(current){
    if(current.deletedAt)return {operationId:id,ok:false,code:'CONFLICT',error:'Attempt was deleted',current};
    if(current.status==='completed')return {operationId:id,ok:false,code:'CONFLICT',error:'Completed attempt is immutable',current};
-   for(const key of ['items','options','packId','packRevision','createdAt'])if(JSON.stringify(record[key])!==JSON.stringify(current[key]))throw new Error('Attempt snapshot is immutable');
+   for(const key of ['items','options','packId','packRevision','createdAt','diagnostic'])if(JSON.stringify(record[key])!==JSON.stringify(current[key]))throw new Error('Attempt snapshot is immutable');
    for(const previous of current.answers){const next=record.answers.find((a:any)=>a.occurrenceId===previous.occurrenceId);if(!next||next.value!==previous.value||next.answeredAt!==previous.answeredAt)throw new Error('Existing answers are immutable');}
   }else{
+   if(record.diagnostic){
+     const source=await readRecord<Attempt & {deletedAt?:string}>(db,owner,'attempt',record.diagnostic.attemptId);
+     if(!source || source.deletedAt || !validDiagnostic(source,record.diagnostic.occurrenceId,record))throw new Error('Invalid diagnostic source');
+   }
    const itemsByPack = new Map<string, Attempt['items']>();
    for (const item of (record as Attempt).items) {
     const items = itemsByPack.get(item.sourcePackId) ?? [];

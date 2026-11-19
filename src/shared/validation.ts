@@ -96,7 +96,9 @@ export function validateAttempt(input: unknown): Attempt {
       throw new DomainError('Submit one valid answer per batch question');
     }
   }
-  return {...(draft?{draft}:{}),id:id(a.id,'attempt.id'),ownerId:id(a.ownerId,'ownerId'),packId:id(a.packId,'packId'),packRevision:integer(a.packRevision,'packRevision'),title:string(a.title,'title',300),options,items,answers,currentIndex:integer(a.currentIndex,'currentIndex',0,items.length-1),lives:integer(a.lives,'lives',0,3),streak:integer(a.streak,'streak'),deadline:a.deadline as number|null,status:a.status,createdAt:iso(a.createdAt,'createdAt'),updatedAt:iso(a.updatedAt,'updatedAt'),...(a.completedAt===undefined?{}:{completedAt:iso(a.completedAt,'completedAt')}),revision:integer(a.revision,'revision')};
+  const origin=a.diagnostic===undefined?undefined:record(a.diagnostic,'diagnostic');
+  const diagnostic=origin?{attemptId:id(origin.attemptId,'source attempt'),occurrenceId:id(origin.occurrenceId,'source occurrence')}:undefined;
+  return {...(diagnostic?{diagnostic}:{}),...(draft?{draft}:{}),id:id(a.id,'attempt.id'),ownerId:id(a.ownerId,'ownerId'),packId:id(a.packId,'packId'),packRevision:integer(a.packRevision,'packRevision'),title:string(a.title,'title',300),options,items,answers,currentIndex:integer(a.currentIndex,'currentIndex',0,items.length-1),lives:integer(a.lives,'lives',0,3),streak:integer(a.streak,'streak'),deadline:a.deadline as number|null,status:a.status,createdAt:iso(a.createdAt,'createdAt'),updatedAt:iso(a.updatedAt,'updatedAt'),...(a.completedAt===undefined?{}:{completedAt:iso(a.completedAt,'completedAt')}),revision:integer(a.revision,'revision')};
 }
 export function validateReviewEvent(input: unknown): ReviewEvent {
   const e=record(input,'review');

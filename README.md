@@ -40,6 +40,7 @@ The website uses the classic Noodl layout: centered practice setup, kaomoji comp
 - Private Brain Dump sessions from slides attached to ChatGPT. The tutor records free recall, optional follow-ups, and slide-grounded feedback.
 - Shuffled questions, mixed question types, and retention practice.
 - Saved session snapshots, results, flashcards, and spaced repetition.
+- Hands-free flashcards with delayed recall checks, one-question diagnostics, and a gastric acid diagram correction exercise.
 - Markdown materials, insights, a concept graph, isolated HTML visualizations, and [learning comics](docs/COMICS.md) with explicit briefs and review records.
 - Account preferences and design tokens that ChatGPT can change.
 - JSON input and JSON, CSV, HTML, and PDF output through tools.
