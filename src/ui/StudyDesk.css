@@ -156,3 +156,10 @@ html[data-reduced-motion="true"] .desk-today *,html[data-reduced-motion="true"] 
 .desk-results-disclosure[open]>summary{border-bottom:1px solid var(--desk-border);margin-bottom:14px}
 .desk-results-disclosure .study-topic-list{padding:0 0 16px}
 .desk-results-disclosure .study-review-list{margin:0;padding-bottom:12px}
+
+/* Advanced design tokens are discoverable, not forced into the Settings first view. */
+.desk-design-advanced{border:1px solid var(--desk-border);border-radius:14px;margin:20px 0;padding:4px 16px;background:var(--desk-surface)}
+.desk-design-advanced>summary{min-height:52px;display:flex;align-items:center;font-weight:720;font-size:.95rem;color:var(--desk-ink);cursor:pointer}
+.desk-design-advanced>summary:hover{color:var(--desk-link-ink)}
+.desk-design-advanced[open]>summary{margin-bottom:16px;border-bottom:1px solid var(--desk-border)}
+.desk-review{max-width:960px;margin:0 auto}
