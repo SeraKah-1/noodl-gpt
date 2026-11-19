@@ -1,5 +1,5 @@
 import {PackDetail} from './ui/PackDetail';
-import {StudyDeskSkeleton} from './ui/StudyDeskSkeleton';
+import {StudyDeskSkeleton,CatalogSkeleton} from './ui/StudyDeskSkeleton';
 import {StudyCalendar} from './ui/StudyPlanning';
 import {useEffect,useMemo,useRef,useState,useSyncExternalStore} from 'react';
 import {ArrowRight,BookOpen,BrainCircuit,Check,Cloud,CloudOff,Download,Folder,Layers,LogOut,Plus,Search,Shuffle,Sparkles,Trash2,RefreshCw,Play,ChevronRight,Globe,MoreHorizontal,X} from 'lucide-react';
@@ -191,7 +191,7 @@ export default function App(){
  function mix(){const chosen=packs.filter(p=>selected.includes(p.id));if(chosen.length<2||!state.user)return;const user=state.user;const selection=chosen.flatMap(p=>p.questions.map(question=>({question,sourcePackId:p.id})));const pack={...chosen[0],title:`Mix · ${chosen.map(p=>p.title).join(' + ')}`};void run(async()=>{const next=createAttempt(pack,options,user.id,selection);setActive(await client.saveAttempt(next));setSelected([]);});}
  const catalog=<>
   {!state.online?<p role="status">{lang==='id'?'Sambungkan ke internet untuk mengakses bank publik.':'Connect to the internet to access public banks.'}</p>
-   :catalogState==='loading'?<p role="status">{lang==='id'?'Memuat bank publik…':'Loading public banks…'}</p>
+   :catalogState==='loading'?<CatalogSkeleton label={lang==='id'?'Memuat bank publik…':'Loading public banks…'}/>
    :catalogState==='error'?<p role="alert">{lang==='id'?'Bank publik gagal dimuat.':'Could not load public banks.'} <button className="n-button" onClick={()=>setCatalogRetry(n=>n+1)}>{lang==='id'?'Coba lagi':'Try again'}</button></p>
    :publications.length===0&&!sharedBank?<p>{w.emptyShared}</p>:null}
   {state.online&&catalogState==='ready'&&<div className="n-card-grid">{publications.filter(p=>view!=='public'||p.id!==sharedBank?.id).map(p=>
