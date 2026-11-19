@@ -5,7 +5,8 @@ import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import { BookOpen, Network, Orbit, X, Download, MessageCircle, BrainCircuit, ChevronRight, Check, RefreshCw } from 'lucide-react';
-import { correctAnswerText, replayReviews } from '../shared/engine';
+import {correctAnswerText} from '../shared/engine';
+import {buildReviewQueues,type QueueEntry} from './reviewQueue';
 import type { Pack, Question, ReviewEvent, Attempt } from '../shared/types';
 import { requestTutor } from '../client/bridge';
 import './Tools.css';
@@ -67,7 +68,38 @@ const topicStats=useMemo(()=>{const stats=new Map<string,{total:number;correct:n
 }
 
 export function ReviewDashboard({packs,reviews,onReview}:{packs:Pack[];reviews:ReviewEvent[];onReview:(event:ReviewEvent)=>Promise<void>|void}){
- const cards=useMemo(()=>replayReviews(reviews),[reviews]);const [selected,setSelected]=useState<{packId:string;question:Question}|null>(null),[flipped,setFlipped]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');const now=Date.now();const available=packs.filter(p=>!p.deletedAt);const entries=available.flatMap(p=>p.questions.map(q=>({packId:p.id,packTitle:p.title,question:q,card:cards.find(c=>c.packId===p.id&&c.questionId===q.id)})));const due=entries.filter(e=>!e.card||Date.parse(e.card.nextReview)<=now);const learned=entries.filter(e=>e.card&&e.card.repetition>=2).length;
- async function rate(rating:0|1|2|3){if(!selected||busy)return;setBusy(true);setError('');try{await onReview({id:crypto.randomUUID(),cardId:`${selected.packId}:${selected.question.id}`,packId:selected.packId,questionId:selected.question.id,question:selected.question,rating,reviewedAt:new Date().toISOString()});setSelected(null);setFlipped(false);}catch(e){setError(e instanceof Error?e.message:'Rating belum tersimpan. Coba lagi.');}finally{setBusy(false);}}
- return <section className="review-dashboard"><div className="tools-between"><div><small>NEURO-SYNC</small><h2>Ingat lebih lama, satu kartu dulu.</h2></div><BrainCircuit size={35}/></div><div className="review-stats"><article><strong>{entries.length}</strong><span>Total kartu</span></article><article><strong>{due.length}</strong><span>Siap diulang</span></article><article><strong>{learned}</strong><span>Sudah dipelajari</span></article></div>{error&&<p role="alert" className="tools-error">{error}</p>}{selected?<article className="tools-panel review-card"><div className="tools-between"><small>{selected.question.conceptName||'Latihan pengulangan'}</small><button disabled={busy} onClick={()=>{setSelected(null);setFlipped(false);}} aria-label="Tutup kartu"><X size={18}/></button></div><h3>{selected.question.text}</h3>{!flipped?<button className="tools-primary" onClick={()=>setFlipped(true)}>Tampilkan jawaban</button>:<><div className="review-answer"><Check size={20}/><strong>{correctAnswerText(selected.question)}</strong></div><Markdown text={selected.question.explanation}/><p>Seberapa mudah mengingatnya?</p><div className="review-ratings">{(['Lupa','Sulit','Bagus','Mudah'] as const).map((label,i)=><button disabled={busy} key={label} onClick={()=>void rate(i as 0|1|2|3)}>{label}<small>{['1 menit','10 menit / interval','1 hari / interval','4 hari / interval'][i]}</small></button>)}</div></>}</article>:due.length?<div className="tools-panel"><div className="tools-between"><h3>Antrean hari ini</h3><button className="tools-primary" onClick={()=>{setSelected(due[0]);setFlipped(false);}}>Mulai review <ChevronRight size={16}/></button></div>{due.slice(0,30).map(e=><button className="due-row" key={`${e.packId}:${e.question.id}`} onClick={()=>{setSelected(e);setFlipped(false);}}><span><strong>{e.question.conceptName||e.question.text.slice(0,70)}</strong><small>{e.packTitle} · {e.card?'Jatuh tempo':'Kartu baru'}</small></span><ChevronRight size={18}/></button>)}{due.length>30&&<p>{due.length-30} kartu lainnya akan tetap tersedia setelah kartu di atas selesai.</p>}</div>:<div className="tools-empty"><BrainCircuit size={42}/><h3>{entries.length?'Semua kartu sudah terjadwal':'Belum ada kartu untuk diulang'}</h3><p>{entries.length?'Kembali saat jadwal berikutnya tiba.':'Buat bank soal lewat ChatGPT untuk memulai.'}</p>{cards.filter(c=>Date.parse(c.nextReview)>now).slice(0,1).map(c=><small key={c.id}>Review berikutnya: {new Date(c.nextReview).toLocaleString()}</small>)}</div>}</section>;
+ const queues=useMemo(()=>buildReviewQueues(packs,reviews),[packs,reviews]);
+ const [selected,setSelected]=useState<QueueEntry|null>(null),[flipped,setFlipped]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');
+ const choose=(entry:QueueEntry)=>{setSelected(entry);setFlipped(false);setError('');};
+ async function rate(rating:0|1|2|3){
+  if(!selected||busy)return;
+  setBusy(true);setError('');
+  try{
+   await onReview({id:crypto.randomUUID(),cardId:`${selected.packId}:${selected.question.id}`,packId:selected.packId,questionId:selected.question.id,question:selected.question,rating,reviewedAt:new Date().toISOString()});
+   setSelected(null);setFlipped(false);
+  }catch(e){setError(e instanceof Error?e.message:'Rating belum tersimpan. Coba lagi.');}
+  finally{setBusy(false);}
+ }
+ const total=queues.due.length+queues.newCards.length+queues.scheduled.length;
+ const queue=queues.due.length?queues.due:queues.newCards;
+ return <section className="review-dashboard desk-review">
+  <div className="tools-between"><div><small>NEURO-SYNC</small><h2>Ingat lagi, sesuai jadwal.</h2><p className="desk-quiet">Kartu baru belum jatuh tempo. Jadwal dibuat setelah kartu dinilai.</p></div><BrainCircuit size={30}/></div>
+  <div className="review-stats" aria-label="Ringkasan kartu"><article><strong>{queues.due.length}</strong><span>Jatuh tempo</span></article><article><strong>{queues.newCards.length}</strong><span>Kartu baru</span></article><article><strong>{queues.scheduled.length}</strong><span>Terjadwal</span></article></div>
+  {error&&<p role="alert" className="tools-error">{error}</p>}
+  {selected?<article className="tools-panel review-card"><div className="tools-between"><small>{selected.question.conceptName||'Latihan mengingat'}</small><button disabled={busy} onClick={()=>{setSelected(null);setFlipped(false);}} aria-label="Tutup kartu"><X size={18}/></button></div>
+   <h3>{selected.question.text}</h3>
+   {!flipped?<button className="tools-primary" onClick={()=>setFlipped(true)}>Tampilkan jawaban</button>:
+    <><div className="review-answer"><Check size={20}/><strong>{correctAnswerText(selected.question)}</strong></div><Markdown text={selected.question.explanation}/><p>Seberapa mudah kamu mengingat jawaban tadi?</p>
+     <div className="review-ratings">{(['Lupa','Sulit','Bagus','Mudah'] as const).map((label,i)=><button disabled={busy} key={label} onClick={()=>void rate(i as 0|1|2|3)}>{label}<small>{['Ulang dalam 1 menit','Sulit: jadwal pendek','Terjadwal','Interval lebih panjang'][i]}</small></button>)}</div></>}
+   </article>:
+   queue.length?<div className="tools-panel"><div className="tools-between"><h3>{queues.due.length?'Jatuh tempo sekarang':'Mulai kartu baru'}</h3><button className="tools-primary" onClick={()=>choose(queue[0])}>{queues.due.length?'Review sekarang':'Pelajari kartu baru'} <ChevronRight size={16}/></button></div>
+    <p className="desk-quiet">{queues.due.length?'Kartu berikutnya sudah mencapai jadwal review.':'Belum ada kartu jatuh tempo. Kartu baru bisa mulai dijadwalkan.'}</p>
+    {queue.slice(0,30).map(e=><button className="due-row" key={`${e.packId}:${e.question.id}`} onClick={()=>choose(e)}><span><strong>{e.question.conceptName||e.question.text.slice(0,70)}</strong><small>{e.packTitle} · {e.card?'Jatuh tempo':'Baru'}</small></span><ChevronRight size={18}/></button>)}
+    {queue.length>30&&<p>{queue.length-30} kartu lainnya tersedia setelah daftar ini.</p>}
+   </div>:<div className="tools-empty"><BrainCircuit size={39}/><h3>{total?'Belum waktunya review':'Belum ada kartu belajar'}</h3>
+    <p>{total?'Semua kartu yang sudah dilatih masih terjadwal.':'Tambahkan bank soal untuk mulai mengingat dan menilai kartu.'}</p>
+    {queues.scheduled[0]?.card&&<small>Berikutnya: {new Date(queues.scheduled[0].card.nextReview).toLocaleString()}</small>}
+   </div>}
+  {!selected&&queues.due.length>0&&queues.newCards.length>0&&<div className="desk-review-extra"><p>{queues.newCards.length} kartu baru juga tersedia.</p><button className="desk-secondary" onClick={()=>choose(queues.newCards[0])}>Mulai kartu baru</button></div>}
+ </section>;
 }
