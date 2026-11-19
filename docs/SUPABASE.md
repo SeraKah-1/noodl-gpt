@@ -4,19 +4,36 @@ Use Noodl in a browser to create or edit a bank without a ChatGPT account. Open 
 
 The browser's guest cookie controls access to private guest records. D1 stores live banks, publications, and study progress. IndexedDB stores local drafts and an offline copy. If a guest workspace predates server storage, **Aktifkan penyimpanan guest** copies its local banks into the server workspace. Use **Buka ruang guest lokal** to view the prior local history.
 
-## Connect Supabase Storage
+## Provision the bucket with Supabase CLI
 
-An administrator needs a Supabase project and access to this Site's runtime settings.
+Run these commands from the repository root with Node.js 20 or later. Use the Supabase project chosen for Noodl.
 
-1. In Supabase Storage, create a **private** bucket, for example `noodl-backups`. Allow JSON uploads up to 8 MiB.
-2. Set the following values in the Site's runtime environment. Mark the key as a secret. For a different Worker host, use that host's server configuration.
-3. Publish the Site with the updated runtime configuration.
-4. Open **Pengaturan → Cadangan Supabase** in a browser. Save and download a backup to verify the connection.
+```sh
+npx --yes supabase@3.2.0 login
+npx --yes supabase@3.2.0 link --project-ref YOUR_PROJECT_REF
+npx --yes supabase@3.2.0 db push --remote --dry-run
+npx --yes supabase@3.2.0 db push --remote
+```
+
+Check the dry run before applying it. It should include the Noodl backup bucket migration. If the remote project already has migrations that are absent from this checkout, reconcile the histories before applying a migration.
+
+The migration creates a private `noodl-backups` bucket restricted to JSON uploads up to 8 MiB. It accepts a bucket that already has the expected settings. If the same name has different settings, the migration stops for a review.
+
+For local verification with Docker, run `npx --yes supabase@3.2.0 start`. The CLI applies the same migration locally. Run this query to check the bucket:
+
+```sh
+npx --yes supabase@3.2.0 db query --read-only \
+  "select id, public, file_size_limit, allowed_mime_types from storage.buckets where id = 'noodl-backups';"
+```
+
+## Connect the Noodl server
+
+Use a server key for the linked project. The CLI can show project keys with `npx --yes supabase@3.2.0 projects api-keys --reveal`. Run it only in a private terminal. Set the following values in the Site's runtime environment and mark the key as a secret. Publish the Site with the updated runtime configuration, then verify with **Pengaturan → Cadangan Supabase**.
 
 | Runtime variable | Value |
 | --- | --- |
 | `SUPABASE_URL` | The Supabase project URL, such as `https://your-project.supabase.co`. |
-| `SUPABASE_STORAGE_BUCKET` | The private bucket name. |
+| `SUPABASE_STORAGE_BUCKET` | `noodl-backups`, the private bucket created by the migration. |
 | `SUPABASE_SECRET_KEY` | A Supabase server secret key. A legacy `service_role` key also works. |
 
 Keep the key in the Worker environment. It grants privileged project access. Use the authenticated Storage endpoint for reads. The Worker derives the path from the authorized workspace and does not accept client-supplied bucket names or paths.
