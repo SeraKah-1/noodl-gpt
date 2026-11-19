@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
-import {handleRequest,type Database,type Statement} from '../src/server/index';
+import {handleRequest,toolsList,type Database,type Statement} from '../src/server/index';
 function database():Database {const db=new DatabaseSync(':memory:');db.exec(readFileSync(new URL('../migrations/0001_initial.sql',import.meta.url),'utf8'));class S implements Statement{constructor(public sql:string,public values:unknown[]=[]){}bind(...v:unknown[]){return new S(this.sql,v)}async first<T>():Promise<T|null>{return (db.prepare(this.sql).get(...this.values as any[])??null) as T|null}async all<T>(){return {results:db.prepare(this.sql).all(...this.values as any[]) as T[]}}async run(){return db.prepare(this.sql).run(...this.values as any[])}}return {prepare:(sql)=>new S(sql),batch:async ss=>{db.exec('BEGIN');try{const out=[];for(const s of ss)out.push(await s.run());db.exec('COMMIT');return out}catch(e){db.exec('ROLLBACK');throw e}}};}
 const question={id:'q1',type:'FILL_BLANK',text:'Potassium symbol?',acceptedAnswers:['K'],explanation:'K is potassium',difficulty:'Easy',conceptName:'Chemistry'};
 async function call(db:Database,name:string,args:any={},owner='a'){const response=await handleRequest(new Request('https://app/mcp',{method:'POST',headers:{'oai-authenticated-user-id':owner},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:args}})}),{DB:db},null);const data=await response!.json() as any;if(data.error)throw new Error(data.error.message);return data.result;}
@@ -26,4 +26,22 @@ test('comic guide, artifact writes, readback, revisions and public copies preser
  const publication=await ok(db,'publish_pack',{packId:p.id,operationId:'publish-comic',expectedRevision:2});
  const copied=await ok(db,'copy_publication',{publicationId:publication.id,operationId:'copy-comic'},'b');assert.deepEqual(JSON.parse(copied.artifacts[0].content),comic);
  assert.equal((await ok(db,'get_pack',{packId:p.id})).revision,2);
+});
+
+
+test('MCP tool metadata identifies read-only, destructive, and public operations',()=>{
+ const metadata=new Map(toolsList.map(tool=>[tool.name,tool.annotations]));
+ for(const {readOnlyHint,destructiveHint,openWorldHint} of metadata.values()){
+  assert.equal(typeof readOnlyHint,'boolean');
+  assert.equal(typeof destructiveHint,'boolean');
+  assert.equal(typeof openWorldHint,'boolean');
+  if(readOnlyHint)assert.equal(destructiveHint,false);
+ }
+ assert.equal(metadata.get('publish_pack')?.openWorldHint,true);
+ assert.equal(metadata.get('publish_pack')?.destructiveHint,true);
+ assert.equal(metadata.get('update_pack')?.destructiveHint,true);
+ assert.equal(metadata.get('app_mutate')?.destructiveHint,true);
+ assert.equal(metadata.get('finish_attempt')?.destructiveHint,true);
+ assert.equal(metadata.get('list_packs')?.openWorldHint,false);
+ assert.equal(metadata.get('browse_publications')?.readOnlyHint,true);
 });
