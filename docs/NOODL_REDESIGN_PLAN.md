@@ -1,6 +1,6 @@
 # Noodl 2.0 — UX/UI redesign execution plan
 
-**Status:** implementation-ready proposal; no runtime UI changes have been made.  
+**Status:** implementation underway on branch `feat/noodl-study-desk-v2` ([draft PR #3](https://github.com/SeraKah-1/noodl-gpt/pull/3)); no production deployment. This document remains the overall target specification, not a claim that every phase is finished.  
 **Baseline:** branch `main`, commit `d6494c4b6b28294c6ac356c0a4aae1595fe89c8d` (2026-11-19).  
 **Audience:** learners who already have study banks and want to start, resume, or review without navigating a feature showroom.  
 **Primary outcome:** fewer decisions before meaningful learning, without losing existing Noodl capabilities or data.  
@@ -229,4 +229,22 @@ Sources:
 - **Defer (not pretend to ship):** fully automatic semantic grading, source-file processing in website, generalized Knowledge Debugger, true cross-device exposure history, causal-graph inference.
 - **Never:** block practice on animation, paint fake scores, discard offline changes on route refactor, or silently deploy a planning branch.
 
-**Next executable action:** Phase 0 screen captures and Phase 1 token/primitives branch. This document intentionally does not claim that the interface has already been redesigned.
+**Next executable action:** Review the GitHub PR's current Node/Worker CI and browser UX workflow results. Address any verified browser defects, then evaluate deployment through the authorized OpenAI Sites workflow. Do not infer production delivery from a GitHub commit.
+
+## 12. Implementation record (2026-11-19)
+
+The following elements exist in the feature branch, not necessarily in production:
+
+- Today task-first screen, three-destination navigation and contextual Pack detail.
+- Extracted LibraryCard, review-queue and lexical concept-graph modules.
+- Reuse of existing Framer Motion for a short page/answer transition, with user and OS reduced-motion handling.
+- Initial app and public catalog loading skeletons, with visible sync/error feedback retained from the existing client.
+- Batch unanswered-jump and explicit local-save message; results review collapsed behind disclosures.
+- Due/new/scheduled cards counted distinctly; Mix no longer writes a permanent bank as a side effect.
+- Honest lexical evidence behind graph links, public answer-key warning, contextual artifact availability and transparent browser ChatGPT handoff.
+- Contrast-safe button foreground values for all existing themes, plus new automated tests.
+- GitHub Actions Node/Worker CI and Playwright browser flow and screenshot artifact workflow.
+
+**Still requires separate validation or development:** deployed Sites identity and D1 bindings, actual ChatGPT embedded host and deep links, camera/hardware, full contrast audit across user-defined arbitrary colors, broader exploratory keyboard testing, asset/bundle measurements, and controlled production release. No new database migration or provider integration is included.
+
+**Verification evidence:** inspect [CI runs](https://github.com/SeraKah-1/noodl-gpt/actions/workflows/ci.yml) and [browser UX runs](https://github.com/SeraKah-1/noodl-gpt/actions/workflows/browser-ux.yml) at the PR head. Earlier failing runs are not evidence of the latest branch state; screenshots must come from a successful recent run. No performance number is claimed without measurement.
