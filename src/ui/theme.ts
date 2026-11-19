@@ -179,6 +179,28 @@ const THEMES: Record<ThemeName, ThemePalette> = {
   }
 };
 
+/** The foreground on a themed button must pass AA even with a pastel accent. */
+function relativeLuminance(hex:string):number{
+ const channels=[1,3,5].map(i=>parseInt(hex.slice(i,i+2),16)/255);
+ const linear=channels.map(c=>c<=0.04045?c/12.92:((c+0.055)/1.055)**2.4);
+ return 0.2126*linear[0]+0.7152*linear[1]+0.0722*linear[2];
+}
+export function colorContrast(a:string,b:string):number {
+ if(!/^#[0-9a-f]{6}$/i.test(a)||!/^#[0-9a-f]{6}$/i.test(b))return 1;
+ const x=relativeLuminance(a),y=relativeLuminance(b);
+ return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);
+}
+export function actionColors(accent:string,bg:string,ink:string){
+ const dark='#101828',light='#ffffff';
+ const onAction=colorContrast(accent,light)>=4.5?light:dark;
+ return {onAction,actionText:colorContrast(accent,bg)>=4.5?accent:ink};
+}
+function applyDeskContrast(accent:string,bg:string,ink:string){
+ const colors=actionColors(accent,bg,ink),root=document.documentElement;
+ root.style.setProperty('--desk-on-action',colors.onAction);
+ root.style.setProperty('--desk-action-text',colors.actionText);
+}
+
 const THEME_KEY = 'noodl_theme';
 const THEME_KEY_LEGACY = 'glassquiz_theme';
 
@@ -190,6 +212,7 @@ export const applyTheme = (themeName: ThemeName) => {
     root.style.setProperty(key, value);
   });
 
+  applyDeskContrast(theme.vars['--primary'],theme.vars['--app-bg'],theme.vars['--text-main']);
   localStorage.setItem(THEME_KEY, themeName);
 };
 
@@ -216,7 +239,7 @@ export const getThemeList = () => {
 
 export function applyWorkspacePreferences(preferences?:WorkspacePreferences){
  const root=document.documentElement;
- const keys=['--primary','--app-bg','--glass-bg','--text-main','--text-muted','--glass-border','--n-radius','--n-font-scale','--n-content-width','--n-space'];
+ const keys=['--primary','--app-bg','--glass-bg','--text-main','--text-muted','--glass-border','--n-radius','--n-font-scale','--n-content-width','--n-space','--desk-on-action','--desk-action-text'];
  for(const key of keys)root.style.removeProperty(key);
  applyTheme(preferences?.theme??'default');
  root.dataset.density=preferences?.design.density??'comfortable';root.dataset.cardLayout=preferences?.design.cardLayout??'grid';root.dataset.reducedMotion=String(preferences?.design.reduceMotion??false);
