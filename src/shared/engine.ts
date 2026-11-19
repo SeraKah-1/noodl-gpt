@@ -1,3 +1,4 @@
+import {readBatchDraft, type BatchDraft} from './batch';
 import type { Attempt, Occurrence, Pack, Progress, Question, ReviewCard, ReviewEvent, StudyOptions } from './types';
 import { DomainError, validateQuestion, validateStudyOptions } from './validation';
 
@@ -29,15 +30,16 @@ export function transformToMixed(questions: Question[], seed='mixed'):Question[]
   });
 }
 export type SelectionItem = {question:Question;sourcePackId:string};
-export function createAttempt(pack: Pack, options: StudyOptions, ownerId: string, selection?: SelectionItem[], now=Date.now()):Attempt {
+export function createAttempt(pack: Pack, options: StudyOptions, ownerId: string, selection?: SelectionItem[], now=Date.now(), preserveSnapshotTypes=false):Attempt {
   validateStudyOptions(options);
   if(pack.deletedAt) throw new DomainError('Cannot study a deleted pack');
   const attemptId=crypto.randomUUID();const random=seededRandom(attemptId);
   let source=(selection??pack.questions.map(question=>({question,sourcePackId:pack.id}))).map(s=>({...s,question:validateQuestion(s.question)}));
   if(!source.length) throw new DomainError('No questions selected');
-  if(options.mixed){const transformed=transformToMixed(source.map(s=>s.question),attemptId);source=source.map((s,i)=>({...s,question:transformed[i]}));}
+  if(options.mixed&&!preserveSnapshotTypes){const transformed=transformToMixed(source.map(s=>s.question),attemptId);source=source.map((s,i)=>({...s,question:transformed[i]}));}
   if(options.shuffle) source=shuffle(source,random);
   const items:Occurrence[]=[];
+  if(options.mode==='BATCH') source=source.slice(0,options.batchSize??10);
   for(const s of source){const question=structuredClone(s.question);if(options.shuffle&&question.options) question.options=shuffle(question.options,random);items.push({id:crypto.randomUUID(),sourcePackId:s.sourcePackId,sourceQuestionId:s.question.id,question});}
   if(options.retention){const repeats=items.filter(()=>random()<0.6).map(item=>({...structuredClone(item),id:crypto.randomUUID()}));for(const item of repeats){const originalIndex=items.findIndex(i=>i.sourcePackId===item.sourcePackId&&i.sourceQuestionId===item.sourceQuestionId);const pos=originalIndex+1+Math.floor(random()*(items.length-originalIndex));items.splice(pos,0,item);}}
   const timestamp=new Date(now).toISOString();
@@ -45,6 +47,7 @@ export function createAttempt(pack: Pack, options: StudyOptions, ownerId: string
 }
 function updated(a: Attempt, now: number):Attempt{return {...structuredClone(a),updatedAt:new Date(now).toISOString(),revision:a.revision+1};}
 export function answerAttempt(attempt: Attempt, value: string|boolean, now=Date.now()):Attempt {
+  if(attempt.options.mode==='BATCH') throw new DomainError('Use batch draft and submission controls');
   if(attempt.status==='completed') return attempt;
   const item=attempt.items[attempt.currentIndex];if(!item) throw new DomainError('No current question');
   if(attempt.answers.some(a=>a.occurrenceId===item.id)) return attempt;
@@ -59,6 +62,7 @@ export function answerAttempt(attempt: Attempt, value: string|boolean, now=Date.
   return result;
 }
 export function advanceAttempt(attempt:Attempt,now=Date.now()):Attempt {
+  if(attempt.options.mode==='BATCH') throw new DomainError('Use batch draft and submission controls');
   if(attempt.status==='completed') return attempt;
   const item=attempt.items[attempt.currentIndex];
   if(!attempt.answers.some(a=>a.occurrenceId===item.id)) throw new DomainError('Answer current question before continuing');
@@ -66,13 +70,47 @@ export function advanceAttempt(attempt:Attempt,now=Date.now()):Attempt {
   const result=updated(attempt,now);result.currentIndex++;result.deadline=result.options.mode==='TIME_RUSH'?now+20000:null;return result;
 }
 export function finishAttempt(attempt:Attempt,now=Date.now()):Attempt {
+  if(attempt.options.mode==='BATCH') throw new DomainError('Use batch draft and submission controls');
   if(attempt.status==='completed') return attempt;
   const result=updated(attempt,now);result.status='completed';result.completedAt=new Date(now).toISOString();result.deadline=null;return result;
+}
+export function editBatch(attempt:Attempt, draft:BatchDraft, now=Date.now()):Attempt {
+  if(attempt.options.mode!=='BATCH' || attempt.status!=='active') throw new DomainError('Expected an active batch');
+  return {...updated(attempt,now),draft:readBatchDraft(attempt.items,draft)};
+}
+export function submitBatch(attempt:Attempt, now=Date.now()):Attempt {
+  const next=editBatch(attempt,attempt.draft??{},now);
+  const draft=next.draft!;
+  const answeredAt=new Date(now).toISOString();
+  next.answers=next.items.map(item=>{
+    if(!Object.hasOwn(draft,item.id)) throw new DomainError('Jawab semua soal sebelum mengumpulkan.');
+    const value=draft[item.id];
+    return {occurrenceId:item.id,value,isCorrect:evaluate(item.question,value),answeredAt};
+  });
+  delete next.draft;
+  next.currentIndex=next.items.length-1;
+  next.status='completed';
+  next.completedAt=answeredAt;
+  next.streak=next.answers.reduce((streak,a)=>a.isCorrect?streak+1:0,0);
+  return next;
 }
 export function progressFor(attempt:Attempt):Progress {
   const answers=new Map(attempt.answers.map(a=>[a.occurrenceId,a]));const topics=new Map<string,{name:string;correct:number;total:number}>();let correct=0;
   for(const item of attempt.items){const name=item.question.conceptName||'Umum';const topic=topics.get(name)??{name,correct:0,total:0};topic.total++;if(answers.get(item.id)?.isCorrect){correct++;topic.correct++;}topics.set(name,topic);}
   return {total:attempt.items.length,correct,score:attempt.items.length?Math.round(correct/attempt.items.length*100):0,topics:[...topics.values()]};
+}
+export function missedReviewEvents(attempt:Attempt, previous?:Attempt|null):ReviewEvent[] {
+  const existing=new Set(previous?.answers.map(answer=>answer.occurrenceId));
+  const items=new Map(attempt.items.map(item=>[item.id,item]));
+  return attempt.answers.filter(a=>!a.isCorrect&&!existing.has(a.occurrenceId)).map(answer=>{
+    const item=items.get(answer.occurrenceId)!;
+    return {id:attempt.id+':'+item.id+':wrong',cardId:item.sourcePackId+':'+item.sourceQuestionId,
+      packId:item.sourcePackId,questionId:item.sourceQuestionId,question:item.question,rating:0,reviewedAt:answer.answeredAt};
+  });
+}
+export function sessionProgress(attempt:Attempt) {
+  if(attempt.options.mode==='BATCH'&&attempt.status==='active')return {total:attempt.items.length,answered:Object.keys(attempt.draft??{}).length};
+  return progressFor(attempt);
 }
 export function itemsToRetry(attempt:Attempt):Occurrence[] {
   const correct = new Set(attempt.answers.filter(answer=>answer.isCorrect).map(answer=>answer.occurrenceId));

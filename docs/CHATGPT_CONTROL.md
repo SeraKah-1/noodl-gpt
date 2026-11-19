@@ -30,13 +30,28 @@ Every write that accepts `operationId` needs a new ID for a new change. Keep the
 
 ## Run study sessions and review cards
 
-Use `start_attempt` to save a session. Its options are `STANDARD`, `SURVIVAL`, or `TIME_RUSH`, plus `shuffle`, `retention`, and `mixed` settings. The server saves a copy of the questions in the session. Later bank edits do not change that copy.
+Use `start_attempt` to save a session. Its options are `STANDARD`, `BATCH`, `SURVIVAL`, or `TIME_RUSH`, plus `shuffle`, `retention`, and `mixed` settings. The server saves a copy of the questions in the session. Later bank edits do not change that copy.
 
-Use `answer_attempt` with an option ID, a Boolean, or text, as required by the question. The server checks the answer. Then call `advance_attempt` to move to the next question. Call `finish_attempt` to end an active session. These writes need the session's current `expectedRevision` and a new `operationId` for each change. A completed session cannot be changed.
+For `BATCH`, set `retention` to false. Choose a `batchSize` from 1 to 100. The default is 10. A smaller bank uses its available questions. Use `update_batch_draft` to record numbered answers in any order. Use the displayed letter for each multiple-choice answer. Use a Boolean or text value for the other question types. Clarify ambiguous dictated answers. Use `submit_batch` once the learner asks to submit all answers. Active batch results include the displayed options and saved drafts.
+
+For the other modes, use `answer_attempt` with an option ID, a Boolean, or text, as required by the question. The server checks the answer. Then call `advance_attempt` to move to the next question. Call `finish_attempt` to end an active session. These writes need the session's current `expectedRevision` and a new `operationId` for each change. A completed session cannot be changed.
 
 Use `get_attempt` to read answers and score. Use `list_attempts` or `get_progress` to read session results. `delete_attempt` hides a session by adding a tombstone. Its historical record is not rewritten.
 
 Use `list_srs` to read scheduled cards and review events. `dueOnly` filters cards that are due now. `review_card` records a rating from 0 (forgot) to 3 (easy). A review event cannot be edited. Use `delete_review` to remove one event, or `reset_srs` to remove review events for a bank or one question. These deletions add tombstones so later sync does not restore the removed data.
+
+## Practice recall from slides
+
+Attach the presentation to ChatGPT. The website opens ChatGPT and copies the request. The embedded panel sends the request directly.
+
+1. Check the slides and ask whether to group them by slide or topic. Request a clearer image or PDF if labels are unreadable.
+2. Call `start_brain_dump` with neutral prompts and reference points linked to actual slide numbers. Present one prompt at a time.
+3. Use `record_recall` to save the initial answer. Optionally ask one neutral follow-up and record the response separately.
+4. Call `review_recall` with one assessment per reference point. Accept accurate paraphrases. Use the returned slide references. Mark outside context separately.
+5. Use `list_brain_dumps` and `get_brain_dump` to resume. Use `retry_recall` to repeat a reviewed unit.
+6. On request, use `create_pack` or `append_questions` to turn selected gaps into practice questions. The learner can open the resulting bank as flashcards.
+
+Noodl stores private structured sessions under the connected account. The slide file stays in the ChatGPT conversation. Bank publication excludes recall sessions.
 
 ## Set preferences and design
 

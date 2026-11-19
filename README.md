@@ -36,7 +36,8 @@ The website uses the classic Noodl layout: centered practice setup, kaomoji comp
 - Guest website access with a question editor, server sync, public bank links, and offline drafts.
 - Optional private bank backups through [Supabase Storage](docs/SUPABASE.md).
 - Multiple choice, true or false, and fill-in-the-blank questions.
-- Standard, Survival, and Time Rush sessions.
+- Standard, Survival, Time Rush, and Batch Quiz sessions. Batch drafts support edits before grading.
+- Private Brain Dump sessions from slides attached to ChatGPT. The tutor records free recall, optional follow-ups, and slide-grounded feedback.
 - Shuffled questions, mixed question types, and retention practice.
 - Saved session snapshots, results, flashcards, and spaced repetition.
 - Markdown materials, insights, a concept graph, isolated HTML visualizations, and [learning comics](docs/COMICS.md) with explicit briefs and review records.

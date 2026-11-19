@@ -73,3 +73,22 @@ test('activating guest storage stages the existing local bank once and keeps it 
  assert.equal(writes,3);
  await client.dispose();
 });
+
+test('offline guest resumes a saved batch, rejects stale edits and grades without a server',async()=>{
+ const {editBatch,submitBatch,progressFor}=await import('../src/shared/engine');
+ const name='guest-batch-'+crypto.randomUUID();
+ const open=()=>new NoodlClient(new LocalStore(name),async()=>{throw new Error('offline');});
+ const client=open();await client.initialize();
+ const bank=await client.importLocalPack(input);
+ const attempt=await client.saveAttempt(createAttempt(bank,{mode:'BATCH',batchSize:10,shuffle:true,retention:false,mixed:false},bank.ownerId));
+ const id=attempt.items[0].id;
+ await client.saveAttempt(editBatch(attempt,{[id]:'5'}));
+ await assert.rejects(client.saveAttempt(editBatch(attempt,{[id]:'4'})));
+ await client.dispose();
+ const reopened=open();await reopened.initialize();
+ const current=reopened.getState().attempts[0];assert.equal(current.draft?.[id],'5');assert.deepEqual(current.answers,[]);
+ const corrected=await reopened.saveAttempt(editBatch(current,{[id]:'4'}));
+ const done=await reopened.saveAttempt(submitBatch(corrected));
+ assert.equal(progressFor(done).score,100);assert.equal(reopened.getState().pending,0);
+ await reopened.dispose();
+});

@@ -3,11 +3,12 @@ import {useEffect,useMemo,useRef,useState,useSyncExternalStore} from 'react';
 import {ArrowRight,BookOpen,BrainCircuit,Check,Cloud,CloudOff,Download,Folder,Layers,LogOut,Plus,Search,Shuffle,Sparkles,Trash2,RefreshCw,Play,ChevronRight,Globe,MoreHorizontal,X} from 'lucide-react';
 import {client} from './client/index';
 import {isEmbedded,requestTutor,sendChatRequest} from './client/bridge';
-import {createAttempt,itemsToRetry,progressFor} from './shared/engine';
+import {createAttempt,itemsToRetry,missedReviewEvents,progressFor} from './shared/engine';
 import type {Attempt,Pack,Publication,StudyOptions} from './shared/types';
 import {MAX_REQUEST_BYTES,type PackInput} from './shared/validation';
 import {BankEditor} from './ui/BankEditor';
 import {BankBackup} from './ui/BankBackup';
+import {BatchQuiz} from './ui/BatchQuiz';
 import {StudyPlayer,Flashcards,Results} from './ui/Study';
 import {LearningTools,ReviewDashboard,ExportMenu} from './ui/Tools';
 import {applyWorkspacePreferences,getThemeList,type ThemeName} from './ui/theme';
@@ -80,6 +81,12 @@ export default function App(){
   }).catch(()=>{if(current)setCatalogState('error');});
   return ()=>{current=false;};
  },[showCatalog,state.user?.id,state.online,catalogRetry]);
+ useEffect(()=>{
+  if(active?.options.mode==='BATCH'){
+    const stored=state.attempts.find(a=>a.id===active.id);
+    if(stored&&stored.revision>active.revision)setActive(stored);
+  }
+ },[active,state.attempts]);
  useEffect(()=>{if(active&&seenAttempts.current.has(active.id)&&!state.attempts.some(a=>a.id===active.id)&&!state.pending)setActive(null);for(const a of state.attempts)seenAttempts.current.add(a.id);},[state.attempts,state.pending,active]);
  const packs=state.packs.filter(p=>!p.deletedAt),completed=state.attempts.filter(a=>a.status==='completed');
  const folders=[...new Set(packs.map(p=>p.folder).filter(Boolean))].sort();
@@ -111,9 +118,20 @@ export default function App(){
   return sort==='old'?a.updatedAt.localeCompare(b.updatedAt):b.updatedAt.localeCompare(a.updatedAt);
  });
  async function run(action:()=>Promise<unknown>){setBusy(true);try{await action();}catch(e){setNotice(e instanceof Error?e.message:String(e));}finally{setBusy(false);}}
- async function start(pack:Pack,wrongOnly=false){if(!state.user)return;await client.updatePreferences({studyOptions:options});const previous=active;const selection=wrongOnly&&previous?itemsToRetry(previous).map(i=>({question:i.question,sourcePackId:i.sourcePackId})):undefined;const next=createAttempt(pack,options,state.user.id,selection);setActive(await client.saveAttempt(next));setLaunch(null);}
+ async function start(pack:Pack,wrongOnly=false){if(!state.user)return;await client.updatePreferences({studyOptions:options});const previous=active;const selection=wrongOnly&&previous?itemsToRetry(previous).map(i=>({question:i.question,sourcePackId:i.sourcePackId})):undefined;const batchRetry=previous?.options.mode==='BATCH';
+ const retryItems=batchRetry?(wrongOnly?itemsToRetry(previous):previous.items):undefined;
+ const next=createAttempt(pack,batchRetry?previous.options:options,state.user.id,retryItems?.map(i=>({question:i.question,sourcePackId:i.sourcePackId}))??selection,Date.now(),batchRetry);setActive(await client.saveAttempt(next));setLaunch(null);}
  function ask(){const pack=packs[0];void run(()=>pack?requestTutor(pack,undefined,w.request):requestTutor({id:'',title:'Noodl',questions:[],description:'',ownerId:state.user?.id??'',folder:'',tags:[],artifacts:[],revision:0,createdAt:'',updatedAt:''},undefined,w.request));}
- async function saveAttempt(next:Attempt){const saved=await client.saveAttempt(next);for(const answer of next.answers.filter(a=>!a.isCorrect&&!active?.answers.some(old=>old.occurrenceId===a.occurrenceId))){const item=next.items.find(i=>i.id===answer.occurrenceId);if(item)await client.addReview({id:`${next.id}:${item.id}:wrong`,cardId:`${item.sourcePackId}:${item.sourceQuestionId}`,packId:item.sourcePackId,questionId:item.sourceQuestionId,question:item.question,rating:0,reviewedAt:answer.answeredAt});}setActive(saved);}
+ async function saveAttempt(next:Attempt){
+  const saved=await client.saveAttempt(next);
+  setActive(saved);
+  for(const event of missedReviewEvents(next,active)){
+   if(packs.some(p=>p.id===event.packId&&p.questions.some(q=>q.id===event.questionId))){
+    try{await client.addReview(event);}catch(e){setNotice(e instanceof Error?e.message:String(e));}
+   }
+  }
+  return saved;
+ }
  async function importBank(file:File) {
   if(file.size>MAX_REQUEST_BYTES)throw new Error(lang==='id'?'JSON maksimal 8 MB':'JSON must be at most 8 MB');
   const data=JSON.parse(await file.text());
@@ -165,7 +183,7 @@ export default function App(){
  </>;
  if(!ready)return <div className="noodl-loading"><BrainCircuit size={44}/><p>{w.loading}</p></div>;
  if(!state.user)return <div className="noodl-login"><div className="mesh-bg"/><div className="noodl-login-card"><div className="brand-mark"><BrainCircuit size={34}/></div><h1>Noodl<span>✦</span></h1><p className="eyebrow">USE YOUR NOODLE</p><h2>{w.newHere}</h2><p>{w.signBody}</p><a className="n-button primary" href="/signin-with-chatgpt?returnTo=%2F" target="_top" onClick={e=>{e.preventDefault();void (isEmbedded()?client.login():client.prepareLogin().then(()=>{window.location.assign('/signin-with-chatgpt?returnTo=%2F');}));}}>{w.sign}<ArrowRight size={18}/></a><button className="n-button" disabled={busy} onClick={()=>void run(()=>client.startGuest())}>{lang==='id'?'Lanjut sebagai guest':'Continue as guest'}</button><p>{lang==='id'?'Guest bisa membuat bank dan latihan tanpa login.':'Guests can create banks and practice without signing in.'}</p>{state.error&&<p role="alert">{state.error}</p>}</div></div>;
- if(active&&active.ownerId===state.user.id)return active.status==='completed'?<Results attempt={active} onRetry={wrong=>{const p=packs.find(p=>p.id===active.packId)??{id:active.packId,ownerId:active.ownerId,title:active.title,description:'',folder:'',tags:[],artifacts:[],questions:active.items.map(i=>i.question),revision:active.packRevision,createdAt:active.createdAt,updatedAt:active.updatedAt};void run(()=>start(p,wrong));}} key={active.id} packs={packs} attempts={state.attempts} guest={!!state.guest} onReview={event=>client.addReview(event).then(()=>{})} onClose={()=>setActive(null)}/>:<StudyPlayer key={active.id} attempt={active} onChange={saveAttempt} onComplete={()=>{}} onExit={()=>setActive(null)}/>;
+ if(active&&active.ownerId===state.user.id)return active.status==='completed'?<Results attempt={active} onRetry={wrong=>{const p=packs.find(p=>p.id===active.packId)??{id:active.packId,ownerId:active.ownerId,title:active.title,description:'',folder:'',tags:[],artifacts:[],questions:active.items.map(i=>i.question),revision:active.packRevision,createdAt:active.createdAt,updatedAt:active.updatedAt};void run(()=>start(p,wrong));}} key={active.id} packs={packs} attempts={state.attempts} guest={!!state.guest} onReview={event=>client.addReview(event).then(()=>{})} onClose={()=>setActive(null)}/>:active.options.mode==='BATCH'?<BatchQuiz key={active.id} attempt={active} english={lang==='en'} save={saveAttempt} onExit={()=>setActive(null)}/>:<StudyPlayer key={active.id} attempt={active} onChange={async next=>{await saveAttempt(next);}} onComplete={()=>{}} onExit={()=>setActive(null)}/>;
  return <div className="noodl-app classic-workspace"><div className="mesh-bg"/><div className="noise-bg"/>
   <Navigation view={view} locale={lang} onNavigate={navigate} onChat={ask} onTool={setToolPicker}/>
   <main className={`n-main classic-main view-${view}`}>
@@ -192,7 +210,10 @@ export default function App(){
       </div>
     </section>}
     {catalog}</>:
-  <>{view==='home'?<ClassicHome locale={lang} packs={packs} attempts={state.attempts} options={options} busy={busy} onOptions={setOptions} onStart={p=>void run(()=>start(p))} onFlash={setFlash} onResume={setActive} onLibrary={()=>navigate('library')} onReview={()=>navigate('review')} onImport={importBank} onCreate={createBank} onChat={message=>void run(async()=>{
+  <>{view==='home'?<ClassicHome locale={lang} packs={packs} attempts={state.attempts} options={options} busy={busy} onOptions={setOptions} onStart={p=>void run(()=>start(p))} onFlash={setFlash} onResume={setActive} onLibrary={()=>navigate('library')} onReview={()=>navigate('review')} onImport={importBank} onCreate={createBank} onBrainDump={()=>void run(async()=>{
+     await sendChatRequest(lang==='id'?'Bantu aku latihan Brain Dump di Noodl. Minta aku unggah PPT di chat ini. Tawarkan per slide atau per topik, lalu gunakan start_brain_dump dan tunggu penjelasanku sebelum memberi umpan balik.':'Help me practice Brain Dump in Noodl. Ask me to attach my slides here. Offer per-slide or per-topic recall, then use start_brain_dump and wait for my explanation before giving feedback.');
+     setNotice(isEmbedded()?'Brain Dump · ChatGPT':lang==='id'?'Tempel permintaan di ChatGPT, lalu lampirkan PPT.':'Paste the request in ChatGPT and attach your slides.');
+   })} onChat={message=>void run(async()=>{
     await sendChatRequest(state.guest?message+' Berikan juga bank JSON Noodl yang bisa saya impor ke workspace guest melalui File.':message);
     setNotice(isEmbedded()?(lang==='id'?'Permintaan dikirim ke ChatGPT.':'Request sent to ChatGPT.'):(lang==='id'?'Tempel permintaan yang sudah disalin ke ChatGPT.':'Paste the copied request into ChatGPT.'));
    })}/>:<>
@@ -219,7 +240,7 @@ export default function App(){
   </section>}
   <footer className="n-footer"><BrainCircuit size={15}/> Noodl · use your noodle.<span>{lang==='id'?'Dibuat untuk memahami, bukan sekadar mengingat.':'Made for understanding, one question at a time.'}</span></footer></main>
   {bankEditor&&<BankEditor pack={bankEditor==='new'?undefined:bankEditor} locale={lang} onClose={()=>setBankEditor(null)} onSave={saveBank}/>}
-  {launch&&<div className="n-modal-backdrop"><section className="n-modal" role="dialog" aria-modal="true" aria-label={w.mode}><button className="n-modal-close" aria-label={w.close} onClick={()=>setLaunch(null)}><X/></button><span className="pack-icon"><Play/></span><h2>{launch.title}</h2><p>{launch.questions.length} {w.questions} · {w.mode}</p><StudyModeOptions value={options} onChange={setOptions} locale={lang}/><button className="n-button primary" disabled={busy} onClick={()=>void run(()=>start(launch))}>{w.start}<ArrowRight size={18}/></button></section></div>}
+  {launch&&<div className="n-modal-backdrop"><section className="n-modal" role="dialog" aria-modal="true" aria-label={w.mode}><button className="n-modal-close" aria-label={w.close} onClick={()=>setLaunch(null)}><X/></button><span className="pack-icon"><Play/></span><h2>{launch.title}</h2><p>{launch.questions.length} {w.questions} · {w.mode}</p><StudyModeOptions questionCount={launch.questions.length} value={options} onChange={setOptions} locale={lang}/><button className="n-button primary" disabled={busy} onClick={()=>void run(()=>start(launch))}>{w.start}<ArrowRight size={18}/></button></section></div>}
   {editing&&<div className="n-modal-backdrop"><form className="n-modal" role="dialog" aria-modal="true" onSubmit={e=>{e.preventDefault();void run(async()=>{await client.renamePack(editing.id,editing.ownerId,{title:editing.title,folder:editing.folder});setEditing(null);});}}><h2>{w.rename}</h2><label>{w.title}<input required maxLength={200} value={editing.title} onChange={e=>setEditing({...editing,title:e.target.value})}/></label><label>{w.folder}<input maxLength={200} list="folders" value={editing.folder} onChange={e=>setEditing({...editing,folder:e.target.value})}/></label><datalist id="folders">{folders.map(f=><option key={f}>{f}</option>)}</datalist><div className="n-row"><button className="n-button" type="button" onClick={()=>setEditing(null)}>{w.cancel}</button><button className="n-button primary" disabled={busy}>{w.save}</button></div></form></div>}
   {flash?.ownerId===state.user.id&&<div className="n-fullscreen"><Flashcards pack={flash} onReview={event=>client.addReview(event).then(()=>{})} onClose={()=>setFlash(null)}/></div>}
   {tools?.ownerId===state.user.id&&<div className="n-fullscreen"><LearningTools key={`${tools.id}:${toolTab}`} initialTab={toolTab} pack={tools} attempts={state.attempts.filter(a=>a.packId===tools.id)} onClose={()=>setTools(null)}/></div>}

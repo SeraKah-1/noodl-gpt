@@ -1,10 +1,11 @@
+import {brainTools,callBrainTool} from './brainDump';
 import {guestIdentity,startGuestSession} from './guest';
 import {bankBackup,storageConfigured,type SupabaseEnv} from './supabase';
 import {controlTools,callControlTool} from './control';
 import {preferenceTools,callPreferenceTool,getPreferences,updatePreferences} from './preferences';
 import {exportTools,callExportTool,handleExportRequest} from './exports';
 import type { Attempt, MutationResult, Operation, Pack, Publication, Snapshot, User } from '../shared/types';
-import { evaluate, progressFor, correctAnswerText } from '../shared/engine';
+import { evaluate, missedReviewEvents, sessionProgress, correctAnswerText } from '../shared/engine';
 import { requestTooLarge, validateAttempt, validatePackInput, validateQuestion, validateReviewEvent, validateArtifact } from '../shared/validation';
 export interface Statement { bind(...values:unknown[]):Statement; first<T=Record<string,unknown>>():Promise<T|null>; all<T=Record<string,unknown>>():Promise<{results:T[]}>; run():Promise<unknown> }
 export interface Database {prepare(sql:string):Statement;batch(statements:Statement[]):Promise<unknown[]>}
@@ -17,7 +18,7 @@ const text=(v:unknown,label:string,max=200)=>{if(typeof v!=='string'||!v.trim()|
 function identity(req:Request):User{const id=req.headers.get('oai-authenticated-user-id');if(!id)throw new AccessError();let name=req.headers.get('oai-authenticated-user-full-name')??'Learner';try{name=decodeURIComponent(name)}catch{}return {id,name,email:req.headers.get('oai-authenticated-user-email')??undefined};}
 class AccessError extends Error {}
 export async function readRecord<T>(db:Database,owner:string,kind:string,id:string):Promise<T|null>{const row=await db.prepare('SELECT data FROM records WHERE owner_id=? AND kind=? AND id=?').bind(owner,kind,id).first<{data:string}>();return row?JSON.parse(row.data):null;}
-export async function snapshot(db:Database,owner:string):Promise<Snapshot>{const rows=await db.prepare('SELECT kind,data FROM records WHERE owner_id=?').bind(owner).all<{kind:string;data:string}>();return {packs:rows.results.filter(r=>r.kind==='pack').map(r=>JSON.parse(r.data)),attempts:rows.results.filter(r=>r.kind==='attempt').map(r=>JSON.parse(r.data)),reviews:rows.results.filter(r=>r.kind==='review').map(r=>JSON.parse(r.data)),cursor:Date.now(),preferences:await getPreferences(db,owner)};}
+export async function snapshot(db:Database,owner:string):Promise<Snapshot>{const rows=await db.prepare("SELECT kind,data FROM records WHERE owner_id=? AND kind IN ('pack','attempt','review')").bind(owner).all<{kind:string;data:string}>();return {packs:rows.results.filter(r=>r.kind==='pack').map(r=>JSON.parse(r.data)),attempts:rows.results.filter(r=>r.kind==='attempt').map(r=>JSON.parse(r.data)),reviews:rows.results.filter(r=>r.kind==='review').map(r=>JSON.parse(r.data)),cursor:Date.now(),preferences:await getPreferences(db,owner)};}
 function sameQuestion(snapshot:any,source:any,mixed:boolean):boolean{
  const canonical=(q:any)=>({...q,...(q.options?{options:[...q.options].sort((a:any,b:any)=>a.id.localeCompare(b.id))}:{})});
  if(JSON.stringify(canonical(snapshot))===JSON.stringify(canonical(source)))return true;
@@ -108,6 +109,19 @@ export async function mutate(db:Database,owner:string,op:Operation):Promise<Muta
   db.prepare(`INSERT INTO operations(owner_id,id,nonce,result) SELECT ?,?,?,? WHERE ${guard} ON CONFLICT(owner_id,id) DO NOTHING`).bind(owner,id,nonce,JSON.stringify(result),...guardArgs),
   db.prepare('INSERT INTO records(owner_id,kind,id,revision,data) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM operations WHERE owner_id=? AND id=? AND nonce=?) ON CONFLICT(owner_id,kind,id) DO UPDATE SET revision=excluded.revision,data=excluded.data').bind(owner,kind,op.entityId,record.revision??0,JSON.stringify(record),owner,id,nonce)
  ];
+ if(kind==='attempt' && record.options.mode==='BATCH' && record.status==='completed'){
+  const reviews=missedReviewEvents(record,current).map(validateReviewEvent);
+  if(reviews.length){
+   // Commit the score and its review events together, including on an MCP retry.
+   statements.push(db.prepare(`INSERT INTO records(owner_id,kind,id,revision,data)
+    SELECT ?,'review',json_extract(e.value,'$.id'),0,e.value FROM json_each(?) e
+    WHERE EXISTS (SELECT 1 FROM operations WHERE owner_id=? AND id=? AND nonce=?)
+    AND EXISTS (SELECT 1 FROM records p, json_each(p.data,'$.questions') q WHERE p.owner_id=? AND p.kind='pack'
+      AND p.id=json_extract(e.value,'$.packId') AND json_extract(p.data,'$.deletedAt') IS NULL
+      AND json_extract(q.value,'$.id')=json_extract(e.value,'$.questionId'))
+    ON CONFLICT(owner_id,kind,id) DO NOTHING`).bind(owner,JSON.stringify(reviews),owner,id,nonce,owner));
+  }
+ }
  if(kind==='pack')statements.push(db.prepare('INSERT INTO pack_versions(owner_id,id,revision,data) SELECT ?,?,?,? WHERE EXISTS (SELECT 1 FROM operations WHERE owner_id=? AND id=? AND nonce=?) ON CONFLICT(owner_id,id,revision) DO NOTHING').bind(owner,op.entityId,record.revision,JSON.stringify(record),owner,id,nonce));
  await db.batch(statements);
  const saved=await db.prepare('SELECT result FROM operations WHERE owner_id=? AND id=?').bind(owner,id).first<{result:string}>();
@@ -140,7 +154,7 @@ const destructivePackTools=new Set(['update_pack','save_artifacts','delete_pack'
  'app_mutate','app_publish','app_unpublish']);
 function tool(name:string,description:string,properties:Record<string,unknown>={},required:string[]=[],app=false,readOnly=false,ui=false){return {name,description,inputSchema:{type:'object',properties,required,additionalProperties:false},annotations:{readOnlyHint:readOnly,destructiveHint:destructivePackTools.has(name),openWorldHint:publicCatalogTools.has(name),idempotentHint:true},_meta:{ui:{visibility:app?['app']:['model','app'],...(ui?{resourceUri:'ui://noodl/workspace'}:{})}}};}
 export const toolsList=[
- ...controlTools,...preferenceTools,...exportTools,
+ ...brainTools,...controlTools,...preferenceTools,...exportTools,
  tool('create_pack','Save finished study questions from the ChatGPT conversation. No AI calls or source uploads. Use unique question IDs and option IDs.',{operationId:stringSchema,pack:packSchema},['operationId','pack'],false,false,true),
  tool('update_pack','Replace a private pack at an expected revision.',{operationId:stringSchema,packId:stringSchema,expectedRevision:{type:'integer'},pack:packSchema},['operationId','packId','expectedRevision','pack']),
  tool('append_questions','Append new questions without changing existing content.',{operationId:stringSchema,packId:stringSchema,expectedRevision:{type:'integer'},questions:{type:'array',items:questionSchema}},['operationId','packId','expectedRevision','questions']),
@@ -161,6 +175,7 @@ export const toolsList=[
 ];
 async function callTool(db:Database,user:User,name:string,args:any,origin:string){
  if(name.startsWith('app_')&&args.expectedOwner!==undefined&&args.expectedOwner!==user.id)throw new AccessError('Akun aktif sudah berubah. Masuk kembali untuk menyinkronkan.');
+ const brain=await callBrainTool(db,user.id,name,args);if(brain!==undefined)return brain;
  const control=await callControlTool(db,user,name,args,{read:readRecord,snapshot,mutate});if(control!==undefined)return control;
  const preference=await callPreferenceTool(db,user.id,name,args);if(preference!==undefined)return preference;
  const exported=await callExportTool(db,user.id,name,args,origin);if(exported!==undefined)return exported;
@@ -178,7 +193,7 @@ async function callTool(db:Database,user:User,name:string,args:any,origin:string
  const pack=await readRecord<Pack>(db,user.id,'pack',text(args.packId,'packId'));if(!pack||pack.deletedAt)throw new Error('Pack not found');
  if(name==='get_pack'){if(args.offset===undefined&&args.limit===undefined)return pack;const offset=args.offset??0,limit=args.limit??50;if(!Number.isSafeInteger(offset)||offset<0||!Number.isSafeInteger(limit)||limit<1||limit>100)throw new Error('Invalid pagination');return {...pack,questions:pack.questions.slice(offset,offset+limit),questionPage:{offset,limit,total:pack.questions.length,nextOffset:offset+limit<pack.questions.length?offset+limit:null}};}
  if(name==='open_pack')return {view:'pack',packId:pack.id,pack};
- if(name==='get_progress'){const s=await snapshot(db,user.id);return {packId:pack.id,attempts:s.attempts.filter(a=>a.packId===pack.id&&!('deletedAt' in a)).map(a=>({id:a.id,status:a.status,createdAt:a.createdAt,...progressFor(a)}))};}
+ if(name==='get_progress'){const s=await snapshot(db,user.id);return {packId:pack.id,attempts:s.attempts.filter(a=>a.packId===pack.id&&!('deletedAt' in a)).map(a=>({id:a.id,status:a.status,createdAt:a.createdAt,...sessionProgress(a)}))};}
  let payload:any=pack;let kind:Operation['kind']='pack.put';
  if(name==='update_pack')payload=args.pack;
  else if(name==='append_questions')payload={...pack,questions:[...pack.questions,...args.questions.map(validateQuestion)]};

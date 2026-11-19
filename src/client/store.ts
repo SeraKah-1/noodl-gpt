@@ -90,6 +90,10 @@ export class LocalStore {
     const existing=await records.get([ownerId,kindOfRecord,value.id]);
     if(kind==='review.add'&&existing){result.push(existing.value);continue;}
     const expectedRevision=existing&&'revision' in existing.value?existing.value.revision:0;
+    if(kind==='attempt.put'&&'options' in value&&value.options.mode==='BATCH'&&existing&&
+       (value.revision!==expectedRevision+1 || (existing.value as Attempt).status==='completed')){
+      throw new Error('Sesi sudah berubah. Buka kembali untuk mengambil versi terbaru.');
+    }
     if(kind==='pack.put'&&(('revision' in value&&value.revision!==expectedRevision)||(existing?.value as Pack|undefined)?.deletedAt)){
      throw new Error('Bank sudah berubah. Buka kembali untuk mengambil versi terbaru.');
     }

@@ -1,3 +1,4 @@
+import {maxBatchSize,readBatchDraft,validBatchAnswer} from './batch';
 import {parseComic} from './comic';
 import type { Artifact, Attempt, Pack, Question, ReviewEvent, StudyOptions } from './types';
 
@@ -68,9 +69,10 @@ export function validatePackInput(input: unknown): PackInput {
 }
 export function validateStudyOptions(input: unknown): StudyOptions {
   const o=record(input,'options');
-  if (!['STANDARD','SURVIVAL','TIME_RUSH'].includes(String(o.mode))) throw new DomainError('Invalid quiz mode');
+  if (!['STANDARD','SURVIVAL','TIME_RUSH','BATCH'].includes(String(o.mode))) throw new DomainError('Invalid quiz mode');
   for (const k of ['shuffle','retention','mixed']) if (typeof o[k]!=='boolean') throw new DomainError(`${k} must be boolean`);
-  return {mode:o.mode as StudyOptions['mode'],shuffle:o.shuffle as boolean,retention:o.retention as boolean,mixed:o.mixed as boolean};
+  if(o.mode==='BATCH' && o.retention) throw new DomainError('Batch does not insert repeated questions');
+  return {...(o.batchSize===undefined?{}:{batchSize:integer(o.batchSize,'batchSize',1,maxBatchSize)}),mode:o.mode as StudyOptions['mode'],shuffle:o.shuffle as boolean,retention:o.retention as boolean,mixed:o.mixed as boolean};
 }
 export function validateAttempt(input: unknown): Attempt {
   const a=record(input,'attempt');
@@ -83,7 +85,18 @@ export function validateAttempt(input: unknown): Attempt {
   if(answers.some(x=>!items.some(i=>i.id===x.occurrenceId))) throw new DomainError('Answer references unknown occurrence');
   if(a.status!=='active'&&a.status!=='completed') throw new DomainError('Invalid attempt status');
   if(a.deadline!==null && (typeof a.deadline!=='number'||!Number.isFinite(a.deadline))) throw new DomainError('Invalid deadline');
-  return {id:id(a.id,'attempt.id'),ownerId:id(a.ownerId,'ownerId'),packId:id(a.packId,'packId'),packRevision:integer(a.packRevision,'packRevision'),title:string(a.title,'title',300),options:validateStudyOptions(a.options),items,answers,currentIndex:integer(a.currentIndex,'currentIndex',0,items.length-1),lives:integer(a.lives,'lives',0,3),streak:integer(a.streak,'streak'),deadline:a.deadline as number|null,status:a.status,createdAt:iso(a.createdAt,'createdAt'),updatedAt:iso(a.updatedAt,'updatedAt'),...(a.completedAt===undefined?{}:{completedAt:iso(a.completedAt,'completedAt')}),revision:integer(a.revision,'revision')};
+  const options=validateStudyOptions(a.options);
+  let draft;
+  if(options.mode==='BATCH'){
+    if(items.length>(options.batchSize??10)) throw new DomainError('Too many batch items');
+    if(a.status==='active'){
+      if(answers.length || a.currentIndex!==0) throw new DomainError('Drafts cannot be scored');
+      draft=readBatchDraft(items,a.draft??{});
+    }else if(a.draft!==undefined || answers.length!==items.length || answers.some((answer,i)=>answer.occurrenceId!==items[i].id || !validBatchAnswer(items[i].question,answer.value))){
+      throw new DomainError('Submit one valid answer per batch question');
+    }
+  }
+  return {...(draft?{draft}:{}),id:id(a.id,'attempt.id'),ownerId:id(a.ownerId,'ownerId'),packId:id(a.packId,'packId'),packRevision:integer(a.packRevision,'packRevision'),title:string(a.title,'title',300),options,items,answers,currentIndex:integer(a.currentIndex,'currentIndex',0,items.length-1),lives:integer(a.lives,'lives',0,3),streak:integer(a.streak,'streak'),deadline:a.deadline as number|null,status:a.status,createdAt:iso(a.createdAt,'createdAt'),updatedAt:iso(a.updatedAt,'updatedAt'),...(a.completedAt===undefined?{}:{completedAt:iso(a.completedAt,'completedAt')}),revision:integer(a.revision,'revision')};
 }
 export function validateReviewEvent(input: unknown): ReviewEvent {
   const e=record(input,'review');

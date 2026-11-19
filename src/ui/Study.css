@@ -3,3 +3,9 @@
 .study-flashcard {touch-action:pan-y;translate:var(--drag-x,0) 0;rotate:var(--drag-angle,0deg);transition:translate .12s ease-out,rotate .12s ease-out}
 @media (prefers-reduced-motion:reduce){.study-flashcard{translate:none;rotate:none;transition:none}}
 .study-plan{margin:1rem 0}.study-plan summary{cursor:pointer;font-weight:600}.study-plan label{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin:.5rem 0}.study-plan fieldset{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:.3rem;border:1px solid var(--study-border,#aaa);padding:.6rem}.study-plan input[type=number]{width:4.5rem}.study-plan input,.study-plan textarea{color:inherit;background:var(--surface,transparent);border:1px solid var(--study-border,#aaa);border-radius:.4rem;padding:.4rem;max-width:100%}
+
+.batch-quiz fieldset { min-inline-size: 0; margin-block: 1rem; }
+.batch-quiz legend { font-weight: 700; padding-inline: .4rem; }
+.batch-choice { display: flex; gap: .75rem; align-items: center; min-height: 44px; cursor: pointer; }
+.batch-choice input { flex: none; accent-color: var(--study-accent); }
+.batch-quiz input:not([type=radio]) { display: block; width: 100%; margin-top: .4rem; padding: .7rem; border: 1px solid var(--study-border); border-radius: .5rem; background: var(--study-surface); color: inherit; }
