@@ -35,9 +35,9 @@ try{
  await page.getByRole('button',{name:'Library',exact:true}).click();
  await page.getByRole('heading',{name:/Bank soal/i}).waitFor();
  await page.locator('.classic-upload-label input[type="file"]').setInputFiles('examples/pack.input.json');
- await page.getByRole('button',{name:/Buka bank/i}).waitFor();
+ await page.locator('.desk-library-open').first().waitFor();
  await save('03-library-populated');
- await page.getByRole('button',{name:/Buka bank/i}).click();
+ await page.locator('.desk-library-open').first().click();
  await page.locator('#desk-pack-title').getByText('Example question bank').waitFor();
  await save('04-pack-detail');
  await page.getByRole('button',{name:/Mulai latihan/i}).click();
