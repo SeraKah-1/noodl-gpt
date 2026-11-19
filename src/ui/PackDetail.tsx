@@ -1,3 +1,4 @@
+import {motion,useReducedMotion} from 'framer-motion';
 import {BookOpen,ChevronLeft,Play,Layers,FileText,Network,Orbit,BookMarked,MoreHorizontal,PenLine,Share2,Trash2} from 'lucide-react';
 import type {Attempt,Pack} from '../shared/types';
 import {BankHistory} from './BankHistory';
@@ -12,12 +13,13 @@ interface Props {
 }
 export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onFlashcards,onTool,onEdit,onRename,onPublish,onUnpublish,onDelete,onOpenAttempt}:Props){
  const id=locale==='id';
+ const reduce=useReducedMotion();
  const history=attempts.filter(a=>a.items.some(i=>i.sourcePackId===pack.id));
  const active=history.filter(a=>a.status==='active').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0];
  const materials=pack.artifacts.filter(a=>a.kind==='material'||a.kind==='insight');
  const visuals=pack.artifacts.filter(a=>a.kind==='visualization');
  const comics=pack.artifacts.filter(a=>a.kind==='comic');
- return <section className="desk-pack" aria-labelledby="desk-pack-title">
+ return <motion.section className="desk-pack" aria-labelledby="desk-pack-title" initial={reduce?false:{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:0.18}}>
   <button className="desk-link desk-back" onClick={onBack}><ChevronLeft size={18}/>{id?'Kembali ke Library':'Back to Library'}</button>
   <header className="desk-pack-head">
    <span className="desk-kicker">{pack.folder||'LIBRARY'} · {pack.questions.length} {id?'SOAL':'QUESTIONS'}</span>
@@ -49,5 +51,5 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onFlashc
    <BankHistory packId={pack.id} attempts={history} english={!id} onOpen={onOpenAttempt}/>
   </section>
   <p className="desk-quiet"><BookOpen size={15}/>{id?'Bank tersedia dalam cache perangkat ini setelah dimuat; perubahan akun disinkronkan ketika koneksi tersedia.':'Loaded banks are cached on this device; account changes sync when connected.'}</p>
- </section>;
+ </motion.section>;
 }
