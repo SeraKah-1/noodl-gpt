@@ -191,7 +191,7 @@ export function colorContrast(a:string,b:string):number {
  return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);
 }
 export function actionColors(accent:string,bg:string,ink:string){
- const dark='#101828',light='#ffffff';
+ const dark='#000000',light='#ffffff';
  const onAction=colorContrast(accent,light)>=4.5?light:dark;
  return {onAction,actionText:colorContrast(accent,bg)>=4.5?accent:ink};
 }
