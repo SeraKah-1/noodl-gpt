@@ -38,5 +38,7 @@ export async function sendChatRequest(message:string,context?:unknown):Promise<v
  }
 }
 export async function requestTutor(pack:Pack,question?:Question,message?:string):Promise<void>{
- await sendChatRequest(message??(question?'Jelaskan soal ini dan bantu saya memahami konsepnya.':'Bantu saya mempelajari bank soal ini.'),{packId:pack.id,title:pack.title,revision:pack.revision,...(question?{question}:{questions:pack.questions})});
+ const guest=pack.ownerId.startsWith('web-guest:')||pack.ownerId.startsWith('guest:');
+ const prompt=message??(question?'Jelaskan soal ini dan bantu saya memahami konsepnya.':'Bantu saya mempelajari bank soal ini.');
+ await sendChatRequest(guest?prompt+' Bank ini milik guest browser. Untuk hasil baru, kembalikan bank JSON lengkap yang bisa diimpor dari File. Pertahankan soal dan artefak yang ada.':prompt,{packId:pack.id,title:pack.title,revision:pack.revision,...(question?{question}:{questions:pack.questions,...(guest?{artifacts:pack.artifacts,description:pack.description,tags:pack.tags}:{})})});
 }

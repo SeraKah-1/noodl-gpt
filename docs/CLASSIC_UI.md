@@ -23,7 +23,7 @@ The original source-upload, provider-key, and model-selection flows are replaced
 
 The companion uses completed session counts from the current workspace. Its review button opens the actual review schedule. The quick-jump menu selects a bank before opening materials, a concept map, or Visual Lab. These are working paths, not decorative controls.
 
-Guest information is collapsed by default. Guest records remain local and separate from account records. Publication controls require an authenticated account. No stored content or learning history is migrated by this presentation update.
+Guest information is collapsed by default. Guests can use local-only storage or a separate server workspace identified by their guest cookie. Cloud guests can publish their own banks. No stored content or learning history is migrated by this presentation update.
 
 This restores the upstream layout and interaction patterns. It does not claim pixel-for-pixel equivalence for every upstream screen. Account preferences still control supported theme and design tokens. Camera and ChatGPT host behavior require their respective environments to verify.
 
@@ -32,3 +32,15 @@ This restores the upstream layout and interaction patterns. It does not claim pi
 On 2026-11-17, all 40 repository tests passed. The production build passed, including TypeScript, Vite, Worker startup, database access, and PDF generation. A server-rendering check covered Indonesian and English, empty and populated home views, saved-session resume, calculated scores, navigation destinations, and companion stages. The output CSS places the classic rules after the older layout rules.
 
 Interactive browser and ChatGPT-host checks were unavailable in this environment. Server rendering does not establish visual equivalence, dialog focus behavior, clipboard access, or camera behavior in a real browser. The existing build warning for chunks larger than 500 kB remains.
+
+## Study controls and follow-up
+
+During a quiz, Left or Space shows an earlier answered question. Right or Enter returns toward the current question or advances an answered question. Browsing uses a separate display position. The active Time Rush deadline continues. Editable fields keep their normal keyboard behavior.
+
+Flashcards accept click, Space, or Enter to flip. After flipping, Left, Down, Up, and Right record the four ratings in order from Again to Easy. Numbers 1 through 4 use the same order. A left swipe records Again. A right swipe records Easy. Camera hand controls send the same numbered keys. Escape closes the cards.
+
+Open practice history on a bank in File to resume a session or review its results. Results link to materials, concept maps, Visual Lab, comics, and question-specific flashcards for available source banks. Follow-up requests include the recorded answer and question context or aggregate weak topics. Guests can request importable JSON. In a standalone browser, paste the copied request in ChatGPT. In the embedded panel, the bridge sends the request to the conversation.
+
+Home and Results support optional Bloom percentages, source references, and instructions. The percentages must sum to 100. Noodl assigns whole questions before sending the brief. The daily study calendar exports a recurring 30-minute event at the selected local time. Import the file into a calendar to schedule it.
+
+Concept map search and branch focus operate on the saved bank. Edges indicate shared wording in explanations or key points. Visual Lab lets the learner select a topic and format, then ask ChatGPT for a design proposal before creating the visual.
