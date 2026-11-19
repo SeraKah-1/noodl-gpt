@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
-import {Home, FolderOpen, Settings, Brain, Shuffle, MessageSquare, Sparkles, BookOpen, Grid, X, Globe, Network, Search} from 'lucide-react';
+import {Home, FolderOpen, Settings, Brain, Shuffle, MessageSquare, Sparkles, BookOpen, Grid, X, Globe, Network} from 'lucide-react';
 
 export type WorkspaceView = 'home'|'library'|'mix'|'review'|'public'|'settings';
 export type ToolTab = 'material'|'graph'|'visual'|'comic';
@@ -10,15 +10,13 @@ export function Navigation({view,locale,onNavigate,onChat,onTool}:{
   view:WorkspaceView;locale:Locale;onNavigate:(view:WorkspaceView)=>void;onChat:()=>void;onTool:(tab:ToolTab)=>void;
 }) {
   const [open,setOpen]=useState(false);
-  const [query,setQuery]=useState('');
-  const search=useRef<HTMLInputElement>(null);
   const dialog=useRef<HTMLDialogElement>(null);
   const trigger=useRef<HTMLButtonElement>(null);
   const id=locale==='id';
   const tabs=[
     {view:'home',Icon:Home,label:id?'Beranda':'Home'},
     {view:'mix',Icon:Shuffle,label:'Mix'},
-    {view:'review',Icon:Brain,label:id?'Ulang':'Review'},
+    {view:'review',Icon:Brain,label:'Sync'},
     {view:'library',Icon:FolderOpen,label:id?'File':'Files'},
     {view:'settings',Icon:Settings,label:id?'Setelan':'Settings'},
   ] as const;
@@ -31,32 +29,17 @@ export function Navigation({view,locale,onNavigate,onChat,onTool}:{
     {view:'graph',Icon:Network,label:id?'Peta konsep':'Concept map',description:id?'Jelajahi hubungan konsep':'Explore concept connections',action:()=>onTool('graph')},
     {view:'public',Icon:Globe,label:id?'Jelajahi':'Explore',description:id?'Salin bank yang dibagikan':'Copy shared question banks',action:()=>onNavigate('public')},
   ];
-  const term=query.trim().toLocaleLowerCase();
-  const matches=routes.filter(route=>[route.label,route.description,route.view].some(value=>value.toLocaleLowerCase().includes(term)));
-  useEffect(()=>{
-    if(open&&!dialog.current?.open){dialog.current?.showModal();search.current?.focus();}
-  },[open]);
-  useEffect(()=>{
-    function shortcut(event:KeyboardEvent){
-      if(event.defaultPrevented||event.isComposing||event.altKey||event.shiftKey||!(event.ctrlKey||event.metaKey)||event.key.toLowerCase()!=='k')return;
-      if(document.querySelector('dialog[open],[role="dialog"][aria-modal="true"],.n-fullscreen'))return;
-      event.preventDefault();setQuery('');setOpen(true);
-    }
-    window.addEventListener('keydown',shortcut);
-    return ()=>window.removeEventListener('keydown',shortcut);
-  },[]);
+  useEffect(()=>{if(open&&!dialog.current?.open)dialog.current?.showModal();},[open]);
   function close(){dialog.current?.close();setOpen(false);trigger.current?.focus();}
   return <>
     <nav className="classic-nav" aria-label={id?'Navigasi utama':'Primary navigation'}>
-      <div className="classic-nav-inner">{tabs.filter(t=>t.view!=='settings').map(({view:key,Icon,label})=><button key={key} aria-current={view===key?'page':undefined} onClick={()=>onNavigate(key)}><Icon size={20} strokeWidth={view===key?2.5:2}/><span>{label}</span></button>)}
-        <button ref={trigger} aria-haspopup="dialog" aria-current={view==='settings'||view==='public'?'page':undefined} aria-expanded={open} aria-keyshortcuts="Control+k Meta+k" onClick={()=>{setQuery('');setOpen(true);}}><Grid size={20}/><span>{id?'Lainnya':'More'}</span></button>
+      <div className="classic-nav-inner">{tabs.map(({view:key,Icon,label})=><button key={key} aria-current={view===key?'page':undefined} onClick={()=>onNavigate(key)}><Icon size={20} strokeWidth={view===key?2.5:2}/><span>{label}</span></button>)}
+        <button ref={trigger} aria-haspopup="dialog" aria-expanded={open} onClick={()=>setOpen(true)}><Grid size={20}/><span>{id?'Lainnya':'More'}</span></button>
       </div>
     </nav>
     <dialog ref={dialog} className="classic-dialog" onCancel={()=>setOpen(false)} onClose={()=>setOpen(false)} onClick={event=>{if(event.target===event.currentTarget){const r=event.currentTarget.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)close();}}} aria-labelledby="classic-hub-title">
-      <header className="classic-dialog-header"><div><h2 id="classic-hub-title">{id?'Lompat cepat':'Quick jump'}</h2><p>Ctrl / ⌘ + K</p></div><button className="classic-icon" onClick={close} aria-label={id?'Tutup':'Close'}><X/></button></header>
-      <label className="hub-search"><Search size={18}/><input ref={search} type="search" value={query} aria-label={id?'Cari halaman atau alat':'Search pages and tools'} placeholder={id?'Cari halaman atau alat…':'Search pages and tools…'} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'&&!e.nativeEvent.isComposing&&matches.length){e.preventDefault();close();matches[0].action();}}}/></label>
-      {!matches.length&&<p role="status">{id?'Tidak ada hasil. Coba nama alat lain.':'No matches. Try another tool name.'}</p>}
-      <div className="classic-hub-grid">{matches.map(({view:key,Icon,label,description,action})=><button key={key} onClick={()=>{close();action();}}><Icon size={24}/><strong>{label}</strong><span>{description}</span></button>)}</div>
+      <header className="classic-dialog-header"><div><h2 id="classic-hub-title">{id?'Lompat cepat':'Quick jump'}</h2><p>{id?'Semua ruang belajarmu, satu tempat.':'All your study spaces, in one place.'}</p></div><button className="classic-icon" autoFocus onClick={close} aria-label={id?'Tutup':'Close'}><X/></button></header>
+      <div className="classic-hub-grid">{routes.map(({view:key,Icon,label,description,action})=><button key={key} onClick={()=>{close();action();}}><Icon size={24}/><strong>{label}</strong><span>{description}</span></button>)}</div>
     </dialog>
   </>;
 }

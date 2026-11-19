@@ -3,11 +3,11 @@
 The interface follows the upstream Noodl layout at commit `ec8342b85213dd7c00b11f367298ee4df8ccb3b7`.
 The source is https://github.com/SeraKah-1/noodl. Its MIT license remains in the repository.
 
-The restored presentation includes the study desk, kaomoji companion, translucent practice setup card, floating bottom navigation, quick-jump dialog, and tactile practice controls. The quiz uses the upstream narrow column and compact controls. It retains the current answer engine and persisted session snapshots.
+The restored presentation includes the centered Noodl heading, kaomoji companion, translucent practice setup card, floating bottom navigation, quick-jump dialog, and tactile practice controls. The quiz uses the upstream narrow column and compact controls. It retains the current answer engine and persisted session snapshots.
 
 ## Component ownership
 
-- `src/ui/classic/Navigation.tsx`: four primary destinations and a searchable quick-jump dialog.
+- `src/ui/classic/Navigation.tsx`: five primary destinations and the quick-jump dialog.
 - `src/ui/classic/Home.tsx`: study setup, bank selection, JSON import, ChatGPT requests, resume, and companion.
 - `src/ui/classic/StudyOptions.tsx`: shared mode controls for home and bank launch dialogs.
 - `src/ui/classic/ToolPicker.tsx`: bank selection for materials, concept maps, and visualizations.
@@ -21,7 +21,7 @@ Presentation components accept records and callbacks. They do not create another
 
 The original source-upload, provider-key, and model-selection flows are replaced by existing Noodl GPT capabilities: saved banks, validated JSON input, and ChatGPT requests. The website copies a request before the user pastes it into ChatGPT; the embedded panel uses the host bridge.
 
-The companion uses completed session counts from the current workspace. Its review button opens the actual review schedule. The quick-jump menu opens the tool directly for a single bank. With multiple banks, the learner chooses one.
+The companion uses completed session counts from the current workspace. Its review button opens the actual review schedule. The quick-jump menu selects a bank before opening materials, a concept map, or Visual Lab. These are working paths, not decorative controls.
 
 Guest information is collapsed by default. Guests can use local-only storage or a separate server workspace identified by their guest cookie. Cloud guests can publish their own banks. No stored content or learning history is migrated by this presentation update.
 
@@ -48,8 +48,3 @@ Concept map search and branch focus operate on the saved bank. Edges indicate sh
 ## Study screens
 
 The quiz follows the fixed progress header and scrollable question column in upstream `QuizInterface.tsx`. Batch Quiz uses the same card and option layout, with a persistent submission button. Flashcards follow the header, flexible card, and rating footer in upstream `FlashcardScreen.tsx`. Long explanations scroll inside the card.
-
-
-Home opens the most recently used available bank. When there is no matching session, it opens the most recently updated bank. A manual choice stays selected while navigating the workspace. Importing a bank selects it for practice. The latest unfinished session has its own resume button. A new user can open the public catalog directly from Home.
-
-Use **More** or **Ctrl+K** (**Cmd+K** on macOS) to search workspace pages and tools. Enter opens the first match. Practice settings contain the mode, shuffle and repeat controls. Starting a quiz with saved settings skips the preference write.
