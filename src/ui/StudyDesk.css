@@ -1,5 +1,5 @@
 /* Noodl Study Desk: semantic layers over the existing user-selectable theme tokens. */
-.noodl-app{--desk-ink:var(--text-main);--desk-muted:var(--text-muted);--desk-action:var(--primary);--desk-on-action:var(--desk-on-action,#ffffff);--desk-link-ink:var(--desk-action-text,var(--text-main));--desk-paper:var(--app-bg);--desk-surface:color-mix(in srgb,var(--glass-bg) 78%,var(--app-bg));--desk-border:color-mix(in srgb,var(--text-muted) 20%,transparent);--desk-radius:clamp(12px,var(--n-radius,16px),24px);font-size:1rem}
+.noodl-app{--desk-ink:var(--text-main);--desk-muted:var(--text-muted);--desk-action:var(--primary);--desk-link-ink:var(--desk-action-text,var(--text-main));--desk-paper:var(--app-bg);--desk-surface:color-mix(in srgb,var(--glass-bg) 78%,var(--app-bg));--desk-border:color-mix(in srgb,var(--text-muted) 20%,transparent);--desk-radius:clamp(12px,var(--n-radius,16px),24px);font-size:1rem}
 .noodl-app :is(button,a[href],summary,select,label:has(input[type="checkbox"])) {cursor:pointer}
 .noodl-app :is(button,a[href],summary,input,select,textarea):focus-visible{outline:3px solid var(--desk-action);outline-offset:3px}
 .noodl-app :is(button,a[href]):disabled{cursor:not-allowed}
