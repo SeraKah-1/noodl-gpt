@@ -1,41 +1,60 @@
-import {GenerationOptions,StudyCalendar} from '../StudyPlanning';
-import {useRef,useState} from 'react';
-import {BookOpen, Plus, Upload, MessageSquarePlus, Play, Layers, ArrowRight, Heart, Brain, FileText, Check, ChevronRight} from 'lucide-react';
-import type {Attempt,Pack,StudyOptions as Options} from '../../shared/types';
+import {useState} from 'react';
+import {motion,useReducedMotion} from 'framer-motion';
+import {ArrowRight,BookOpen,Brain,Layers,Play,Plus,ChevronRight} from 'lucide-react';
+import {buildReviewQueues} from '../reviewQueue';
+import type {Attempt,Pack,ReviewEvent,StudyOptions as Options} from '../../shared/types';
 import {progressFor} from '../../shared/engine';
-import {StudyOptions} from './StudyOptions';
 import type {Locale} from './Navigation';
 
-type Props={onProbe:(pack:Pack)=>void;onDebugger:()=>void;locale:Locale;packs:Pack[];attempts:Attempt[];options:Options;busy:boolean;onOptions:(value:Options)=>void;onStart:(pack:Pack)=>void;onFlash:(pack:Pack)=>void;onResume:(attempt:Attempt)=>void;onLibrary:()=>void;onReview:()=>void;onImport:(file:File)=>Promise<void>;onBrainDump:()=>void;onCreate:()=>void;onChat:(message:string)=>void};
-export function DashboardMascot({count,locale,onReview}:{count:number;locale:Locale;onReview:()=>void}){
-  const [poke,setPoke]=useState(0);const id=locale==='id';
-  const stages=[{min:0,label:id?'Baru kenal':'Just met',face:'( . _ . )'},{min:5,label:id?'Makin akrab':'Getting closer',face:'( ◕ ‿ ◕ )'},{min:30,label:id?'Bareng terus':'Ride or die',face:'(≧▽≦)'}];
-  const index=count>=30?2:count>=5?1:0;const stage=stages[index],next=stages[index+1];
-  const progress=next?Math.min(100,Math.max(0,(count-stage.min)/(next.min-stage.min)*100)):100;
-  const messages=id?['Satu kuis dulu. Kita lihat bagian mana yang sudah nempel.','Kartu yang meleset bisa kamu ulang di Neuro-Sync.','Aku tidak menilai jiwamu — cuma opsi jawaban.','Mix Room ada kalau mau latihan beberapa topik sekaligus.']:['One quiz first. Let’s see what sticks.','Review the tricky cards in Neuro-Sync.','I don’t grade your soul — only the options.','Mix Room brings several topics into one practice.'];
-  return <section className="classic-mascot" aria-label={id?'Teman belajar':'Study companion'}><div className="classic-companion"><button onClick={()=>setPoke(n=>n+1)} aria-label={id?'Ketuk maskot untuk ganti kalimat':'Tap mascot for a new line'}>{poke%2?'( ^ _ ^ )':stage.face}</button><span>{stage.label}</span></div><div className="classic-companion-body"><p className="classic-speech" aria-live="polite">“{messages[poke%messages.length]}”</p><div className="classic-bond"><span><Heart size={12}/> Bond</span><span>{count} {id?'sesi selesai':'completed sessions'}</span></div><div className="classic-bond-track" role="progressbar" aria-label="Bond" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}><span style={{width:`${progress}%`}}/></div><button className="classic-review-link" onClick={onReview}><Brain size={14}/>{id?'Jadwal pengulangan':'Review schedule'}</button></div></section>;
+type Props={
+ onProbe:(pack:Pack)=>void;onDebugger:()=>void;locale:Locale;packs:Pack[];attempts:Attempt[];reviews:ReviewEvent[];
+ options:Options;busy:boolean;onOptions:(value:Options)=>void;onStart:(pack:Pack)=>void;onFlash:(pack:Pack)=>void;
+ onResume:(attempt:Attempt)=>void;onLibrary:()=>void;onReview:()=>void;onImport:(file:File)=>Promise<void>;
+ onBrainDump:()=>void;onCreate:()=>void;onChat:(message:string)=>void;onOpenPack:(pack:Pack)=>void;
+};
+
+export function DashboardMascot({count,locale}:{count:number;locale:Locale}){
+ const [line,setLine]=useState(0),id=locale==='id';
+ const faces=['( . _ . )','( ◕ ‿ ◕ )','(≧▽≦)'];
+ const milestone=count>=30?2:count>=5?1:0;
+ const messages=id
+  ?['Satu soal yang dijawab lebih berguna daripada sepuluh menu yang dibuka.','Yang keliru bisa dicoba lagi. Catatan latihanmu tetap ada.','Noodl siap. Pilih apa yang mau kamu kerjakan.']
+  :['One answered question beats ten menus opened.','You can retry missed questions. Your practice history stays.','Noodl is ready. Pick what you want to work on.'];
+ return <section className="desk-companion" aria-label={id?'Teman belajar Noodl':'Noodl companion'}>
+   <button className="desk-face" onClick={()=>setLine(n=>(n+1)%messages.length)} aria-label={id?'Ganti pesan maskot':'Change companion message'}>{faces[milestone]}</button>
+   <div><p aria-live="polite">{messages[line]}</p><small>{count} {id?'sesi selesai':'completed sessions'}</small></div>
+ </section>;
 }
 export function Home(props:Props){
-  const {locale,packs,attempts,options,busy,onOptions,onStart,onFlash,onResume,onLibrary,onReview,onImport,onCreate,onChat}=props;
-  const id=locale==='id';const [tab,setTab]=useState<'library'|'import'|'chat'>('library'),[selected,setSelected]=useState(''),[topic,setTopic]=useState(''),[count,setCount]=useState(10),[error,setError]=useState(''),[importing,setImporting]=useState(false),[dragging,setDragging]=useState(false);
-  const input=useRef<HTMLInputElement>(null);const pack=packs.find(p=>p.id===selected);const completed=attempts.filter(a=>a.status==='completed');const resumable=attempts.filter(a=>a.status==='active').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt));
-  async function importFile(file?:File){if(!file||importing)return;setImporting(true);setError('');try{await onImport(file);setTab('library');}catch(e){setError(e instanceof Error?e.message:'Import failed');}finally{setImporting(false);}}
-  function request(brief:string){const label=id?'Buat':'Create';onChat(`${label} ${count} ${id?'soal latihan tentang':'practice questions about'} ${topic.trim()}. ${id?'Sertakan pembahasan, petunjuk, dan konsep. Simpan ke Noodl melalui create_pack.':'Include explanations, hints and concepts. Save to Noodl with create_pack.'}\n${brief}`.trim());}
-  return <div className="classic-home"><header className="classic-home-heading"><h1>Noodl</h1><p>{id?'Pilih bank atau topik, atur mode, mulai latihan.':'Choose a bank or topic, pick a mode, start practicing.'}</p></header>
-    <DashboardMascot count={completed.length} locale={locale} onReview={onReview}/>
-    {resumable.slice(0,1).map(a=><button className="classic-resume" key={a.id} onClick={()=>onResume(a)}><Play size={23}/><span>{id?'Lanjutkan sesi':'Continue session'}<small>{a.title} · {a.draft?Object.keys(a.draft).length:a.answers.length}/{a.items.length}</small></span><ArrowRight size={20}/></button>)}
-    <section className="classic-config" aria-label={id?'Persiapan latihan':'Practice setup'}>
-      <div className="classic-input-tabs" role="group" aria-label={id?'Sumber belajar':'Study source'}>{([{key:'library',Icon:BookOpen,label:id?'Perpustakaan':'Library'},{key:'import',Icon:Upload,label:id?'Impor JSON':'Import JSON'},{key:'chat',Icon:MessageSquarePlus,label:'ChatGPT'}] as const).map(({key,Icon,label})=><button key={key} aria-pressed={tab===key} onClick={()=>{setTab(key);setError('');}}><Icon size={18}/><span>{label}</span></button>)}</div>
-      {tab==='library'&&<><div className="classic-bank-picker">{packs.length?packs.map(p=><button className="classic-bank-choice" key={p.id} aria-pressed={p.id===selected} onClick={()=>setSelected(p.id)}><FileText size={21}/><span><strong>{p.title}</strong><small>{p.questions.length} {id?'soal':'questions'}{p.folder?` · ${p.folder}`:''}</small></span><span className="classic-choice-check">{p.id===selected&&<Check size={15}/>}</span></button>):<div className="classic-picker-empty"><BookOpen size={28}/><p>{id?'Belum ada bank soal. Buat soal, impor JSON, atau salin bank yang dibagikan.':'Create a question bank, import JSON, or copy a shared bank.'}</p></div>}</div><button className="classic-secondary" onClick={onCreate}><Plus size={18}/>{id?'Buat bank soal':'Create question bank'}</button><div className="classic-picker-footer"><span>{pack?(id?'1 bank dipilih':'1 bank selected'):(id?'Pilih bank untuk latihan':'Choose a bank to practice')}</span><button onClick={onLibrary}>{id?'Kelola perpustakaan':'Manage library'} →</button></div></>}
-      {tab==='import'&&<div className={`classic-import ${dragging?'dragging':''}`} onDragOver={e=>{e.preventDefault();setDragging(true);}} onDragLeave={()=>setDragging(false)} onDrop={e=>{e.preventDefault();setDragging(false);void importFile(e.dataTransfer.files[0]);}}><input ref={input} className="classic-file-input" type="file" accept=".json,application/json" aria-label={id?'Pilih bank JSON':'Choose JSON bank'} disabled={importing||busy} onChange={e=>{void importFile(e.target.files?.[0]);e.target.value='';}}/><button disabled={importing||busy} onClick={()=>input.current?.click()}><Upload size={32}/><strong>{importing?(id?'Mengimpor…':'Importing…'):(id?'Tarik bank JSON ke sini':'Drop a JSON bank here')}</strong><span>{id?'atau klik untuk memilih file · maksimal 8 MB':'or click to choose a file · up to 8 MB'}</span></button></div>}
-      {tab==='chat'&&<div className="classic-topic"><label htmlFor="classic-topic">{id?'Mau belajar apa?':'What do you want to learn?'}</label><textarea id="classic-topic" rows={3} value={topic} maxLength={4000} onChange={e=>setTopic(e.target.value)} placeholder={id?'Contoh: fisiologi lambung dan regulasi asam':'For example: stomach physiology and acid regulation'}/><label htmlFor="classic-count">{id?'Jumlah soal':'Question count'}</label><input id="classic-count" type="number" min={1} max={100} value={count} onChange={e=>setCount(Math.min(100,Math.max(1,Math.trunc(Number(e.target.value))||1)))}/><p>{id?'Permintaan dibuka di ChatGPT. Di website, teks disalin agar bisa kamu tempel ke percakapan.':'The request opens in ChatGPT. On the website, the text is copied so you can paste it into the conversation.'}</p></div>}
-      {error&&<p role="alert" className="study-error">{error}</p>}
-      {tab==='library'&&<><StudyOptions questionCount={pack?.questions.length} value={options} onChange={onOptions} locale={locale}/><div className="classic-start-actions"><button className="classic-start" disabled={!pack||busy} onClick={()=>pack&&onStart(pack)}><Play size={20}/>{busy?(id?'Menyiapkan…':'Preparing…'):(id?'Mulai latihan':'Start practice')}</button><button className="classic-secondary" disabled={!pack||busy} onClick={()=>pack&&props.onProbe(pack)}>{id?'Cek awal · 1 soal':'Initial check · 1 question'}</button><button className="classic-secondary" disabled={!pack||busy} onClick={()=>pack&&onFlash(pack)}><Layers size={18}/>Flashcards</button></div></>}
-      {tab==='chat'&&<button className="classic-secondary" disabled={busy} onClick={props.onBrainDump}>{id?'Brain Dump dari PPT':'Brain Dump from slides'}</button>}
-      {tab==='chat'&&<GenerationOptions english={!id} count={count} disabled={busy||!topic.trim()} onRequest={request} label={id?'Buat lewat ChatGPT':'Create with ChatGPT'}/>}
+ const {packs,attempts,reviews,locale,busy,onResume,onStart,onLibrary,onReview,onOpenPack,onCreate}=props;
+ const id=locale==='id',reduce=useReducedMotion();
+ const active=attempts.filter(a=>a.status==='active').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0];
+ const completed=attempts.filter(a=>a.status==='completed');
+ const queue=buildReviewQueues(packs,reviews);
+ const recent=[...packs].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,3);
+ const next=recent[0];
+ return <motion.div className="desk-today" initial={reduce?false:{opacity:0,y:6}} animate={{opacity:1,y:0}} transition={{duration:0.2}}>
+   <header className="desk-page-head"><span className="desk-kicker">{id?'RUANG BELAJAR':'STUDY DESK'}</span><h1>Noodl<span className="desk-star">✦</span></h1>
+    <p>{active?(id?'Sesi terakhir masih tersimpan. Lanjutkan dari jawaban terakhir.':'Your last session is saved. Pick up where you left off.'):id?'Satu langkah berikutnya. Bukan semua fitur sekaligus.':'One next step, not every tool at once.'}</p>
+   </header>
+   <section className="desk-next" aria-labelledby="desk-next-heading">
+    <div><span className="desk-kicker">{active?(id?'BELUM SELESAI':'IN PROGRESS'):(id?'MULAI DARI SINI':'START HERE')}</span>
+     <h2 id="desk-next-heading">{active?active.title:next?next.title:id?'Belum ada bank soal':'No question banks yet'}</h2>
+     <p>{active?`${active.draft?Object.keys(active.draft).length:active.answers.length} / ${active.items.length} ${id?'soal dijawab':'questions answered'} · ${active.options.mode.replace('_',' ')}`:next?`${next.questions.length} ${id?'soal · siap dipelajari':'questions · ready to practice'}`:id?'Buat bank pertama atau impor JSON melalui Library.':'Create your first bank or import JSON through Library.'}</p>
+    </div>
+    {active?<button className="desk-primary" disabled={busy} onClick={()=>onResume(active)}><Play size={18}/>{id?'Lanjutkan sesi':'Resume session'}<ArrowRight size={17}/></button>
+      :next?<button className="desk-primary" disabled={busy} onClick={()=>onStart(next)}><Play size={18}/>{id?'Mulai latihan':'Start practice'}<ArrowRight size={17}/></button>
+      :<button className="desk-primary" onClick={onCreate}><Plus size={18}/>{id?'Buat bank pertama':'Create first bank'}</button>}
+   </section>
+   <div className="desk-today-lower">
+    <section className="desk-queue" aria-labelledby="desk-queue-heading"><div className="desk-section-heading"><div><span className="desk-kicker">{id?'PENGULANGAN':'RECALL'}</span><h2 id="desk-queue-heading">{id?'Review terjadwal':'Scheduled review'}</h2></div><button className="desk-link" onClick={onReview}>{id?'Buka Review':'Open Review'} <ChevronRight size={16}/></button></div>
+      <div className="desk-queue-count"><Brain size={23}/><div><strong>{queue.due.length} {id?'jatuh tempo':'due'}</strong><p>{queue.newCards.length} {id?'kartu baru, belum dijadwalkan':'new cards, not yet scheduled'}</p></div></div>
     </section>
-    <button className="classic-secondary" onClick={props.onDebugger}><Brain size={18}/>Knowledge Debugger · {id?'Regulasi asam lambung':'Gastric acid regulation'}</button>
-    <StudyCalendar english={!id}/>
-    {completed.length>0&&<section className="classic-recent"><h2>{id?'Latihan terakhir':'Recent practice'}</h2>{[...completed].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,3).map(a=><button key={a.id} onClick={()=>onResume(a)}><span>{a.title}</span><strong>{progressFor(a).score}%</strong><ChevronRight size={16}/></button>)}</section>}
-  </div>;
+    <section className="desk-recent" aria-labelledby="desk-recent-heading"><div className="desk-section-heading"><div><span className="desk-kicker">{id?'MILIKMU':'YOUR CONTENT'}</span><h2 id="desk-recent-heading">{id?'Bank terbaru':'Recent banks'}</h2></div><button className="desk-link" onClick={onLibrary}>{id?'Semua bank':'All banks'} <ChevronRight size={16}/></button></div>
+      {recent.length?recent.map(p=><button className="desk-bank-row" key={p.id} onClick={()=>onOpenPack(p)}><BookOpen size={18}/><span><strong>{p.title}</strong><small>{p.questions.length} {id?'soal':'questions'}</small></span><ChevronRight size={17}/></button>):<p className="desk-empty-note">{id?'Bank yang dibuat atau diimpor muncul di sini.':'Created and imported banks will appear here.'}</p>}
+    </section>
+   </div>
+   <DashboardMascot count={completed.length} locale={locale}/>
+   {completed.length>0&&<section className="desk-last-score" aria-label={id?'Hasil terbaru':'Latest result'}><Layers size={16}/><span>{id?'Hasil terakhir':'Latest result'}: {completed.sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0].title}</span><strong>{progressFor(completed[0]).score}%</strong></section>}
+ </motion.div>;
 }
