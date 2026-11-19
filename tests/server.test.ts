@@ -77,6 +77,7 @@ test('Supabase backup uses private paths and includes only the active owner’s 
  t.mock.method(globalThis, 'fetch', async (requestUrl: string, init: RequestInit) => {
   const url = new URL(requestUrl);
   assert.equal(url.origin, 'https://example.supabase.co');
+  assert.equal(init.redirect, 'manual');
   assert.equal(new Headers(init.headers).get('apikey'), secret);
   if (init.method === 'POST') {
    assert.equal(new Headers(init.headers).get('x-upsert'), 'true');

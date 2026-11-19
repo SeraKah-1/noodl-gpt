@@ -48,8 +48,9 @@ export async function bankBackup(env: SupabaseEnv, owner: string, method: 'GET' 
     headers.set('x-upsert', 'true');
   }
 
+  // Workers support manual redirects. Treat 3xx as an error so the key stays on this origin.
   const response = await fetch(url.href, {
-    method: method === 'PUT' ? 'POST' : 'GET', headers, body, redirect: 'error',
+    method: method === 'PUT' ? 'POST' : 'GET', headers, body, redirect: 'manual',
     signal: AbortSignal.timeout(15000)
   }).catch(error => {
     const message = (error instanceof Error ? error.message : 'Unknown network error')
