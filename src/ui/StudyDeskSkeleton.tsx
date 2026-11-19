@@ -13,3 +13,11 @@ export function StudyDeskSkeleton({label='Menyiapkan ruang belajar…'}:{label?:
   <span className="sr-only">{label}</span>
  </div>;
 }
+
+export function CatalogSkeleton({label='Memuat bank publik…'}:{label?:string}){
+ return <section className="desk-catalog-loading" role="status" aria-busy="true">
+  <p>{label}</p><div className="desk-library-grid desk-catalog-grid" aria-hidden="true">
+   {[0,1,2].map(i=><div key={i} className="desk-skeleton desk-catalog-card"/>)}
+  </div>
+ </section>;
+}
