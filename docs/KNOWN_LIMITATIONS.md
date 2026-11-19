@@ -5,7 +5,7 @@ This page describes current product limits. A limit is not evidence of a defect.
 ## ChatGPT and MCP
 
 - The MCP server gets the account identity from trusted Sites headers. The repository does not implement a separate login flow for direct Worker access.
-- `get_capabilities` reports version `2.1.0`. The MCP `initialize` reply reports server version `1.0.0` and protocol version `2025-11-25`. These fields describe different contracts. Clients should use `get_capabilities` for the Noodl tool contract.
+- `get_capabilities` reports version `2.2.0`. The MCP `initialize` reply reports server version `1.0.0` and protocol version `2025-11-25`. These fields describe different contracts. Clients should use `get_capabilities` for the Noodl tool contract.
 - The tool names, behavior, and availability depend on the deployed Worker and the ChatGPT connection. Repository code alone does not prove a plugin is connected in a given account.
 - Plugin version `1.1.0` includes `skills/noodl-visual-learning/SKILL.md` for clarification and visual review. Its App binding and `defaultPrompt: null` are unchanged. Repository skills under `.agents/skills/` are for coding work. They do not run as server features. Plugin instructions guide the host; they cannot prove that a model performed a visual check.
 - The server does not accept source file uploads, call AI providers, expose API keys, execute arbitrary SQL or shell commands, or edit its own source code. ChatGPT must produce content and send it through a structured tool.

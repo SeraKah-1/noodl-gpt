@@ -12,7 +12,7 @@ export interface Pack { id: string; ownerId: string; title: string; description:
 export interface StudyOptions { mode: QuizMode; batchSize?: number; shuffle: boolean; retention: boolean; mixed: boolean }
 export interface Occurrence { id: string; sourcePackId: string; sourceQuestionId: string; question: Question }
 export interface Answer { occurrenceId: string; value: string|boolean; isCorrect: boolean; answeredAt: string }
-export interface Attempt { id: string; ownerId: string; packId: string; packRevision: number; title: string; options: StudyOptions; items: Occurrence[]; draft?: import('./batch').BatchDraft; answers: Answer[]; currentIndex: number; lives: number; streak: number; deadline: number|null; status: 'active'|'completed'; createdAt: string; updatedAt: string; completedAt?: string; revision: number }
+export interface Attempt { diagnostic?:{attemptId:string;occurrenceId:string}; id: string; ownerId: string; packId: string; packRevision: number; title: string; options: StudyOptions; items: Occurrence[]; draft?: import('./batch').BatchDraft; answers: Answer[]; currentIndex: number; lives: number; streak: number; deadline: number|null; status: 'active'|'completed'; createdAt: string; updatedAt: string; completedAt?: string; revision: number }
 export interface ReviewEvent { id: string; cardId: string; packId: string; questionId: string; question: Question; rating: 0|1|2|3; reviewedAt: string }
 export interface ReviewCard { id: string; packId: string; questionId: string; question: Question; easiness: number; interval: number; repetition: number; nextReview: string; updatedAt: string }
 export interface User { id: string; name: string; email?: string }

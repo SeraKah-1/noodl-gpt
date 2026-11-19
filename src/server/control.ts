@@ -1,3 +1,4 @@
+import {firstProbe,singleQuestion,diagnosticQuestion, diagnosticAttempt} from '../shared/practice';
 import {batchView} from '../shared/batch';
 import {comicGuide} from '../shared/comic';
 import type {Database} from './index';
@@ -12,6 +13,10 @@ const artifactSchema={type:'object',properties:{id:s,kind:{type:'string',enum:['
 function tool(name:string,description:string,properties:Record<string,unknown>={},required:string[]=[],readOnly=false,ui=false){return {name,description,inputSchema:{type:'object',properties,required,additionalProperties:false},annotations:{readOnlyHint:readOnly,destructiveHint:/^(delete_|reset_|update_)|^(set_pack_metadata|advance_attempt|finish_attempt|submit_batch)$/.test(name),openWorldHint:false,idempotentHint:true},_meta:{ui:{visibility:['model','app'],...(ui?{resourceUri:'ui://noodl/workspace'}:{})}}};}
 export const controlTools=[
  tool('get_comic_guide','Read the learning-comic JSON schema and required clarify → design → inspect → correct workflow. Ask the user about objectives and style before designing. Accuracy and user style take priority over aesthetics.',{},[],true),
+ tool('open_knowledge_debugger','Open the Indonesian gastric acid diagram correction pilot. One relationship is intentionally incorrect. The panel provides the verified diagram and source after a response.',{},[],true,true),
+ tool('open_autopilot','Open hands-free flashcards for an owned bank in the panel. Timed exposures do not grade answers or rate cards.',{packId:s},['packId'],true,true),
+ tool('start_concept_probe','Start a one-question check, reserving a different unanswered question on the same tagged concept in the bank. Use batch draft and submission tools. After a miss offer start_diagnostic.',{packId:s,operationId:s},['packId','operationId'],false,true),
+ tool('start_diagnostic','Offer one different, unanswered question on a missed concept from a completed session. Use update_batch_draft and submit_batch to answer. Report the two observed responses together.',{attemptId:s,operationId:s},['attemptId','operationId'],false,true),
  tool('get_capabilities','Discover all supported Noodl operations, schemas, design controls, input/output formats and limits.',{},[],true),
  tool('get_workspace','Read a paginated account workspace overview. Private records are limited to the authenticated user.',pageProps,[],true),
  tool('search_workspace','Search owned banks, individual questions, material, insights and visualizations by text.',{query:s,kind:{type:'string',enum:['all','pack','question','artifact']},...pageProps},['query'],true),
@@ -58,7 +63,20 @@ export async function callControlTool(db:Database,user:User,name:string,args:any
  const save=async(kind:Operation['kind'],entityId:string,payload:unknown,expectedRevision:number)=>{const result=await deps.mutate(db,owner,{id:text(args.operationId,'operationId'),kind,entityId,payload,expectedRevision,createdAt:now()});if(!result.ok)throw new Error(`${result.code}: ${result.error}`);return result.record;};
  if(controlTools.find(t=>t.name===name)?.annotations.readOnlyHint===false){const duplicate=await duplicateResult(db,owner,args.operationId);if(duplicate){const record=duplicate.record;return record?.options?.mode==='BATCH' && record.status==='active'?batchView(record):record;}}
  if(name==='get_comic_guide')return comicGuide;
- if(name==='get_capabilities')return {version:'2.1.0',batch:{mode:'BATCH',draft:'update_batch_draft',submit:'submit_batch',maximum:100},brainDump:{start:'start_brain_dump',resume:'get_brain_dump',source:'PPT attached in ChatGPT'},scope:'Authenticated user-owned workspace',comics:{guide:'get_comic_guide',clarificationRequired:true,reviewIsSelfReported:true},input:{questionTypes:['MULTIPLE_CHOICE','TRUE_FALSE','FILL_BLANK'],artifactKinds:['material','insight','visualization','comic'],sourceFiles:false,structuredContent:true},output:{formats:['json','csv','html','pdf'],interactiveUI:true},design:{tool:'get_design',update:'update_design'},pagination:{default:50,maximum:100},notes:['All writes require operationId; versioned updates require expectedRevision.','Banks require at least one question.','Completed sessions and review events are immutable; use delete/reset tools to remove history.','Design/preferences apply only to the signed-in account.']};
+ if(name==='get_capabilities')return {version:'2.2.0',practice:{probe:'start_concept_probe',debugger:'open_knowledge_debugger',autopilot:'open_autopilot',diagnostic:'start_diagnostic'},batch:{mode:'BATCH',draft:'update_batch_draft',submit:'submit_batch',maximum:100},brainDump:{start:'start_brain_dump',resume:'get_brain_dump',source:'PPT attached in ChatGPT'},scope:'Authenticated user-owned workspace',comics:{guide:'get_comic_guide',clarificationRequired:true,reviewIsSelfReported:true},input:{questionTypes:['MULTIPLE_CHOICE','TRUE_FALSE','FILL_BLANK'],artifactKinds:['material','insight','visualization','comic'],sourceFiles:false,structuredContent:true},output:{formats:['json','csv','html','pdf'],interactiveUI:true},design:{tool:'get_design',update:'update_design'},pagination:{default:50,maximum:100},notes:['All writes require operationId; versioned updates require expectedRevision.','Banks require at least one question.','Completed sessions and review events are immutable; use delete/reset tools to remove history.','Design/preferences apply only to the signed-in account.']};
+ if(name==='open_knowledge_debugger')return {view:'gastric-debugger'};
+ if(name==='open_autopilot'){const pack=await getPack();return {view:'autopilot',packId:pack.id};}
+ if(name==='start_diagnostic'){
+  const source=await getAttempt(),snapshot=await deps.snapshot(db,owner);
+  const attempts=snapshot.attempts.filter(active);
+  const existing=attempts.find(a=>a.diagnostic?.attemptId===source.id);
+  if(existing)return existing.status==='active'?batchView(existing):{attemptId:existing.id,originalCorrect:false,followupCorrect:existing.answers[0]?.isCorrect??null};
+  const choice=diagnosticQuestion(source,snapshot.packs,attempts);
+  if(!choice)return {available:false,reason:'No unanswered question for an explicitly missed concept.'};
+  const next=await diagnosticAttempt(source,choice);
+  const saved=await save('attempt.put',next.id,next,0) as Attempt;
+  return batchView(saved);
+ }
  if(name==='open_view'){if(!['home','library','mix','review','public','settings'].includes(args.view))throw new Error('Invalid view');return {view:args.view};}
  if(name==='get_workspace'){const snapshot=await deps.snapshot(db,owner);return {user,packs:page(snapshot.packs.filter(active).map(({questions,artifacts,...p})=>({...p,questionCount:questions.length,artifactCount:artifacts.length})),args),counts:{packs:snapshot.packs.filter(active).length,attempts:snapshot.attempts.filter(active).length,reviews:snapshot.reviews.filter(active).length},cursor:snapshot.cursor};}
  if(name==='search_workspace'){const query=typeof args.query==='string'?args.query.toLocaleLowerCase().trim():'';if(!query||query.length>1000)throw new Error('Query must contain 1..1000 characters');if(args.kind&&!['all','pack','question','artifact'].includes(args.kind))throw new Error('Invalid search kind');const snapshot=await deps.snapshot(db,owner);const results:any[]=[];for(const p of snapshot.packs.filter(active)){if((!args.kind||['all','pack'].includes(args.kind))&&`${p.title} ${p.description} ${p.folder} ${p.tags.join(' ')}`.toLocaleLowerCase().includes(query))results.push({kind:'pack',packId:p.id,title:p.title,revision:p.revision});if(!args.kind||['all','question'].includes(args.kind))for(const q of p.questions)if(JSON.stringify(q).toLocaleLowerCase().includes(query))results.push({kind:'question',packId:p.id,questionId:q.id,text:q.text,concept:q.conceptName,revision:p.revision});if(!args.kind||['all','artifact'].includes(args.kind))for(const a of p.artifacts)if(JSON.stringify(a).toLocaleLowerCase().includes(query))results.push({kind:'artifact',packId:p.id,artifactId:a.id,title:a.title,artifactKind:a.kind,revision:p.revision});}return page(results,args);}
@@ -96,6 +114,13 @@ export async function callControlTool(db:Database,user:User,name:string,args:any
  }
  if(['answer_attempt','advance_attempt','finish_attempt'].includes(name)){const a=await getAttempt();let next:Attempt;if(name==='answer_attempt'){if(typeof args.value!=='string'&&typeof args.value!=='boolean')throw new Error('Invalid answer value');next=answerAttempt(a,args.value);}else next=name==='advance_attempt'?advanceAttempt(a):finishAttempt(a);return save('attempt.put',a.id,next,args.expectedRevision);}
  const pack=await getPack();
+ if(name==='start_concept_probe'){
+  const history=(await deps.snapshot(db,owner)).attempts.filter(active);
+  const question=firstProbe(pack,history);
+  if(!question)return {available:false,reason:'Two distinct unanswered questions with the same concept are required.'};
+  const next=singleQuestion(pack,question);
+  return batchView(await save('attempt.put',next.id,next,0) as Attempt);
+ }
  if(name==='get_question'){const question=pack.questions.find(q=>q.id===args.questionId);if(!question)throw new Error('Question not found');return {packId:pack.id,revision:pack.revision,question};}
  if(name==='get_artifact'){const artifact=pack.artifacts.find(a=>a.id===args.artifactId);if(!artifact)throw new Error('Artifact not found');return {packId:pack.id,revision:pack.revision,artifact};}
  if(name==='duplicate_pack'){const cloned={...pack,title:args.title===undefined?`${pack.title} (copy)`:text(args.title,'title'),questions:pack.questions.map(q=>({...q,id:crypto.randomUUID()})),artifacts:pack.artifacts.map(a=>({...a,id:crypto.randomUUID()}))};return save('pack.put',crypto.randomUUID(),cloned,0);}

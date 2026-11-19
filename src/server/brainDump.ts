@@ -5,7 +5,7 @@ const phrase=z.string().trim().min(1).max(3000);
 const title=z.string().trim().min(1).max(200);
 const number=z.number().int().positive();
 const point=z.object({slide:number,concept:phrase}).strict();
-const unit=z.object({prompt:phrase,slides:z.array(number).min(1).max(30),points:z.array(point).min(1).max(12)}).strict();
+const unit=z.object({objective:phrase.optional(),prompt:phrase,slides:z.array(number).min(1).max(30),points:z.array(point).min(1).max(12)}).strict();
 const feedback=z.object({
   point:number, verdict:z.enum(['recalled','partial','missing','incorrect']),
   explanation:phrase, extraContext:phrase.optional()
@@ -15,16 +15,16 @@ const schemas={
   start_brain_dump:z.object({operationId:title,title,units:z.array(unit).min(1).max(80)}).strict(),
   list_brain_dumps:z.object({offset:z.number().int().nonnegative().optional()}).strict(),
   get_brain_dump:z.object({sessionId:title}).strict(),
-  record_recall:z.object({...base,answer:phrase,hint:phrase.optional()}).strict(),
+  record_recall:z.object({...base,answer:phrase,hint:phrase.optional(),hintPoint:number.optional()}).strict(),
   review_recall:z.object({...base,feedback:z.array(feedback).min(1).max(12)}).strict(),
   retry_recall:z.object({...base,unitNumber:number}).strict()
 };
 type Name=keyof typeof schemas;
 const descriptions:Record<Name,string>={
-  start_brain_dump:'Read the PPT attached in ChatGPT first. Confirm per-slide or per-topic grouping with the learner. Skip title/reference slides. Request a slide image/PDF for unreadable diagrams. Store only reliable, slide-grounded concepts and neutral recall prompts. Show only the current prompt before the learner answers.',
+  start_brain_dump:'Read the PPT attached in ChatGPT first. Confirm per-slide or per-topic grouping with the learner. Skip title/reference slides. Request a slide image/PDF for unreadable diagrams. Set objective to one observable learning goal per unit. Match the task to the slide: identify a structure, distinguish two cases, or explain a mechanism. Store only points needed for that objective. Show only the current prompt before the learner answers.',
   list_brain_dumps:'List private recall sessions, newest changes first. Use get_brain_dump to resume.',
   get_brain_dump:'Resume the private session. Show only the prompt to the learner until they finish recalling. Assessment references become available to the tutor after the initial response.',
-  record_recall:'Save the learner’s own explanation verbatim. On the first answer optionally supply one non-leading follow-up as hint. After that, record their reply separately. Do not reveal the rubric before feedback.',
+  record_recall:'Save the learner’s own explanation verbatim. If a short answer already meets the stated objective, omit hint and call review_recall immediately. Use hintPoint to cite the numbered missing reference point. Only ask one neutral follow-up for a specific missing reference point needed for that objective. Do not request elaboration for length or fluency. After that, record their reply separately. Do not reveal the rubric before feedback.',
   review_recall:'After the learner finishes, assess every numbered reference point. Accept accurate paraphrases, distinguish initial and prompted recall, explain missing or incorrect concepts with slide evidence. Label outside context separately. Display feedback, then the next prompt. On request use create_pack or append_questions for selected gaps without copying private responses. Those questions also work as flashcards.',
   retry_recall:'Revisit a previously reviewed unit. Keeps its previous answers and feedback in history.'
 };
@@ -32,13 +32,13 @@ export const brainTools=(Object.keys(schemas) as Name[]).map(name=>({
   name,description:descriptions[name],inputSchema:z.toJSONSchema(schemas[name],{target:'draft-7'}),
   annotations:{readOnlyHint:['get_brain_dump','list_brain_dumps'].includes(name),destructiveHint:false,openWorldHint:false,idempotentHint:true}
 }));
-type Round={unitNumber:number;initial?:string;hint?:string;supplement?:string;feedback?:z.infer<typeof feedback>[]};
+type Round={unitNumber:number;initial?:string;hint?:string;hintPoint?:number;supplement?:string;feedback?:z.infer<typeof feedback>[]};
 interface Session {id:string;title:string;units:z.infer<typeof unit>[]; round:Round|null;history:Round[];revision:number;updatedAt:string}
 function state(session:Session){
   const round=session.round;
   const unit=round?session.units[round.unitNumber-1]:null;
   return {sessionId:session.id,title:session.title,revision:session.revision,count:session.units.length,
-    status:round?'active':'completed',current:round&&unit?{...round,prompt:unit.prompt,slides:unit.slides,
+    status:round?'active':'completed',current:round&&unit?{...round,objective:unit.objective,prompt:unit.prompt,slides:unit.slides,
       ...(round.initial?{assessmentPoints:unit.points.map((p,i)=>({...p,point:i+1}))}:{})}:null};
 }
 function report(session:Session,round:Round){
@@ -92,7 +92,10 @@ export async function callBrainTool(db:Database,owner:string,name:string,input:u
       session.round={unitNumber:args.unitNumber};
     }else if(!round)throw new Error('Recall session already completed');
     else if('answer' in args){
-      if(!round.initial){round.initial=args.answer;round.hint=args.hint;}
+      const unit=session.units[round.unitNumber-1];
+      if(args.hintPoint!==undefined && (!args.hint || args.hintPoint>unit.points.length))throw new Error('Specify a missing reference point from this unit with the follow-up');
+      if(args.hint && unit.objective && !args.hintPoint)throw new Error('Identify the missing reference point or review this answer directly');
+      if(!round.initial){round.initial=args.answer;round.hint=args.hint;round.hintPoint=args.hintPoint;}
       else if(round.hint && !round.supplement && !args.hint)round.supplement=args.answer;
       else throw new Error('This response has already been recorded');
     }else{

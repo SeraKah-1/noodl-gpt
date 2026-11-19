@@ -92,3 +92,16 @@ test('offline guest resumes a saved batch, rejects stale edits and grades withou
  assert.equal(progressFor(done).score,100);assert.equal(reopened.getState().pending,0);
  await reopened.dispose();
 });
+
+test('autopilot stores exposure on the device without rating cards or crossing owner boundaries',async()=>{
+ const {readExposures,saveExposure}=await import('../src/client/exposure');
+ const id=crypto.randomUUID(),session={id,startedAt:1,lastShownAt:1,activeMs:2000,shown:[{id:'q',text:'Question',concept:'topic'}]};
+ await saveExposure('local-a',id,session);
+ await saveExposure('local-a',id,{...session,activeMs:10});
+ assert.equal((await readExposures('local-a',id))[0].activeMs,2000);
+ assert.deepEqual(await readExposures('local-b',id),[]);
+ const local=new LocalStore();
+ assert.equal((await local.read('local-a')).records.length,0);
+ assert.equal((await local.read('local-a')).pending.length,0);
+ await local.close();
+});
