@@ -1,7 +1,7 @@
 name: Noodl browser UX
 on:
-  push:
-    branches: ["feat/**"]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 jobs:
   browser-smoke:
