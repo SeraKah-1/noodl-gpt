@@ -13,7 +13,7 @@ interface Props {
 }
 export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onFlashcards,onTool,onEdit,onRename,onPublish,onUnpublish,onDelete,onOpenAttempt}:Props){
  const id=locale==='id';
- const reduce=useReducedMotion();
+ const reduce=useReducedMotion() || (typeof document!=='undefined'&&document.documentElement.dataset.reducedMotion==='true');
  const history=attempts.filter(a=>a.items.some(i=>i.sourcePackId===pack.id));
  const active=history.filter(a=>a.status==='active').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0];
  const materials=pack.artifacts.filter(a=>a.kind==='material'||a.kind==='insight');
@@ -36,6 +36,7 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onFlashc
       <button className="danger" onClick={onDelete}><Trash2 size={16}/>{id?'Hapus bank':'Delete bank'}</button>
     </div></details>
    </div>
+   <p className="desk-quiet">{id?'Jika dipublikasi, salinan bank mencakup kunci jawaban dan artefak; bukan riwayat belajarmu.':'Publishing copies answer keys and artifacts, but not your study history.'}</p>
   </header>
   <section className="desk-pack-resources" aria-labelledby="desk-pack-resources-heading">
    <div className="desk-section-heading"><div><span className="desk-kicker">{id?'KHUSUS BANK INI':'IN THIS BANK'}</span><h2 id="desk-pack-resources-heading">{id?'Materi dan alat':'Materials and tools'}</h2></div></div>
