@@ -5,7 +5,7 @@ This page describes current product limits. A limit is not evidence of a defect.
 ## ChatGPT and MCP
 
 - The MCP server gets the account identity from trusted Sites headers. The repository does not implement a separate login flow for direct Worker access.
-- `get_capabilities` reports version `2.2.0`. The MCP `initialize` reply reports server version `1.0.0` and protocol version `2025-11-25`. These fields describe different contracts. Clients should use `get_capabilities` for the Noodl tool contract.
+- The current repository code advertises `get_capabilities` contract version `2.9.0` (after PR #23), but the ChatGPT MCP connection tested on 2026-11-20 still returned `2.2.0`. These represent different deployments, not interchangeable evidence. The MCP `initialize` reply reports server version `1.0.0` and protocol version `2025-11-25`; this is separately versioned protocol metadata. Check the live host before assuming new tools are available.
 - The tool names, behavior, and availability depend on the deployed Worker and the ChatGPT connection. Repository code alone does not prove a plugin is connected in a given account.
 - Plugin version `1.1.0` includes `skills/noodl-visual-learning/SKILL.md` for clarification and visual review. Its App binding and `defaultPrompt: null` are unchanged. Repository skills under `.agents/skills/` are for coding work. They do not run as server features. Plugin instructions guide the host; they cannot prove that a model performed a visual check.
 - The server does not accept source file uploads, call AI providers, expose API keys, execute arbitrary SQL or shell commands, or edit its own source code. ChatGPT must produce content and send it through a structured tool.
@@ -27,6 +27,7 @@ This page describes current product limits. A limit is not evidence of a defect.
 - Two devices can edit the same record. The server rejects a stale revision. The user must read the newer record and decide how to apply the intended change.
 - The browser stores offline data per account, but account separation is not disk encryption. A private browser profile is needed on a shared device. Offline work syncs when the service is available.
 - Review schedules use event times. An incorrect device clock can affect scheduling while offline.
+- As of PR #21, the website and embedded app can revoke an owned publication by its source bank ID, even when the public link uses an opaque ID. Actual connected-host behavior must still be checked after deployment.
 - A public publication is a snapshot. New links use random opaque publication IDs; existing legacy links keep their original IDs on republication to avoid breaking saved URLs. It includes correct answer keys and artifacts, but excludes attempts, submitted learner responses, and review history. Unpublishing removes the current listing; it cannot retract a copy that someone already made.
 - Browser reminders work while the application is active. They do not promise delivery after the application closes.
 
@@ -41,3 +42,4 @@ Guests can create, sync, study, and publish banks without an account. Private gu
 [Supabase Storage](SUPABASE.md) is optional. It backs up bank content to a private bucket once configured. Live records and public sharing use D1.
 
 Comic review flags are creator reports. Schema validation cannot prove factual correctness, actual user confirmation, or visual inspection. Image transfer from ChatGPT is not automatic.
+\n## V4 debugger and study evidence\n\n- The generalized Knowledge Debugger introduced in source PR #23 validates authored JSON relationships and records server-graded results when a server-backed authenticated account is available. A local-only browser can still calculate a result but **does not save it to the server**. This is an explicit capability boundary, not a cloud success.\n- Debugger explanations and source references describe author-supplied claims. Validation of their JSON structure or matching a declared answer does not independently verify scientific truth. The old gastric-acid pilot remains separate from the new artifact-based format.\n- Quick 1 and Short Batch 3 are genuine Batch attempts from saved bank questions. A repeated question is never called an unseen independent check. The source bank must have at least one question.\n
