@@ -1,0 +1,33 @@
+{
+  "title": "V4 Knowledge Debugger QA",
+  "description": "Two non-gastric authored scenarios for browser QA; simplified models, not independently verified.",
+  "folder": "Examples",
+  "tags": [
+    "v4",
+    "debugger"
+  ],
+  "questions": [
+    {
+      "id": "q",
+      "type": "TRUE_FALSE",
+      "text": "Water moves through the hydrologic cycle.",
+      "correctBoolean": true,
+      "explanation": "Water can circulate between atmosphere, land and oceans.",
+      "difficulty": "Easy"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "water",
+      "kind": "debugger",
+      "title": "Water cycle",
+      "content": "{\"version\":1,\"title\":\"Water cycle error correction\",\"prompt\":\"One link in this water-cycle diagram is deliberately wrong. Identify and correct the directed relation.\",\"nodes\":[{\"id\":\"rain\",\"label\":\"Rainfall\"},{\"id\":\"river\",\"label\":\"River runoff\"},{\"id\":\"ocean\",\"label\":\"Ocean\"}],\"edges\":[{\"id\":\"e1\",\"from\":\"rain\",\"to\":\"river\",\"displayLabel\":\"evaporates into\",\"correctLabel\":\"flows into\",\"choices\":[\"evaporates into\",\"flows into\",\"inhibits\"],\"explanation\":\"Rainfall can contribute to runoff feeding rivers.\",\"sourceRefs\":[{\"title\":\"Author-provided water-cycle notes\",\"status\":\"provided\",\"anchor\":\"Section 2\"}]},{\"id\":\"e2\",\"from\":\"river\",\"to\":\"ocean\",\"displayLabel\":\"flows into\",\"correctLabel\":\"flows into\",\"choices\":[\"evaporates into\",\"flows into\",\"inhibits\"],\"explanation\":\"Rivers carry water towards seas and oceans in this simplified cycle.\",\"sourceRefs\":[{\"title\":\"Author-provided water-cycle notes\",\"status\":\"provided\",\"anchor\":\"Section 3\"}]}],\"limitations\":\"Simplified directed water-cycle teaching model, not a hydrological prediction.\"}"
+    },
+    {
+      "id": "circuit",
+      "kind": "debugger",
+      "title": "Electric circuit",
+      "content": "{\"version\":1,\"title\":\"Basic electric circuit correction\",\"prompt\":\"Identify the incorrect energy-flow relation in a toy circuit.\",\"nodes\":[{\"id\":\"battery\",\"label\":\"Battery\"},{\"id\":\"lamp\",\"label\":\"Lamp\"}],\"edges\":[{\"id\":\"e1\",\"from\":\"battery\",\"to\":\"lamp\",\"displayLabel\":\"absorbs energy from\",\"correctLabel\":\"supplies energy to\",\"choices\":[\"absorbs energy from\",\"supplies energy to\"],\"explanation\":\"In the described simplified circuit, the battery supplies electrical energy.\",\"sourceRefs\":[{\"title\":\"Author classroom circuit diagram\",\"status\":\"provided\"}]}],\"limitations\":\"Simplified ideal circuit only. Not suitable for circuit-safety calculations.\"}"
+    }
+  ]
+}
