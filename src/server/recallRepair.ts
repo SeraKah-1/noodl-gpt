@@ -9,7 +9,7 @@ type Gap={
  verdict:'missing'|'incorrect'|'partial'|'prompted_recall';
  sourceStatus:'tutor_provided_unverified';
 };
-type GapPage={sessionId:string;revision:number;total:number;nextOffset:number|null;gaps:Gap[]};
+type GapPage={sessionId:string;title:string;revision:number;total:number;nextOffset:number|null;gaps:Gap[]};
 type Context={snapshot:(db:Database,owner:string)=>Promise<Snapshot>;
  mutate:(db:Database,owner:string,op:Operation)=>Promise<MutationResult>};
 
@@ -40,13 +40,13 @@ function labels(gaps:Gap[]){
 }
 async function getGaps(db:Database,owner:string,sessionId:string){
  const gaps:Gap[]=[];
- let offset=0,revision=0;
+ let offset=0,revision=0,title='';
  for(let pass=0;pass<20;pass++){
   const response=await callBrainTool(db,owner,'get_brain_dump_gaps',{sessionId,offset,limit:50}) as GapPage|undefined;
   if(!response)throw new Error('Brain Dump gaps are not available');
-  revision=response.revision;
+  revision=response.revision;title=response.title;
   gaps.push(...response.gaps);
-  if(response.nextOffset===null)return {revision,gaps};
+  if(response.nextOffset===null)return {revision,title,gaps};
   if(response.nextOffset<=offset)throw new Error('Invalid gap pagination');
   offset=response.nextOffset;
  }
@@ -131,17 +131,18 @@ export async function callRecallRepairTool(db:Database,owner:string,name:string,
   if(prior){
    const result=JSON.parse(prior.result) as MutationResult;
    const attempt=result.record as Attempt|undefined;
-   if(!result.ok||!attempt?.id?.startsWith('recall-repair-')||!Array.isArray(attempt.items))
+   if(!result.ok||!attempt?.id?.startsWith('recall-repair-')||attempt.recallRepair?.sessionId!==sessionId||!Array.isArray(attempt.items))
     throw new Error('Operation ID belongs to another action');
    return attempt.status==='active'?{...batchView(attempt),sourceSessionId:sessionId,replayed:true}:
     {attemptId:attempt.id,status:'completed',sourceSessionId:sessionId,replayed:true};
   }
  }
- const {revision,gaps}=await getGaps(db,owner,sessionId);
+ const {revision,title,gaps}=await getGaps(db,owner,sessionId);
  const snap=await deps.snapshot(db,owner);
  const {counts,candidates}=buildCandidates(owner,snap,gaps,packId,limit);
  const attemptId=await stableId(owner,sessionId,revision);
  const existing=snap.attempts.find(a=>a.ownerId===owner&&a.id===attemptId&&!(a as Attempt&{deletedAt?:string}).deletedAt);
+ if(existing&&existing.recallRepair?.sessionId!==sessionId)throw new Error('Existing repair attempt has a different source');
  const preview={sessionId,feedbackRevision:revision,available:candidates.length>0,
   selectedCount:candidates.length,diagnosedConcepts:counts,existingAttemptId:existing?.id??null,
   evidenceStatus:'tutor_reported_feedback_and_concept_label_match',
@@ -156,7 +157,8 @@ export async function callRecallRepairTool(db:Database,owner:string,name:string,
  const attempt=createAttempt(candidates[0].pack,
   {mode:'BATCH',batchSize:selection.length,shuffle:false,mixed:false,retention:false},owner,selection);
  attempt.id=attemptId;
- attempt.title='Brain Dump · latihan perbaikan';
+ attempt.title='Brain Dump · '+title.slice(0,240);
+ attempt.recallRepair={sessionId,feedbackRevision:revision};
  const result=await deps.mutate(db,owner,{id:operationId!,entityId:attempt.id,kind:'attempt.put',payload:attempt,
   expectedRevision:0,createdAt:new Date().toISOString()});
  if(!result.ok)throw new Error((result.code??'INVALID')+': '+(result.error??'Failed to save recall repair'));
