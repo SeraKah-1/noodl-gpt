@@ -1,6 +1,6 @@
 # DESIGN.md — Noodl Study Desk
 
-**Design direction for future Noodl implementation. Status: approved brand continuity constraints, proposed interface refinements.** This contract accompanies [docs/NOODL_REDESIGN_PLAN.md](docs/NOODL_REDESIGN_PLAN.md). It does not mean the redesign is already deployed.
+**Design direction for Noodl. Status: Editorial theme implemented in feature PR #4, pending verification and deployment.** This contract accompanies [docs/NOODL_REDESIGN_PLAN.md](docs/NOODL_REDESIGN_PLAN.md). It does not mean the redesign is already deployed.
 
 ## Product thesis
 
@@ -12,9 +12,9 @@ Noodl is a study desk, not a productivity dashboard and not a page advertising A
 
 ## Brand continuity
 
-Keep the Noodl wordmark, kaomoji character, existing theme preferences, and indigo/violet as an identity accent. Do not replace them with a random palette from a template or from Taste Skill, whose marketing-site ban on violet is not applicable here. Preserve the ten available themes and custom design-token settings.
+Keep the Noodl wordmark, kaomoji character, existing preferences, and the legacy Focus Indigo theme as a user-selectable option. The user explicitly selected Ink / Ivory / Lime as the new default visual direction. Preserve the original ten themes as well as the new Editorial default (eleven total) and custom design-token settings.
 
-The default theme's existing accent is #4f46e5. Treat that as an input to semantic tokens, not as permission to use indigo everywhere. Background should feel like readable paper. Most surfaces are solid or subtle; use translucent glass for at most one strong layer per viewport. Keep focus and error states legible in dark and light themes. Validate every supported palette against real contrast computations.
+The new default uses Ink #172630, Ivory #F6F2E8, and Lime #D9F45F. Focus Indigo retains #4f46e5 as an optional theme. The Lime action must use dark foreground text. Background should feel like readable paper. Most surfaces are solid or subtle; use translucent glass for at most one strong layer per viewport. Keep focus and error states legible in dark and light themes. Validate every supported palette against real contrast computations.
 
 ## Visual language
 
@@ -22,7 +22,7 @@ The default theme's existing accent is #4f46e5. Treat that as an input to semant
 - **Type hierarchy.** Clear page title, contextual section title, question/body text, and quiet metadata. No miniature question text. A small label cannot bear the only explanation of an action.
 - **Spatial scale.** Derive one system from 4, 8, 12, 16, 24, 32, 48 spacing steps; named semantic spaces for section separation, card groups and inline controls. Responsive phone use is a distinct layout state.
 - **Radius hierarchy.** Approximately 10–12px controls, 14–18px standard surfaces, and up to 22–24px expressive focal surfaces, mapped to the existing user-controlled radius setting.
-- **Borders and shadows.** Default surfaces use subtle boundaries; elevation is for active overlays. No glass/card nesting and no glow on every interactive element.
+- **Borders and shadows.** The default Editorial theme uses a dark focal study action, open sections, thin row separators and no default card chrome on Library or Today secondary sections. Elevation is reserved for overlays. Alternate themes retain their own surface language.
 - **Mascot motif.** Appears on Today, meaningful completion feedback, or genuinely empty state. It should never compete with long questions or timers.
 - **Icons.** Use only for navigation meaning or affordance. Keep consistent weight and shape. Avoid generic sparkles as a substitute for product language.
 - **Copy.** Use familiar Indonesian/English labels. Primary action starts with a verb, e.g., "Lanjutkan sesi", "Mulai latihan", "Ulangi kesalahan". No claims like "mastered" without evidence. No fake statistics.

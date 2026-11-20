@@ -71,7 +71,7 @@ try{
  await page.getByRole('heading',{name:/Pengaturan/i}).waitFor();
  await save('10-settings-mobile');
  const themeButtons=page.locator('.theme-grid button');
- assert.equal(await themeButtons.count(),10,'All ten existing themes must remain selectable');
+ assert.equal(await themeButtons.count(),11,'Editorial and ten existing themes must remain selectable');
  for(let i=0;i<await themeButtons.count();i++){
   await themeButtons.nth(i).click();
   await fits(390);

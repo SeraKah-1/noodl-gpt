@@ -116,3 +116,88 @@
   .flash-screen .flash-tools { grid-column:1 / -1; grid-row:2; }
   .flash-screen .flash-count { grid-column:3; grid-row:1; }
 }
+
+/* Noodl Editorial: questions are reading surfaces, not nested form cards. */
+html[data-noodl-theme="default"] .study-player,
+html[data-noodl-theme="default"] .batch-quiz{
+ --study-accent:#172630;
+ --study-border:color-mix(in srgb,var(--text-main) 18%,transparent);
+ --study-surface:var(--app-bg);
+}
+html[data-noodl-theme="default"] .study-player .study-surface,
+html[data-noodl-theme="default"] .batch-quiz .study-surface{
+ border:0;
+ border-top:1px solid var(--study-border);
+ border-radius:0;
+ box-shadow:none;
+ background:transparent;
+ padding:clamp(20px,3vw,38px) 0;
+}
+html[data-noodl-theme="default"] .study-player .study-question,
+html[data-noodl-theme="default"] .batch-quiz .study-question{
+ font-family:Georgia,"Times New Roman",serif;
+ font-weight:700;
+ font-size:clamp(1.5rem,3.2vw,2.3rem);
+ line-height:1.45;
+ letter-spacing:-.018em;
+}
+html[data-noodl-theme="default"] .study-player .study-option,
+html[data-noodl-theme="default"] .batch-quiz .study-option{
+ border:0;
+ border-bottom:1px solid var(--study-border);
+ border-radius:0;
+ min-height:66px;
+ padding:16px 12px;
+ background:transparent;
+}
+html[data-noodl-theme="default"] .study-player .study-option:first-child{
+ border-top:1px solid var(--study-border);
+}
+html[data-noodl-theme="default"] .study-player .study-option:hover:not(:disabled),
+html[data-noodl-theme="default"] .batch-quiz .study-option:hover:not(:disabled){
+ transform:none;
+ background:color-mix(in srgb,var(--text-main) 5%,var(--app-bg));
+}
+html[data-noodl-theme="default"] .study-player .study-option.correct,
+html[data-noodl-theme="default"] .study-player .study-option.incorrect{
+ border-radius:8px;
+ border:1px solid currentColor;
+ padding:15px 11px;
+}
+html[data-noodl-theme="default"] .study-player .study-option>b{
+ border:1px solid var(--study-border);
+ border-radius:50%;
+ width:34px;
+ height:34px;
+ opacity:1;
+}
+html[data-noodl-theme="default"] .study-player .study-progress>span,
+html[data-noodl-theme="default"] .batch-quiz .study-progress>span{
+ background:var(--text-main);
+}
+html[data-noodl-theme="default"] .study-player .study-primary,
+html[data-noodl-theme="default"] .study-player .study-fill button,
+html[data-noodl-theme="default"] .batch-quiz .study-primary{
+ background:var(--primary);
+ color:var(--desk-on-action,#172630);
+ border:1px solid var(--primary);
+ border-radius:9px;
+ min-height:48px;
+}
+html[data-noodl-theme="default"] .study-player .study-link{
+ color:var(--text-main);
+ text-decoration:underline;
+ text-underline-offset:4px;
+}
+html[data-noodl-theme="default"] .study-player .study-flashcard{
+ background:var(--glass-bg);
+ border:1px solid var(--study-border);
+ border-radius:16px;
+ box-shadow:none;
+}
+html[data-noodl-theme="default"] .study-player .study-flashcard>.study-rich{
+ font-family:Georgia,"Times New Roman",serif;
+}
+@media(prefers-reduced-motion:reduce){
+ html[data-noodl-theme="default"] .study-player .study-option{transition:none}
+}
