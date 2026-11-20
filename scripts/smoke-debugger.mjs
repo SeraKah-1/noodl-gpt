@@ -34,6 +34,7 @@ try{
  await scenario.locator('.v4-debugger-feedback').waitFor();
  assert.ok((await scenario.locator('.v4-debugger-feedback').innerText()).includes('2 / 2 hubungan benar'));
  assert.ok((await scenario.locator('.v4-debugger-status').innerText()).includes('TIDAK tersimpan ke server'),'Local browser check must never claim cloud persistence');
+ await scenario.locator('.v4-debugger-feedback details').first().locator('summary').click();
  assert.ok((await scenario.locator('.v4-debugger-feedback').innerText()).includes('Author-provided water-cycle notes'));
  await snap('knowledge-debugger-after');
  await scenario.getByRole('button',{name:/Coba skenario lagi/}).click();
