@@ -79,6 +79,17 @@ try{
  // Materials, learning canvas and studio are real and connected to the selected bank.
  assert.equal(await page.locator('.v3-workspace-columns').count(),1,'Bank must open functional three-column workspace');
  assert.ok(await page.locator('.v3-studio-actions button').count()>=3,'Existing tools must remain operable');
+ const highlight=await page.locator('.v3-learning-highlight p').evaluate(el=>{
+  const style=getComputedStyle(el);return {color:style.color,background:getComputedStyle(el.parentElement.parentElement).backgroundColor};
+ });
+ assert.equal(highlight.color,'rgb(220, 232, 238)','Supporting text on the dark learning panel must be readable');
+ await page.locator('.v3-workspace-mobile-tabs button').nth(0).click();
+ assert.ok(await page.locator('.v3-workspace-material').isVisible(),'Mobile Materials panel must be reachable');
+ assert.ok(!await page.locator('.v3-workspace-studio').isVisible(),'Non-active mobile Studio must remain collapsed');
+ await page.locator('.v3-workspace-mobile-tabs button').nth(2).click();
+ assert.ok(await page.locator('.v3-workspace-studio').isVisible(),'Mobile Studio panel must be reachable');
+ await page.locator('.v3-workspace-mobile-tabs button').nth(1).click();
+ assert.ok(await page.locator('.v3-learning-canvas').isVisible(),'Mobile Learning panel must be reachable');
  await save('04-pack-detail');
  await fits(1440);
  const cols=await page.locator('.v3-workspace-columns').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);
