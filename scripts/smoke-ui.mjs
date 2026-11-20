@@ -41,10 +41,34 @@ try{
   };
  });
  assert.deepEqual(editorial,{theme:'default',nav:'rgb(23, 38, 48)',selectedNav:'rgb(217, 244, 95)',hero:'rgb(23, 38, 48)',action:'rgb(217, 244, 95)'},'Editorial palette must use ink structure and lime only on focused actions');
+ const visualSystem=await page.evaluate(()=>{
+  const css=selector=>getComputedStyle(document.querySelector(selector));
+  return {
+   brandFamily:css('.classic-wordmark').fontFamily,
+   pageFamily:css('.desk-page-head h1').fontFamily,
+   featureFamily:css('.desk-next h2').fontFamily,
+   sectionFamily:css('.desk-section-heading h2').fontFamily,
+   sectionRule:css('.desk-queue').borderTopWidth,
+   actionTextSize:parseFloat(css('.desk-next .desk-primary').fontSize),
+   titleSize:parseFloat(css('.desk-page-head h1').fontSize),
+   controlBoundary:css('.classic-account').borderTopWidth
+  };
+ });
+ assert.equal(visualSystem.pageFamily,visualSystem.brandFamily,'Page title and wordmark must use one type family');
+ assert.equal(visualSystem.featureFamily,visualSystem.pageFamily,'Feature heading must share type family');
+ assert.equal(visualSystem.sectionFamily,visualSystem.pageFamily,'Section titles must share type family');
+ assert.equal(visualSystem.sectionRule,'2px','Secondary sections need a deliberate visible boundary');
+ assert.ok(visualSystem.actionTextSize>=14,'Primary action typography must remain readable');
+ assert.ok(visualSystem.titleSize>visualSystem.actionTextSize*2,'Page heading must establish clear hierarchy');
+ assert.equal(visualSystem.controlBoundary,'1px','Controls must have a visible boundary');
  await save('01-today-empty-mobile');
  await fits(320);await save('02-today-320');await fits(390);
  await page.getByRole('button',{name:'Library',exact:true}).click();
  await page.getByRole('heading',{name:/Bank soal/i}).waitFor();
+ const selectedBankTab=await page.locator('.classic-input-tabs button[aria-pressed="true"]').evaluate(el=>{
+  const s=getComputedStyle(el);return {color:s.color,background:s.backgroundColor};
+ });
+ assert.deepEqual(selectedBankTab,{color:'rgb(246, 242, 232)',background:'rgb(23, 38, 48)'},'Library selected tab must have a readable ink/ivory state');
  await page.locator('.classic-upload-label input[type="file"]').setInputFiles('examples/pack.input.json');
  await page.locator('.desk-library-open').first().waitFor();
  assert.equal(await page.locator('.desk-library-index').first().innerText(),'01','Library must be indexed without boxed icons');
@@ -55,6 +79,20 @@ try{
  await page.getByRole('button',{name:/Mulai latihan/i}).click();
  await page.getByRole('button',{name:/Mulai kuis/i}).click();
  await page.locator('.quiz-screen').waitFor();
+ const quizSurface=await page.evaluate(()=>{
+  const card=document.querySelector('.quiz-screen .question-card');
+  const binary=document.querySelector('.quiz-screen .study-binary .study-option');
+  const cardStyle=card?getComputedStyle(card):null;
+  const binaryStyle=binary?getComputedStyle(binary):null;
+  return {theme:document.documentElement.dataset.noodlTheme,cardBorder:cardStyle?.borderTopWidth,cardBg:cardStyle?.backgroundColor,binaryBorder:binaryStyle?.borderTopWidth,binaryBg:binaryStyle?.backgroundColor};
+ });
+ console.log('VISUAL_QUIZ_COMPUTED',JSON.stringify(quizSurface));
+ assert.equal(quizSurface.theme,'default','Quiz must retain active editorial theme');
+ assert.ok(parseFloat(quizSurface.cardBorder)>=1,'Fullscreen quiz reading sheet must have a real visible border');
+ assert.notEqual(quizSurface.cardBg,'rgba(0, 0, 0, 0)','Fullscreen quiz reading sheet must have a real surface');
+ if(quizSurface.binaryBorder){
+  assert.ok(parseFloat(quizSurface.binaryBorder)>=1,'True/false choices must have visible borders');
+ }
  await save('05-focused-quiz');
  const options=page.locator('.quiz-screen .study-option');
  if(await options.count())await options.first().click();

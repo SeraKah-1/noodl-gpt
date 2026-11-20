@@ -34,7 +34,7 @@ export function Home(props:Props){
  const recent=[...packs].sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,3);
  const next=recent[0];
  return <motion.div className="desk-today" initial={reduce?false:{opacity:0,y:6}} animate={{opacity:1,y:0}} transition={{duration:0.2}}>
-   <header className="desk-page-head"><span className="desk-kicker">{id?'RUANG BELAJAR':'STUDY DESK'}</span><h1>Noodl<span className="desk-star">✦</span></h1>
+   <header className="desk-page-head"><span className="desk-kicker">{id?'RUANG BELAJAR':'STUDY DESK'}</span><h1>{id?'Hari ini':'Today'}</h1>
     <p>{active?(id?'Sesi terakhir masih tersimpan. Lanjutkan dari jawaban terakhir.':'Your last session is saved. Pick up where you left off.'):id?'Satu langkah berikutnya. Bukan semua fitur sekaligus.':'One next step, not every tool at once.'}</p>
    </header>
    <section className="desk-next" aria-labelledby="desk-next-heading">

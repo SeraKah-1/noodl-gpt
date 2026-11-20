@@ -188,7 +188,7 @@ html[data-noodl-theme="default"] .classic-toolbar{
  margin-bottom:28px;
 }
 html[data-noodl-theme="default"] .classic-wordmark{
- font-family:Georgia,"Times New Roman",serif;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);
  font-size:27px;
  letter-spacing:-.06em;
 }
@@ -202,7 +202,7 @@ html[data-noodl-theme="default"] .desk-page-head{
  padding:clamp(18px,4vw,42px) 0 clamp(30px,5vw,58px);
 }
 html[data-noodl-theme="default"] .desk-page-head h1{
- font-family:Georgia,"Times New Roman",serif;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);
  font-weight:700;
  letter-spacing:-.065em;
  font-size:clamp(3.8rem,9vw,7.2rem);
@@ -242,7 +242,7 @@ html[data-noodl-theme="default"] .desk-next p{
  color:color-mix(in srgb,var(--desk-paper) 78%,transparent);
 }
 html[data-noodl-theme="default"] .desk-next h2{
- font-family:Georgia,"Times New Roman",serif;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);
  font-size:clamp(1.85rem,3.5vw,3rem);
  font-weight:700;
  letter-spacing:-.045em;
@@ -281,7 +281,7 @@ html[data-noodl-theme="default"] .desk-section-heading{
  margin-bottom:0;
 }
 html[data-noodl-theme="default"] .desk-section-heading h2{
- font-family:Georgia,"Times New Roman",serif;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);
  font-size:clamp(1.3rem,2.5vw,1.75rem);
  font-weight:700;
 }
@@ -298,7 +298,7 @@ html[data-noodl-theme="default"] .desk-queue-count>svg{
  padding:12px;
 }
 html[data-noodl-theme="default"] .desk-queue-count strong{
- font-family:Georgia,"Times New Roman",serif;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);
  font-size:clamp(1.6rem,3vw,2rem);
 }
 html[data-noodl-theme="default"] .desk-bank-row{
@@ -365,12 +365,12 @@ html[data-noodl-theme="default"] .desk-library-icon{
  color:var(--desk-ink);
 }
 html[data-noodl-theme="default"] .desk-library-info strong{
- font-family:Georgia,"Times New Roman",serif;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);
  font-weight:700;
  font-size:clamp(1.12rem,2.1vw,1.4rem);
 }
 html[data-noodl-theme="default"] .desk-pack-head h1{
- font-family:Georgia,"Times New Roman",serif;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);
  font-size:clamp(2.25rem,5vw,4.2rem);
  line-height:1.06;
 }
