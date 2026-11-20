@@ -83,6 +83,14 @@ try{
  await fits(1440);
  const cols=await page.locator('.v3-workspace-columns').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);
  assert.equal(cols,3,'Desktop bank workspace must show three real columns');
+ const desktopNav=await page.evaluate(()=>{
+  const n=document.querySelector('.desk-nav').getBoundingClientRect();
+  const c=document.querySelector('.v3-learning-canvas').getBoundingClientRect();
+  return {position:getComputedStyle(document.querySelector('.desk-nav')).position,
+   overlaps: n.left<c.right && n.right>c.left && n.top<c.bottom && n.bottom>c.top};
+ });
+ assert.equal(desktopNav.position,'static','Desktop navigation must sit in the header rather than float over content');
+ assert.equal(desktopNav.overlaps,false,'Desktop navigation must never obscure the learning canvas');
  await save('04b-workspace-desktop');
  await page.getByRole('button',{name:/Practice notes/i}).click();
  await page.locator('.v3-reading-sheet').getByText('Check the question type before you submit a response.').waitFor();
