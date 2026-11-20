@@ -28,6 +28,8 @@ export class NoodlClient {
    if(names[path])return callHost<T>(names[path],path==='/api/me'?{}:appArgs);
    if(path==='/api/preferences')return callHost<T>(method==='GET'?'app_get_preferences':'app_update_preferences',appArgs);
    if(path==='/api/publications')return callHost<T>(method==='GET'?'app_publications':'app_publish',appArgs);
+   const sourceMatch=path.match(/^\/api\/publications\/source\/([^/]+)$/);
+   if(sourceMatch&&method==='DELETE')return callHost<T>('app_unpublish_source',{...appArgs,packId:decodeURIComponent(sourceMatch[1])});
    const match=path.match(/^\/api\/publications\/([^/]+)(\/copy)?$/);
    if(match)return callHost<T>(match[2]?'app_copy_publication':'app_unpublish',{publicationId:decodeURIComponent(match[1]),...appArgs});
   }
@@ -250,7 +252,7 @@ export class NoodlClient {
  }
  async unpublishPack(id: string) {
   if (this.state.localOnly) throw new Error('Aktifkan penyimpanan guest untuk mengelola publikasi.');
-  await this.request(`/api/publications/${encodeURIComponent(this.owner() + ':' + id)}`, 'DELETE');
+  await this.request(`/api/publications/source/${encodeURIComponent(id)}`, 'DELETE');
  }
  async copyPublication(id: string) {
   if (this.state.guest) return this.importLocalPack((await this.getPublication(id)).pack);
