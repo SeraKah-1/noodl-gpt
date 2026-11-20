@@ -41,10 +41,11 @@ function DebuggerCase({pack,artifact}:{pack:Pack;artifact:Artifact}){
   <h3>Skenario belum valid</h3><p>{parsed.error}</p>
   <p>Minta ChatGPT memperbaiki format artifact `debugger` sebelum mencoba.</p></div>;
  const activeEdge=doc.edges.find(e=>e.id===selectedEdge)??doc.edges[0];
- const positions=conceptMapPositions(doc.nodes);
+ const positions=conceptMapPositions(doc.nodes.map(n=>({...n,aliases:[]})));
  const points=new Map(positions.map(p=>[p.id,p]));
  const changed=doc.edges.some(e=>answers[e.id]!==e.displayLabel);
  async function submit(){
+  if(!doc)return;
   if(saving||receipt||!changed)return;
   setSaving(true);setStatus('Menilai koreksi dan menyimpan bukti latihan…');
   try{
@@ -64,6 +65,7 @@ function DebuggerCase({pack,artifact}:{pack:Pack;artifact:Artifact}){
   }finally{setSaving(false);}
  }
  function restart(){
+  if(!doc)return;
   setAnswers(Object.fromEntries(doc.edges.map(e=>[e.id,e.displayLabel])));
   setSelectedEdge(doc.edges[0].id);
   setReceipt(null);setStatus('Koreksi disetel ulang. Riwayat tersimpan tidak dihapus.');
