@@ -35,7 +35,7 @@ try{
   return {
    theme:document.documentElement.dataset.noodlTheme,
    nav:style('.desk-nav .classic-nav-inner').backgroundColor,
-   selectedNav:style('.desk-nav button[aria-current="page"]').backgroundColor,
+   selectedNav:getComputedStyle(document.querySelector('.desk-nav .v3-nav-indicator')??document.querySelector('.desk-nav button[aria-current="page"]')).backgroundColor,
    hero:style('.desk-next').backgroundColor,
    action:style('.desk-next .desk-primary').backgroundColor
   };
