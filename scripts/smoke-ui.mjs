@@ -82,7 +82,7 @@ try{
  const publishModal=page.locator('dialog.v4-publish-dialog');
  await publishModal.waitFor({state:'visible'});
  assert.ok((await publishModal.innerText()).includes('kunci jawaban'),'Publish preview must warn about public answers');
- assert.ok((await publishModal.innerText()).includes('1/3')===false,'Sources are reported as actual count, not invented data');
+ assert.ok((await publishModal.innerText()).includes('0/3'),'No-source bank must not invent citations');
  const publishConfirm=publishModal.getByRole('button',{name:'Publikasikan salinan'});
  assert.ok(await publishConfirm.isDisabled(),'Publish must require explicit acknowledgement');
  await publishModal.getByRole('checkbox').check();
