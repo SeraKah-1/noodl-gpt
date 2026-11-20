@@ -693,3 +693,18 @@ html[data-noodl-theme]:not([data-noodl-theme="default"]) .classic-island.v3-sync
 @media(max-width:899px){
  .classic-workspace .classic-toolbar .desk-nav{position:fixed;}
 }
+
+/* Readability regression caught in the real mobile Bank Workspace:
+ * the generic paragraph selector must never turn text dark on the Slate hero. */
+html[data-noodl-theme] .v3-learning-canvas .v3-learning-highlight p{
+ color:#DCE8EE;
+}
+html[data-noodl-theme] .v3-learning-canvas .v3-learning-highlight strong{
+ color:#FFFFFF;
+}
+html[data-noodl-theme] .v3-learning-canvas .v3-learning-highlight span{
+ color:#DCE8EE;
+}
+html[data-noodl-theme] .v3-learning-highlight .desk-primary{
+ color:var(--desk-on-action,#172A36);
+}
