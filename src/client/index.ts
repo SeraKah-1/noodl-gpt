@@ -28,6 +28,8 @@ export class NoodlClient {
    if(names[path])return callHost<T>(names[path],path==='/api/me'?{}:appArgs);
    if(path==='/api/preferences')return callHost<T>(method==='GET'?'app_get_preferences':'app_update_preferences',appArgs);
    if(path==='/api/publications')return callHost<T>(method==='GET'?'app_publications':'app_publish',appArgs);
+   if(path==='/api/debugger/submit')return callHost<T>('app_submit_debugger',appArgs);
+   if(path.startsWith('/api/debugger/results?')){const params=new URLSearchParams(path.split('?')[1]);return callHost<T>('app_debugger_results',{...appArgs,packId:params.get('packId'),artifactId:params.get('artifactId')});}
    const sourceMatch=path.match(/^\/api\/publications\/source\/([^/]+)$/);
    if(sourceMatch&&method==='DELETE')return callHost<T>('app_unpublish_source',{...appArgs,packId:decodeURIComponent(sourceMatch[1])});
    const match=path.match(/^\/api\/publications\/([^/]+)(\/copy)?$/);
@@ -259,6 +261,27 @@ export class NoodlClient {
   const pack = await this.request<Pack>(`/api/publications/${encodeURIComponent(id)}/copy`, 'POST', {operationId: crypto.randomUUID()});
   await this.sync();
   return pack;
+ }
+ async submitDebugger(packId:string,artifactId:string,expectedRevision:number,selections:Record<string,string>,operationId=crypto.randomUUID()){
+  if(this.state.localOnly)throw new Error('Hasil Debugger hanya bisa disimpan jika penyimpanan server tersedia. Latihan lokal tetap bisa digunakan tanpa klaim sinkronisasi.');
+  if(!this.state.online)throw new Error('Tidak tersambung. Sambungkan kembali sebelum menyimpan hasil Debugger.');
+  const owner=this.owner();
+  await this.sync();
+  if(this.state.user?.id!==owner)throw new Error('Akun aktif sudah berubah.');
+  const local=await this.local.read(owner);
+  if(local.pending.some(p=>p.operation.kind.startsWith('pack.')&&p.operation.entityId===packId))
+   throw new Error('Selesaikan sinkronisasi bank sebelum menyimpan hasil Debugger.');
+  return this.request<{
+   status:'committed';resultId:string;packId:string;artifactId:string;packRevision:number;gradedAt:string;
+   grade:import('../shared/debugger').DebuggerGrade;replayed?:boolean
+  }>('/api/debugger/submit','POST',{packId,artifactId,expectedRevision,selections,operationId},
+   this.state.guest?owner:'',owner);
+ }
+ async listDebuggerResults(packId:string,artifactId:string){
+  if(this.state.localOnly)return {items:[]};
+  const owner=this.owner();
+  return this.request<{items:{id:string;gradedAt:string;correct:number;total:number;passed:boolean;packRevision:number}[]}>(
+   '/api/debugger/results?'+new URLSearchParams({packId,artifactId}).toString(),'GET',undefined,this.state.guest?owner:'',owner);
  }
  async storageStatus() {
   return this.request<{configured: boolean}>('/api/storage');
