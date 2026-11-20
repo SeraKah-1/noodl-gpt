@@ -663,3 +663,33 @@ html[data-noodl-theme]:not([data-noodl-theme="default"]) .classic-island.v3-sync
  border:1px solid var(--v3-border);border-radius:9px;
  padding:8px 12px;background:var(--v3-surface);color:var(--v3-ink);box-shadow:none;
 }
+
+/* Desktop navigation belongs to the document header, not over the canvas.
+ * Mobile retains the reachable floating bottom navigation. */
+@media(min-width:900px){
+ .classic-workspace .classic-toolbar{
+  display:grid;grid-template-columns:auto minmax(330px,1fr) auto;
+  align-items:center;column-gap:clamp(13px,3vw,36px);min-height:62px;
+ }
+ .classic-workspace .classic-toolbar .desk-nav{
+  position:static!important;inset:auto!important;top:auto!important;right:auto!important;
+  left:auto!important;bottom:auto!important;transform:none!important;
+  width:min(100%,410px)!important;max-width:410px!important;
+  padding:0!important;margin:0 auto;z-index:auto;
+ }
+ .classic-workspace .classic-toolbar .desk-nav .classic-nav-inner{
+  display:flex;gap:3px;padding:4px;border-radius:12px;box-shadow:none;
+ }
+ .classic-workspace .classic-toolbar .desk-nav button{
+  min-height:46px;flex-direction:row;gap:7px;
+  padding:7px 10px;border-radius:8px;font-size:.83rem;
+ }
+ .classic-workspace .classic-toolbar .desk-nav button>span:not(.v3-nav-indicator){
+  font-size:.75rem;font-weight:730;
+ }
+ .classic-workspace .classic-toolbar .desk-nav button svg{width:18px;height:18px;}
+ .classic-workspace .classic-toolbar .classic-account-actions{justify-content:flex-end;}
+}
+@media(max-width:899px){
+ .classic-workspace .classic-toolbar .desk-nav{position:fixed;}
+}
