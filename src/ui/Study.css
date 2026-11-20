@@ -178,9 +178,9 @@ html[data-noodl-theme="default"] .batch-quiz .study-progress>span{
 html[data-noodl-theme="default"] .study-player .study-primary,
 html[data-noodl-theme="default"] .study-player .study-fill button,
 html[data-noodl-theme="default"] .batch-quiz .study-primary{
- background:#D9F45F;
- color:#172630;
- border:1px solid #D9F45F;
+ background:var(--primary);
+ color:var(--desk-on-action,#172630);
+ border:1px solid var(--primary);
  border-radius:9px;
  min-height:48px;
 }
