@@ -250,9 +250,9 @@ html[data-noodl-theme="default"] .desk-next h2{
  margin:12px 0 15px;
 }
 html[data-noodl-theme="default"] .desk-next .desk-primary{
- background:var(--editorial-lime);
- border-color:var(--editorial-lime);
- color:var(--editorial-ink);
+ background:var(--desk-action);
+ border-color:var(--desk-action);
+ color:var(--desk-on-action);
  align-self:end;
  border-radius:9px;
  min-height:54px;
@@ -323,7 +323,7 @@ html[data-noodl-theme="default"] .desk-face{
  min-width:76px;
  min-height:76px;
  color:var(--desk-ink);
- background:var(--editorial-lime);
+ background:var(--desk-action);
  font-size:18px;
  transform:rotate(-5deg);
 }
@@ -411,9 +411,9 @@ html[data-noodl-theme="default"] .desk-mode[aria-pressed=true]{
  background:color-mix(in srgb,var(--desk-ink) 5%,var(--desk-paper));
 }
 html[data-noodl-theme="default"] .desk-mode[aria-pressed=true]>svg{
- background:var(--editorial-lime);
+ background:var(--desk-action);
  border-radius:50%;
- outline:7px solid var(--editorial-lime);
+ outline:7px solid var(--desk-action);
 }
 html[data-noodl-theme="default"] .desk-nav{
  border:1px solid var(--desk-border);
