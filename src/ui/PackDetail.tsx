@@ -22,7 +22,7 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
  const [selectedId,setSelectedId]=useState<string|null>(null),[selectedTopic,setSelectedTopic]=useState<string|null>(null);
  const [asking,setAsking]=useState(false),[feedback,setFeedback]=useState('');
  const [showPublish,setShowPublish]=useState(false);
- const publishTrigger=useRef<HTMLButtonElement>(null);
+ const publishMenu=useRef<HTMLDetailsElement>(null),publishSummary=useRef<HTMLElement>(null);
  const materials=pack.artifacts.filter(a=>a.kind==='material'||a.kind==='insight');
  const visuals=pack.artifacts.filter(a=>a.kind==='visualization'||a.kind==='simulation');
  const comics=pack.artifacts.filter(a=>a.kind==='comic');
@@ -49,18 +49,18 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
     {pack.description&&<p>{pack.description}</p>}</div>
    <div className="v3-bank-header-actions">
     <button className="desk-primary" disabled={busy} onClick={active?()=>onOpenAttempt(active):onPractice}><Play size={18}/>{active?(en?'Resume practice':'Lanjutkan sesi'):(en?'Start practice':'Mulai latihan')}</button>
-    <details className="desk-actions-menu"><summary aria-label={en?'More bank actions':'Tindakan bank lainnya'}><MoreHorizontal size={21}/></summary><div>
+    <details className="desk-actions-menu" ref={publishMenu}><summary ref={publishSummary} aria-label={en?'More bank actions':'Tindakan bank lainnya'}><MoreHorizontal size={21}/></summary><div>
      <button onClick={onEdit}><PenLine size={16}/>{en?'Edit questions':'Edit soal'}</button>
      <button onClick={onRename}>{en?'Rename and move':'Ubah nama dan folder'}</button>
      <ExportMenu pack={pack}/>
-     <button ref={publishTrigger} disabled={busy} onClick={()=>setShowPublish(true)}><Share2 size={16}/>{en?'Publish a copy':'Publikasikan salinan'}</button>
+     <button disabled={busy} onClick={()=>{publishMenu.current?.removeAttribute('open');setShowPublish(true);}}><Share2 size={16}/>{en?'Publish a copy':'Publikasikan salinan'}</button>
      <button disabled={busy} onClick={onUnpublish}>{en?'Unpublish':'Cabut publikasi'}</button>
      <button className="danger" onClick={onDelete}><Trash2 size={16}/>{en?'Delete bank':'Hapus bank'}</button>
     </div></details>
    </div>
   </header>
   <PublishPreview pack={pack} locale={locale} open={showPublish} busy={busy}
-   onCancel={()=>{setShowPublish(false);publishTrigger.current?.focus();}}
+   onCancel={()=>{setShowPublish(false);publishSummary.current?.focus();}}
    onConfirm={()=>{setShowPublish(false);onPublish();}}/>
   <nav className="v3-workspace-mobile-tabs" aria-label={en?'Workspace sections':'Bagian workspace'}>
    {([['material',BookOpen,en?'Materials':'Materi'],['learn',Play,en?'Learn':'Belajar'],['studio',Layers,'Studio']] as const).map(([key,Icon,label])=><button key={key} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}><Icon size={16}/>{label}</button>)}
