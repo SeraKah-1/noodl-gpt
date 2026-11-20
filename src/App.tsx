@@ -192,7 +192,7 @@ export default function App(){
   setNotice(w.saved);
  }
  async function publishBank(pack:Pack) {
-  if(!confirm(lang==='id'?'Terbitkan bank ini? Siapa pun bisa melihat soal, kunci jawaban, dan materi.':'Publish this bank? Anyone can see its questions, answer keys, and materials.'))return;
+  // The bank detail now obtains explicit informed consent before calling this action.
   const publication=await client.publishPack(pack.id);
   const url=new URL('/',location.href);
   url.searchParams.set('bank',publication.id);
