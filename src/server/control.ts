@@ -2,6 +2,7 @@ import {firstProbe,singleQuestion,diagnosticQuestion, diagnosticAttempt} from '.
 import {batchView} from '../shared/batch';
 import {comicGuide} from '../shared/comic';
 import {createStudyContext} from '../shared/studyContext';
+import {preparePackChange,commitPackChange} from './packWorkflow';
 import type {Database} from './index';
 import type {Attempt,Pack,ReviewEvent,Operation,MutationResult,Snapshot,User} from '../shared/types';
 import {editBatch,submitBatch,createAttempt,answerAttempt,advanceAttempt,finishAttempt,progressFor,sessionProgress,replayReviews} from '../shared/engine';
@@ -10,6 +11,10 @@ const s={type:'string'};const revision={type:'integer',minimum:0};
 const pageProps={offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:100}};
 const writeProps={operationId:s,expectedRevision:revision};
 const questionSchema={type:'object',properties:{id:s,type:{type:'string',enum:['MULTIPLE_CHOICE','TRUE_FALSE','FILL_BLANK']},text:s,options:{type:'array',items:{type:'object',properties:{id:s,text:s},required:['id','text'],additionalProperties:false}},correctOptionId:s,correctBoolean:{type:'boolean'},acceptedAnswers:{type:'array',items:s},explanation:s,hint:s,keyPoint:s,difficulty:{type:'string',enum:['Easy','Medium','Hard']},conceptName:s,conceptPriority:{type:'string',enum:['HIGH','MODERATE','FILLER']}},required:['id','type','text','explanation','difficulty'],additionalProperties:false};
+const preparedQuestionSchema={...questionSchema,required:['type','text','explanation','difficulty'],properties:{
+ ...questionSchema.properties,correctOptionIndex:{type:'integer',minimum:0,maximum:11},
+ options:{type:'array',minItems:2,maxItems:12,items:{type:'object',properties:{id:s,text:s},required:['text'],additionalProperties:false}}
+}};
 const artifactSchema={type:'object',properties:{id:s,kind:{type:'string',enum:['material','insight','visualization','comic']},title:s,content:s,explanation:s,interactionGuide:s},required:['id','kind','title','content'],additionalProperties:false};
 function tool(name:string,description:string,properties:Record<string,unknown>={},required:string[]=[],readOnly=false,ui=false){return {name,description,inputSchema:{type:'object',properties,required,additionalProperties:false},annotations:{readOnlyHint:readOnly,destructiveHint:/^(delete_|reset_|update_)|^(set_pack_metadata|advance_attempt|finish_attempt|submit_batch)$/.test(name),openWorldHint:false,idempotentHint:true},_meta:{ui:{visibility:['model','app'],...(ui?{resourceUri:'ui://noodl/workspace'}:{})}}};}
 export const controlTools=[
@@ -21,6 +26,8 @@ export const controlTools=[
  tool('get_capabilities','Discover all supported Noodl operations, schemas, design controls, input/output formats and limits.',{},[],true),
  tool('get_study_context','Read compact owned bank, active attempt, due review, observed gaps and next-action evidence without fetching all questions or answer keys.',{packId:s,limit:{type:'integer',minimum:1,maximum:20}},[],true),
  tool('get_operation_receipt','Check whether a server-side operation ID was committed. A missing ID may still be queued offline.',{operationId:s},['operationId'],true),
+ tool('prepare_pack_change','Validate and preview a new bank or appended questions WITHOUT saving bank content. Supply operationId, mode=create or append, and 1..100 questions; question and option IDs may be omitted. For MCQ set correctOptionIndex as a zero-based index instead of correctOptionId when option IDs are omitted. Commit only after review.',{operationId:s,mode:{type:'string',enum:['create','append']},packId:s,expectedRevision:revision,title:s,description:s,folder:s,tags:{type:'array',items:s},questions:{type:'array',minItems:1,maxItems:100,items:preparedQuestionSchema}},['operationId','mode','questions']),
+ tool('commit_pack_change','Atomically commit a previously prepared, owner-scoped change after approval. Requires a fresh commit operationId distinct from prepareId; returns saved IDs and revision, or a safe conflict.',{prepareId:s,operationId:s},['prepareId','operationId']),
  tool('get_workspace','Read a paginated account workspace overview. Private records are limited to the authenticated user.',pageProps,[],true),
  tool('search_workspace','Search owned banks, individual questions, material, insights and visualizations by text.',{query:s,kind:{type:'string',enum:['all','pack','question','artifact']},...pageProps},['query'],true),
  tool('get_question','Read one question including its answer, explanation and current bank revision.',{packId:s,questionId:s},['packId','questionId'],true),
@@ -64,7 +71,9 @@ export async function callControlTool(db:Database,user:User,name:string,args:any
  const getPack=async()=>{const p=await deps.read<Pack>(db,owner,'pack',text(args.packId,'packId'));if(!active(p))throw new Error('Pack not found');return p!;};
  const getAttempt=async()=>{const a=await deps.read<Attempt>(db,owner,'attempt',text(args.attemptId,'attemptId'));if(!active(a))throw new Error('Attempt not found');return a!;};
  const save=async(kind:Operation['kind'],entityId:string,payload:unknown,expectedRevision:number)=>{const result=await deps.mutate(db,owner,{id:text(args.operationId,'operationId'),kind,entityId,payload,expectedRevision,createdAt:now()});if(!result.ok)throw new Error(`${result.code}: ${result.error}`);return result.record;};
- if(controlTools.find(t=>t.name===name)?.annotations.readOnlyHint===false){const duplicate=await duplicateResult(db,owner,args.operationId);if(duplicate){const record=duplicate.record;return record?.options?.mode==='BATCH' && record.status==='active'?batchView(record):record;}}
+ if(!['prepare_pack_change','commit_pack_change'].includes(name)&&controlTools.find(t=>t.name===name)?.annotations.readOnlyHint===false){const duplicate=await duplicateResult(db,owner,args.operationId);if(duplicate){const record=duplicate.record;return record?.options?.mode==='BATCH' && record.status==='active'?batchView(record):record;}}
+ if(name==='prepare_pack_change')return preparePackChange(db,owner,args,deps);
+ if(name==='commit_pack_change')return commitPackChange(db,owner,args,deps);
  if(name==='get_operation_receipt'){
   const operationId=text(args.operationId,'operationId');
   const result=await duplicateResult(db,owner,operationId);
@@ -80,7 +89,7 @@ export async function callControlTool(db:Database,user:User,name:string,args:any
   return createStudyContext(snapshot,{packId:args.packId,limit:args.limit});
  }
  if(name==='get_comic_guide')return comicGuide;
- if(name==='get_capabilities')return {version:'2.3.0',workflow:{context:'get_study_context',receipt:'get_operation_receipt'},practice:{probe:'start_concept_probe',debugger:'open_knowledge_debugger',autopilot:'open_autopilot',diagnostic:'start_diagnostic'},batch:{mode:'BATCH',draft:'update_batch_draft',submit:'submit_batch',maximum:100},brainDump:{start:'start_brain_dump',resume:'get_brain_dump',source:'PPT attached in ChatGPT'},scope:'Authenticated user-owned workspace',comics:{guide:'get_comic_guide',clarificationRequired:true,reviewIsSelfReported:true},input:{questionTypes:['MULTIPLE_CHOICE','TRUE_FALSE','FILL_BLANK'],artifactKinds:['material','insight','visualization','comic'],sourceFiles:false,structuredContent:true},output:{formats:['json','csv','html','pdf'],interactiveUI:true},design:{tool:'get_design',update:'update_design'},pagination:{default:50,maximum:100},notes:['All writes require operationId; versioned updates require expectedRevision.','Banks require at least one question.','Completed sessions and review events are immutable; use delete/reset tools to remove history.','Design/preferences apply only to the signed-in account.']};
+ if(name==='get_capabilities')return {version:'2.4.0',workflow:{context:'get_study_context',receipt:'get_operation_receipt',prepare:'prepare_pack_change',commit:'commit_pack_change'},practice:{probe:'start_concept_probe',debugger:'open_knowledge_debugger',autopilot:'open_autopilot',diagnostic:'start_diagnostic'},batch:{mode:'BATCH',draft:'update_batch_draft',submit:'submit_batch',maximum:100},brainDump:{start:'start_brain_dump',resume:'get_brain_dump',source:'PPT attached in ChatGPT'},scope:'Authenticated user-owned workspace',comics:{guide:'get_comic_guide',clarificationRequired:true,reviewIsSelfReported:true},input:{questionTypes:['MULTIPLE_CHOICE','TRUE_FALSE','FILL_BLANK'],artifactKinds:['material','insight','visualization','comic'],sourceFiles:false,structuredContent:true},output:{formats:['json','csv','html','pdf'],interactiveUI:true},design:{tool:'get_design',update:'update_design'},pagination:{default:50,maximum:100},notes:['All writes require operationId; versioned updates require expectedRevision.','Banks require at least one question.','Completed sessions and review events are immutable; use delete/reset tools to remove history.','Design/preferences apply only to the signed-in account.']};
  if(name==='open_knowledge_debugger')return {view:'gastric-debugger'};
  if(name==='open_autopilot'){const pack=await getPack();return {view:'autopilot',packId:pack.id};}
  if(name==='start_diagnostic'){
