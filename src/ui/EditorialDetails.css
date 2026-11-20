@@ -178,3 +178,29 @@ html[data-noodl-theme="default"] .desk-review .review-card h3 {
  .noodl-app .desk-library-open>svg:last-child {transition:none;}
 }
 html[data-reduced-motion="true"] .noodl-app .desk-library-open>svg:last-child {transition:none;}
+
+/* The accent is a luminous background, never faint lime text on ivory. */
+html[data-noodl-theme="default"] .noodl-app .n-button.primary {
+ color:#172630;background:#D9F45F;border-color:#D9F45F;
+ box-shadow:none;font-weight:780!important;
+}
+html[data-noodl-theme="default"] .noodl-app .n-button.primary:hover {
+ background:#D1EC52;
+}
+html[data-noodl-theme="default"] .noodl-app .n-filters button.active {
+ color:#172630;border-color:#172630;
+ font-weight:780;
+}
+html[data-noodl-theme="default"] .noodl-app .n-filters span {
+ color:#172630;background:#E6EBB6;
+}
+html[data-noodl-theme="default"] .noodl-app .classic-input-tabs button.active {
+ color:#172630;
+}
+html[data-noodl-theme="default"] .noodl-app :is(.n-button.primary,.desk-primary,.tools-primary):focus-visible {
+ outline:3px solid #172630;outline-offset:3px;
+}
+/* Keep question and review answer states distinct from the brand highlight. */
+html[data-noodl-theme="default"] .desk-review .due-row:focus-visible {
+ outline:3px solid #172630;outline-offset:-3px;
+}
