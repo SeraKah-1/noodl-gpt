@@ -237,10 +237,10 @@ export default function App(){
  pending={state.preferencesPending??false} conflict={state.preferencesConflict??false}
  onUseServer={()=>client.useServerPreferences()} online={state.online} syncing={state.syncing}
  pendingChanges={state.pending} lastSync={state.lastSync??null} guest={!!state.guest} embedded={isEmbedded()}
- onOpenChat={()=>run(async()=>{
+ onOpenChat={async()=>{
    await sendChatRequest(lang==='id'?'Buat bank soal dari materi yang akan kuberikan di ChatGPT. Kelompokkan menurut konsep, sertakan pembahasan, dan simpan melalui MCP Noodl create_pack atau append_questions.':'Create a question bank from material I will share in ChatGPT, group by concepts, explain answers and save through Noodl MCP create_pack or append_questions.');
    setNotice(isEmbedded()?'Permintaan dikirim, belum berarti bank tersimpan.':'Permintaan disalin. Tempel di ChatGPT untuk melanjutkan.');
- })}
+ }}
  onSync={()=>run(()=>client.sync())}
  dataActions={<>{!isEmbedded()&&!state.localOnly&&<BankBackup key={state.user.id} locale={lang} ownerId={state.user.id} online={state.online}/>}<StudyCalendar english={lang==='en'}/></>}
  accountActions={<><p>{state.user.name}{state.user.email?' · '+state.user.email:''}</p>
