@@ -150,6 +150,7 @@ try{
  // Category visibility and cancel behavior must preserve the saved language.
  await page.getByRole('button',{name:/Tampilan/i}).click();
  const language=page.getByRole('group',{name:/Bahasa workspace/i});
+ await language.waitFor({state:'visible'});
  assert.equal(await language.getByRole('button').count(),2,'Settings must preserve the original language preference');
  await language.getByRole('button',{name:'English'}).click();
  assert.ok(await page.getByRole('button',{name:'Batalkan'}).isEnabled());
