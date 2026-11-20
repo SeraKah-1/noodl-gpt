@@ -1,11 +1,13 @@
 export type QuestionType = 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'FILL_BLANK';
 export type QuizMode = 'BATCH' | 'STANDARD' | 'SURVIVAL' | 'TIME_RUSH';
 export interface Option { id: string; text: string }
+/** Source metadata is a claim supplied by the author; Noodl does not independently inspect the file. */
+export interface SourceReference { title:string; anchor?:string; uri?:string; status:'provided'|'model_inspected'|'unavailable' }
 export interface Question {
  id: string; type: QuestionType; text: string; options?: Option[]; correctOptionId?: string;
  correctBoolean?: boolean; acceptedAnswers?: string[]; explanation: string; hint?: string;
  keyPoint?: string; difficulty: 'Easy'|'Medium'|'Hard'; conceptName?: string;
- conceptPriority?: 'HIGH'|'MODERATE'|'FILLER';
+ conceptPriority?: 'HIGH'|'MODERATE'|'FILLER'; sourceRefs?: SourceReference[];
 }
 export interface Artifact { id: string; kind: 'insight'|'material'|'visualization'|'comic'|'concept_map'|'simulation'; title: string; content: string; explanation?: string; interactionGuide?: string }
 export interface Pack { id: string; ownerId: string; title: string; description: string; folder: string; tags: string[]; questions: Question[]; artifacts: Artifact[]; revision: number; createdAt: string; updatedAt: string; deletedAt?: string }
