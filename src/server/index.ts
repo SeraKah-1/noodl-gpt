@@ -90,7 +90,7 @@ export async function mutate(db:Database,owner:string,op:Operation):Promise<Muta
       if(point?.concept)supported.add(normalizeAnswer(point.concept));
      }
     }
-    if(!supported.size||record.items.some(item=>!supported.has(normalizeAnswer(item.question.conceptName??''))))
+    if(!supported.size||record.items.some((item:Attempt['items'][number])=>!supported.has(normalizeAnswer(item.question.conceptName??''))))
      throw new Error('Repair questions must match actually observed Brain Dump gaps');
     const prior=await db.prepare("SELECT data FROM records WHERE owner_id=? AND kind='attempt'").bind(owner).all<{data:string}>();
     const shownIds=new Set<string>(),shownStems=new Set<string>();
