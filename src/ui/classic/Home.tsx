@@ -26,7 +26,7 @@ export function DashboardMascot({count,locale}:{count:number;locale:Locale}){
  </section>;
 }
 export function Home(props:Props){
- const {packs,attempts,reviews,locale,busy,onResume,onStart,onFocus,onLibrary,onReview,onOpenPack,onCreate}=props;
+ const {packs,attempts,reviews,locale,busy,onResume,onStart,onFocus,onLibrary,onReview,onOpenPack,onCreate,onChat}=props;
  const id=locale==='id',reduced=useReducedMotion() || (typeof document!=='undefined'&&document.documentElement.dataset.reducedMotion==='true');
  const completed=attempts.filter(a=>a.status==='completed');
  const step=studyNextStep(packs,attempts,reviews);
@@ -38,11 +38,13 @@ export function Home(props:Props){
    step.kind==='focus'?(id?'LATIHAN FOKUS':'FOCUSED PRACTICE'):
    step.kind==='start'?(id?'MULAI DARI SINI':'START HERE'):(id?'BANK PERTAMA':'FIRST BANK');
  const action=step.kind==='resume'?()=>onResume(step.attempt):step.kind==='review'?onReview:
-  step.kind==='focus'?()=>onFocus(step.pack,step.questions):step.kind==='start'?()=>onStart(step.pack):onCreate;
+  step.kind==='focus'?()=>onFocus(step.pack,step.questions):step.kind==='start'?()=>onStart(step.pack):
+  ()=>onChat(id?'Bantu buat bank soal baru di Noodl dari materi yang akan kuberikan. Minta materi dan tujuan belajar terlebih dahulu, lalu buat pertanyaan beserta kunci, pembahasan dan label konsep; simpan melalui MCP create_pack.':
+    'Help me create a new question bank in Noodl. Ask for my source material and learning goals first; create questions with answers, explanations and concept labels, then save with MCP create_pack.');
  const actionLabel=step.kind==='resume'?(id?'Lanjutkan sesi':'Resume'):
   step.kind==='review'?(id?'Mulai review':'Start review'):
   step.kind==='focus'?(id?'Ulangi soal salah':'Retry missed questions'):
-  step.kind==='start'?(id?'Mulai latihan':'Start practice'):(id?'Buat bank pertama':'Create first bank');
+  step.kind==='start'?(id?'Mulai latihan':'Start practice'):(id?'Buat lewat ChatGPT':'Create with ChatGPT');
  const detail=id?step.detail:step.kind==='resume'?step.detail.replace('dari','of').replace('soal terisi','questions answered · saved'):
   step.kind==='review'?`${step.count} review cards are due. New cards are not overdue.`:
   step.kind==='focus'?`${step.misses} of ${step.observations} answers were missed. Try the missed questions again.`:
@@ -60,6 +62,7 @@ export function Home(props:Props){
     {step.kind==='focus'?<Target size={18}/>:step.kind==='empty'?<Plus size={18}/>:<Play size={18}/>}
     {actionLabel}<ArrowRight size={17}/>
    </motion.button>
+   {step.kind==='empty'&&<button className="v3-manual-link" onClick={onCreate}>{id?'Atau buat soal manual':'Or create questions manually'}</button>}
   </motion.section>
   </AnimatePresence>
   <div className="desk-today-lower">
