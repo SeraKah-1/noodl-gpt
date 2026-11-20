@@ -2,7 +2,7 @@
 
 **Revision:** 2 · 2026-11-20  
 **Status:** implementation specification / proposed work, NOT shipped  
-**Baseline:** \`main\` at \`15dc23857fd3df537e501e328cdfbb1750a20804\` (V4 master plan merged)  
+**Baseline:** `main` at `15dc23857fd3df537e501e328cdfbb1750a20804` (V4 master plan merged)  
 **Companion:** [V4 MCP-first Learning Studio Master Plan](NOODL_V4_MCP_STUDIO_MASTER_PLAN.md)  
 **Preserve:** Noodl V3 data, valid quiz/SRS engines, MCP 2.2.0, existing IDs, guest account separation, and Slate–White–Amber default.  
 **Scope:** Interaction refinement, cross-feature learning, neglected product surfaces, honest feature completion, and measurable release gates. This is not a redesign-only ticket and does not authorize a deployment.
@@ -11,15 +11,15 @@
 
 At the baseline commit:
 
-- \`src/ui/Study.tsx\` implements real manual flashcard flip, pointer drag with an 80-pixel release threshold, four review ratings, keyboard shortcuts, session and result flows. It uses React state for pointer offset; there is no completed physics-based card deck.
-- \`src/ui/BatchQuiz.tsx\` has real draft persistence and explicit submission. \`src/ui/Autopilot.tsx\` records local exposure and offers optional checks; exposure is not mastery.
-- \`src/shared/conceptGraph.ts\` creates a **lexical** graph using two or more shared explanation words; \`src/ui/Tools.tsx\` renders pan/zoom SVG, HTML visualization in an isolated iframe, and a ChatGPT *request* for a "simulation" HTML artifact.
-- \`src/ui/GastricDebugger.tsx\` contains one fixed gastric-acid graph-correction pilot. It is not a general debugger engine.
-- \`src/ui/Comic.tsx\` shows real comic text and available images and truthfully falls back to storyboard when an illustration is missing; artwork transfer is not automated.
-- \`src/ui/PackDetail.tsx\` provides actual V3 Materials / Learn / Studio surfaces but a ChatGPT request acknowledgment is not a confirmed MCP write.
-- \`src/ui/StudyPlanning.tsx\` builds a Bloom generation *brief* and downloads a calendar \`.ics\`; neither is a server-enforced Bloom allocation or an ongoing notification service.
-- \`src/server/control.ts\` exposes the low-level tools. The installed connection reported version 2.2.0 and the workspace read succeeded during the design audit. That does NOT prove all mutation paths or the latest V3 UI have been deployed.
-- \`docs/KNOWN_LIMITATIONS.md\` documents storage, guest, identity, exports, offline, sandbox and production-testing boundaries. A previous local test report is not proof of today's live host.
+- `src/ui/Study.tsx` implements real manual flashcard flip, pointer drag with an 80-pixel release threshold, four review ratings, keyboard shortcuts, session and result flows. It uses React state for pointer offset; there is no completed physics-based card deck.
+- `src/ui/BatchQuiz.tsx` has real draft persistence and explicit submission. `src/ui/Autopilot.tsx` records local exposure and offers optional checks; exposure is not mastery.
+- `src/shared/conceptGraph.ts` creates a **lexical** graph using two or more shared explanation words; `src/ui/Tools.tsx` renders pan/zoom SVG, HTML visualization in an isolated iframe, and a ChatGPT *request* for a "simulation" HTML artifact.
+- `src/ui/GastricDebugger.tsx` contains one fixed gastric-acid graph-correction pilot. It is not a general debugger engine.
+- `src/ui/Comic.tsx` shows real comic text and available images and truthfully falls back to storyboard when an illustration is missing; artwork transfer is not automated.
+- `src/ui/PackDetail.tsx` provides actual V3 Materials / Learn / Studio surfaces but a ChatGPT request acknowledgment is not a confirmed MCP write.
+- `src/ui/StudyPlanning.tsx` builds a Bloom generation *brief* and downloads a calendar `.ics`; neither is a server-enforced Bloom allocation or an ongoing notification service.
+- `src/server/control.ts` exposes the low-level tools. The installed connection reported version 2.2.0 and the workspace read succeeded during the design audit. That does NOT prove all mutation paths or the latest V3 UI have been deployed.
+- `docs/KNOWN_LIMITATIONS.md` documents storage, guest, identity, exports, offline, sandbox and production-testing boundaries. A previous local test report is not proof of today's live host.
 
 Use these statuses everywhere: **REAL** (stored and testable), **PARTIAL** (works but limited), **PILOT** (fixed topic or example), **HANDOFF** (ChatGPT must finish work elsewhere), **PROPOSED** (not implemented), **VERIFIED LIVE** (actually tested on deployed host). Never merge these states into a single “Done.”
 
@@ -27,7 +27,7 @@ Use these statuses everywhere: **REAL** (stored and testable), **PARTIAL** (work
 
 A study task should follow a traceable path:
 
-\`ChatGPT source/context → prepared, validated MCP content → saved pack/artifact receipt → Noodl retrieval/simulation → observed answer and feedback → evidence-linked gap → distinct unseen check → SRS/next action\`.
+`ChatGPT source/context → prepared, validated MCP content → saved pack/artifact receipt → Noodl retrieval/simulation → observed answer and feedback → evidence-linked gap → distinct unseen check → SRS/next action`.
 
 Noodl **executes and records** learning. ChatGPT **reads sources, reasons, generates and explains**. No in-app OCR, LLM provider, duplicate document uploader, fake “AI processing” indicator, or in-app chatbot is required.
 
@@ -41,28 +41,28 @@ Track evidence, not manufactured mastery percentages. Repeated exposure, seeing 
 
 Every consequential action travels through:
 
-\`idle → affordance/preview → pending-local → pending-server → confirmed\`
+`idle → affordance/preview → pending-local → pending-server → confirmed`
 
 or
 
-\`pending → failed/conflict → retry / reconcile / cancel\`.
+`pending → failed/conflict → retry / reconcile / cancel`.
 
-For a ChatGPT handoff, insert \`request-sent\`, \`MCP-operation-started\`, and \`receipt-confirmed\` as distinct steps. A success toast, colored checkmark, confetti animation or navigation may **not** imply persistence before the real layer acknowledges it. A local-first save can truthfully say "Saved on this device; waiting to sync."
+For a ChatGPT handoff, insert `request-sent`, `MCP-operation-started`, and `receipt-confirmed` as distinct steps. A success toast, colored checkmark, confetti animation or navigation may **not** imply persistence before the real layer acknowledges it. A local-first save can truthfully say "Saved on this device; waiting to sync."
 
 Use shared components/tokens for:
-- \`ActionStatus\`: short status, retry, conflict and delayed sync.
-- \`MotionProvider\`: reduced-motion preference, transitions and device-safe timing.
-- \`ShortcutHelp\`: contextual shortcut legend and focus rules.
-- \`SourceBadge\`: provided vs inspected vs disputed vs unavailable source evidence.
-- \`CapabilityEmptyState\`: precise prerequisite and working next action.
-- \`StudySurfaceHeader\`: position, exit/resume, status and source context.
-- \`FeatureAvailability\`: supported/limited/demo/host-specific state.
+- `ActionStatus`: short status, retry, conflict and delayed sync.
+- `MotionProvider`: reduced-motion preference, transitions and device-safe timing.
+- `ShortcutHelp`: contextual shortcut legend and focus rules.
+- `SourceBadge`: provided vs inspected vs disputed vs unavailable source evidence.
+- `CapabilityEmptyState`: precise prerequisite and working next action.
+- `StudySurfaceHeader`: position, exit/resume, status and source context.
+- `FeatureAvailability`: supported/limited/demo/host-specific state.
 
 Do not force every feature into a generic card-grid. Surface shape must match learner intent.
 
 ### 2.2 Motion and visual language
 
-Retain V3 Slate \`#172A36\`, White and Amber \`#FFBA59\` semantics; use neutral surfaces and clear hierarchy. Motion communicates **cause, direction and completion**, not continuous visual noise. Use Framer Motion already in dependencies; verify current installed API before coding. Provisional timings (design targets; tune by profiling):
+Retain V3 Slate `#172A36`, White and Amber `#FFBA59` semantics; use neutral surfaces and clear hierarchy. Motion communicates **cause, direction and completion**, not continuous visual noise. Use Framer Motion already in dependencies; verify current installed API before coding. Provisional timings (design targets; tune by profiling):
 
 | Interaction | Initial duration target | Purpose |
 | --- | --- | --- |
@@ -74,7 +74,7 @@ Retain V3 Slate \`#172A36\`, White and Amber \`#FFBA59\` semantics; use neutral 
 | Successful card departure | 180–280 ms | Distinct committed review |
 | Result detail reveal | 200–360 ms | Focus attention |
 
-Respect \`prefers-reduced-motion\`; provide near-instant or opacity-only transitions. Avoid full-page blur, background parallax, animated counts without data, motion-induced CLS, and overly large bundles. Keep text selectable and vertical scrolling natural.
+Respect `prefers-reduced-motion`; provide near-instant or opacity-only transitions. Avoid full-page blur, background parallax, animated counts without data, motion-induced CLS, and overly large bundles. Keep text selectable and vertical scrolling natural.
 
 ### 2.3 Interaction equivalence
 
@@ -103,7 +103,7 @@ Gesture rules:
 
 ### 3.2 Persistence correctness
 
-\`front → back → candidate rating → commit pending → confirmed → next front\`; on failure, restore an actionable same-card view without losing the user's choice and give retry. Guard repeated gestures with a single in-flight operation ID and keep deduplication through server write. When offline, show local queued state explicitly. If an animation needs to depart before cloud ACK, the outcome must remain recoverable and visibly "pending"; do not claim final success.
+`front → back → candidate rating → commit pending → confirmed → next front`; on failure, restore an actionable same-card view without losing the user's choice and give retry. Guard repeated gestures with a single in-flight operation ID and keep deduplication through server write. When offline, show local queued state explicitly. If an animation needs to depart before cloud ACK, the outcome must remain recoverable and visibly "pending"; do not claim final success.
 
 Undo is allowed only when backed by a reversible staged window or explicit safe compensating/tombstone operation; immutable review history cannot simply be rewritten for cosmetic undo.
 
@@ -113,7 +113,7 @@ For 0–3 ratings, compare **swipe / visible buttons / keyboard** on identical i
 
 ## 4. Quiz, Batch, Review, Results and tiny sessions — P0/P1
 
-**Quiz Player:** Display one question, active state, visible options and predictable numbering. Keep server-graded scoring and immutable attempt snapshots. Use a state sequence \`prompt → chosen/submitted → server-confirmed feedback → explanation → next\` instead of color flashes implying correctness before the write. Shortcuts 1–N apply only when question controls have focus and a text input is not active. Never reveal unreached answer keys to the learner client; design separate learner/tutor response shapes.
+**Quiz Player:** Display one question, active state, visible options and predictable numbering. Keep server-graded scoring and immutable attempt snapshots. Use a state sequence `prompt → chosen/submitted → server-confirmed feedback → explanation → next` instead of color flashes implying correctness before the write. Shortcuts 1–N apply only when question controls have focus and a text input is not active. Never reveal unreached answer keys to the learner client; design separate learner/tutor response shapes.
 
 **Batch Quiz:** Keep the draft/submit distinction. Add a question navigator with unanswered/answered/flagged states, reliable keyboard access, draft-save feedback and clear explanation of the all-at-once grading. Resume from a real draft, not fabricated in-memory answers. Disabled submit must explain the reason and allow explicit incomplete submission only if the engine contract permits it.
 
@@ -143,7 +143,7 @@ Keep the current lexical graph under the literal name **Text Associations**. It 
 
 Add a separate **Evidence-linked Concept Map** model:
 - Concepts have stable IDs, labels and aliases.
-- Relations have stable IDs, \`from\`, \`to\`, typed predicate (causes, inhibits, part-of, contrasts, prerequisite, example-of), direction, rationale, sourceRefs, status, revision and disputed flag.
+- Relations have stable IDs, `from`, `to`, typed predicate (causes, inhibits, part-of, contrasts, prerequisite, example-of), direction, rationale, sourceRefs, status, revision and disputed flag.
 - Node actions: *Explain*, *Open source*, *Practice*, *Review*, *Inspect misses*, *Verify relationship*.
 - Show a map canvas with minimap, fit, pan/zoom and collapse, plus an accessible searchable outline/list and side inspector. Node movement changes layout coordinates only, not factual relationships.
 - Separate Explore, Focus, Repair and explicit Edit modes. Do not create a fake "AI confidence 98%" score when source evidence is absent.
@@ -159,7 +159,7 @@ Evidence policy: *ChatGPT generated* != *independently checked*. Every edge expo
 
 A real simulation requires controls to change an actual model and produce the same outcomes for the same inputs. Inputs must be constrained, outputs legible, invalid combinations explained, and source/validity available. Save a versioned model definition. A visible slider that merely swaps canned paragraphs is an illustration, not a simulation.
 
-The first template should be **one domain-limited, source-checked model** selected after reference validation, not a platform claiming to simulate everything. Example candidates: simplified receptor occupancy, qualitative gastric-acid regulation, or gas exchange. For each, record the model assumptions and limits before building controls. Add optional \`Predict → Manipulate → Explain\`: learner predicts direction, changes one parameter, sees the actual model output and compares the prediction. Prediction and correction become evidence only if persisted and explicitly graded.
+The first template should be **one domain-limited, source-checked model** selected after reference validation, not a platform claiming to simulate everything. Example candidates: simplified receptor occupancy, qualitative gastric-acid regulation, or gas exchange. For each, record the model assumptions and limits before building controls. Add optional `Predict → Manipulate → Explain`: learner predicts direction, changes one parameter, sees the actual model output and compares the prediction. Prediction and correction become evidence only if persisted and explicitly graded.
 
 Safety: standalone arbitrary HTML remains in a restricted iframe. No unsafe execution in the host app, no network by default, no external CDN dependencies. Keep real loading/error/reload/recovery states. Large diagrams support touch zoom, keyboard reset and text descriptions.
 
@@ -195,16 +195,16 @@ Preserve the existing 64 low-level tools for compatibility. Add a small set of i
 
 | Proposed tool | Request → result |
 | --- | --- |
-| \`get_study_context\` | Scoped pack/attempt/review/repeated-miss summary with evidence counts, IDs and possible next actions; no whole bank |
-| \`prepare_pack_change\` | Draft operations, schema validation, duplicate/coverage/source checks, impact preview; no persistent study mutation |
-| \`commit_pack_change\` | Idempotent transactional commit against expected revision and owner scope; stable receipt |
-| \`get_operation_receipt\` | Confirm committed/pending/conflict/failed, stable IDs, revision and safe recovery |
-| \`prepare_repair_practice\` | Identify observed gaps, reserve genuinely unseen questions or state insufficiency |
-| \`open_study_surface\` | Open small result or exact study surface; keep rendering decoupled from mutation |
+| `get_study_context` | Scoped pack/attempt/review/repeated-miss summary with evidence counts, IDs and possible next actions; no whole bank |
+| `prepare_pack_change` | Draft operations, schema validation, duplicate/coverage/source checks, impact preview; no persistent study mutation |
+| `commit_pack_change` | Idempotent transactional commit against expected revision and owner scope; stable receipt |
+| `get_operation_receipt` | Confirm committed/pending/conflict/failed, stable IDs, revision and safe recovery |
+| `prepare_repair_practice` | Identify observed gaps, reserve genuinely unseen questions or state insufficiency |
+| `open_study_surface` | Open small result or exact study surface; keep rendering decoupled from mutation |
 
-The server should generate IDs for newly created questions/options where safe; strict discriminated schemas must enforce each question type. Avoid duplicating entire payloads in text and structured content. Expose explicit output schemas, typed error codes (\`INVALID\`, \`CONFLICT\`, \`NOT_FOUND\`, \`UNAUTHORIZED\`, \`SOURCE_UNAVAILABLE\`, \`RATE_LIMITED\`, \`OPERATION_PENDING\`), retry instructions and version compatibility.
+The server should generate IDs for newly created questions/options where safe; strict discriminated schemas must enforce each question type. Avoid duplicating entire payloads in text and structured content. Expose explicit output schemas, typed error codes (`INVALID`, `CONFLICT`, `NOT_FOUND`, `UNAUTHORIZED`, `SOURCE_UNAVAILABLE`, `RATE_LIMITED`, `OPERATION_PENDING`), retry instructions and version compatibility.
 
-\`prepare\` is a validated proposal, **not a save**. \`commit\` checks current owner/revision/permission and applies the prepared change atomically or rejects it. For conflicts, return precise changed IDs and safe retry guidance; never silently overwrite unrelated edits. \`receipt\` can be queried after a network timeout to prevent duplicate saves. Save IDs and timestamps are factual, not model narration.
+`prepare` is a validated proposal, **not a save**. `commit` checks current owner/revision/permission and applies the prepared change atomically or rejects it. For conflicts, return precise changed IDs and safe retry guidance; never silently overwrite unrelated edits. `receipt` can be queried after a network timeout to prevent duplicate saves. Save IDs and timestamps are factual, not model narration.
 
 **Privacy and answer boundary:** learner-facing active sessions should not expose keys until permitted by session state. Tutor/instructor access must be justified, not merely achieved through a UI toggle. Private pack owners, guest browser identities and published snapshots remain separate.
 
@@ -214,12 +214,12 @@ The server should generate IDs for newly created questions/options where safe; s
 
 Add optional/sidecar records with explicit migration and backwards-compatible validators:
 
-- \`SourceRef\`: source ID, title, page/slide/section anchor, scope, provided/inspected/unavailable/disputed status.
-- \`Concept\` / \`ConceptRelation\`: IDs, typed direction and source-linked reasons.
-- \`LearningEvidence\`: immutable observed answers, initial-vs-prompted flag, hint state, review event or simulation prediction, source concept, timestamp; no guessed mastery scalar.
-- \`VisualizationSpec\` / \`SimulationSpec\`: artifact class, version, assumptions, units/controls/model/output fixtures, review status.
-- \`OperationReceipt\`: operation and request IDs, owner, expected/result revision, pending/confirmed/error status, entity IDs and recovery.
-- \`FeatureCapability\`: runtime/server-supported version, host availability and required prerequisites, so navigation can be truthful.
+- `SourceRef`: source ID, title, page/slide/section anchor, scope, provided/inspected/unavailable/disputed status.
+- `Concept` / `ConceptRelation`: IDs, typed direction and source-linked reasons.
+- `LearningEvidence`: immutable observed answers, initial-vs-prompted flag, hint state, review event or simulation prediction, source concept, timestamp; no guessed mastery scalar.
+- `VisualizationSpec` / `SimulationSpec`: artifact class, version, assumptions, units/controls/model/output fixtures, review status.
+- `OperationReceipt`: operation and request IDs, owner, expected/result revision, pending/confirmed/error status, entity IDs and recovery.
+- `FeatureCapability`: runtime/server-supported version, host availability and required prerequisites, so navigation can be truthful.
 
 Old packs without these fields must open, study, export and sync. Snapshotting must freeze the question content relevant at attempt creation. New relations/layout should not rewrite existing attempt scores or review history. Enforce owner scope in server queries and D1 migration tests; do not trust client-supplied owner fields. Design a migration rollback before live releases.
 
