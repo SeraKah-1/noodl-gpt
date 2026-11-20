@@ -2,6 +2,7 @@
 
 **Status:** approved direction / design and engineering specification only — not implemented.  
 **Baseline audited:** main at commit 5046780620b9323c131138f71d20b9e8ac806b92 (2026-11-20).  
+**Detailed refinement addendum:** [V4 Feature Refinement and Interaction Execution Spec (revision 2)](NOODL_V4_FEATURE_REFINEMENT_EXECUTION_SPEC.md) — concrete interaction contracts, neglected features, acceptance tests and delivery gates; documentation only.  
 **Supersedes as future work:** the unimplemented parts of the older Noodl 2.0 redesign and the MCP refinement discussion. **Preserve** working Noodl V3 functionality and data.  
 **Review cadence:** append dated decisions and verified implementation evidence; do not label proposed or drafted work as shipped.  
 **Ownership:** React app + shared learning engine + MCP worker + embedded ChatGPT app. Source-file reading and AI content generation remain in ChatGPT, not Noodl.
