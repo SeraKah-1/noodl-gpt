@@ -69,7 +69,7 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
      {topicNames.length?topicNames.map(name=><button key={name} aria-pressed={selectedTopic===name} onClick={()=>goTopic(name)}><BookOpen size={16}/><span>{name}</span><ArrowRight size={15}/></button>):<p className="v3-empty-small">{en?'No concept tags yet.':'Belum ada label konsep pada soal.'}</p>}
     </div>
    </aside>
-   <main className="v3-learning-canvas" id="v3-learning-canvas">
+   <section className="v3-learning-canvas" id="v3-learning-canvas">
     <AnimatePresence mode="wait" initial={false}>
      <motion.div key={selected?.id??selectedTopic??'overview'} initial={reduce?false:{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={reduce?undefined:{opacity:0,y:-7}} transition={{duration:.18}}>
      {selected?<><span className="v3-eyebrow">{selected.kind==='insight'?'INSIGHT':'MATERIAL'} / {pack.title}</span><h2>{selected.title}</h2><article className="v3-reading-sheet"><StudyText>{selected.content}</StudyText></article>
@@ -87,14 +87,14 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
         <div><span>{active?(en?'ACTIVE SESSION':'SESI AKTIF'):(en?'READY TO PRACTICE':'SIAP LATIHAN')}</span>
          <strong>{active?`${active.options.mode==='BATCH'?Object.keys(active.draft??{}).length:active.answers.length} / ${active.items.length} ${en?'answered':'dijawab'}`:`${pack.questions.length} ${en?'questions available':'soal tersedia'}`}</strong>
          <p>{latest?`${en?'Previous accuracy':'Akurasi terakhir'}: ${progressFor(latest).score}% · ${latest.items.length} ${en?'questions':'soal'}`:(en?'No completed practice yet.':'Belum ada sesi latihan selesai.')}</p></div>
-        <button className="desk-primary" onClick={active?()=>onOpenAttempt(active):onPractice}><Play size={17}/>{active?(en?'Resume':'Lanjutkan'):(en?'Start quiz':'Mulai kuis')}</button>
+        <button className="desk-primary" onClick={active?()=>onOpenAttempt(active):onPractice}><Play size={17}/>{active?(en?'Resume':'Lanjutkan'):(en?'Choose practice mode':'Atur mode latihan')}</button>
        </div>
        <section className="v3-canvas-section"><h3>{en?'Study history':'Riwayat belajar'}</h3>
         <BankHistory packId={pack.id} attempts={history} english={en} onOpen={onOpenAttempt}/></section>
       </>}
      </motion.div>
     </AnimatePresence>
-   </main>
+   </section>
    <aside className="v3-workspace-sidebar v3-workspace-studio" aria-label="Noodl Studio">
     <div className="v3-panel-heading"><span className="v3-eyebrow">03 / STUDIO</span><h2>{en?'Study tools':'Alat belajar'}</h2></div>
     <p>{en?'Choose the action you want to take with this bank.':'Pilih apa yang ingin dilakukan dengan bank ini.'}</p>
