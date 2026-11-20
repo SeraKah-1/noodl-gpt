@@ -1,7 +1,7 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {client} from '../client';
 import {readExposures,saveExposure} from '../client/exposure';
-import {concept,needsOptions,delayedQuestion,phaseSeconds,recallDelay,singleQuestion,type Exposure} from '../shared/practice';
+import {concept,needsOptions,delayedQuestion,quickCheckQuestion,phaseSeconds,recallDelay,singleQuestion,type Exposure} from '../shared/practice';
 import {correctAnswerText} from '../shared/engine';
 import type {Attempt,Pack,Question,ReviewEvent} from '../shared/types';
 import {StudyText} from './StudyText';
@@ -61,11 +61,11 @@ export function Autopilot({pack,questions,onReview,onClose,onCheck}:Props){
     try{await onReview({id:session.current!.id+':'+q.id,cardId:pack.id+':'+q.id,packId:pack.id,questionId:q.id,question:q,rating:0,reviewedAt:new Date().toISOString()});setRated(true);}
     catch(e){setError(String(e));}finally{busy.current=false;setRating(false);}
   }
-  async function check(s:Exposure,question?:Question){
+  async function check(s:Exposure,question?:Question,kind:'delayed'|'quick'='delayed'){
     if(busy.current)return;
     busy.current=true;
     try{
-      const id='recall-'+s.id,previous=client.getState().attempts.find(a=>a.id===id);
+      const id=(kind==='quick'?'quick-':'recall-')+s.id,previous=client.getState().attempts.find(a=>a.id===id);
       if(previous){onCheck(previous);return;}
       if(!question)return;
       const attempt=singleQuestion(pack,question);attempt.id=id;
@@ -73,6 +73,8 @@ export function Autopilot({pack,questions,onReview,onClose,onCheck}:Props){
     }catch(e){setError(String(e));}finally{busy.current=false;}
   }
   const attempts=client.getState().attempts;
+  const quickQuestion=session.current?quickCheckQuestion(pack,session.current,history,attempts):undefined;
+  const quickSaved=session.current?attempts.find(a=>a.id==='quick-'+session.current!.id):undefined;
   return <section className="study-player practice-screen"><div className="practice-head"><header className="study-top"><button className="study-secondary" disabled={rating} onClick={onClose}>Kembali</button><div><small>Autopilot Recall</small><h2>{pack.title}</h2></div></header></div><main className="practice-scroll"><div className="practice-column">
     {!deck.length?<div className="study-surface question-card"><h3>Latihan tanpa klik</h3>
       <p>Pikirkan jawaban sampai kartu berbalik. Kartu yang lewat dicatat sebagai ditampilkan. Kamu bisa menjeda kapan saja.</p>
@@ -96,7 +98,7 @@ export function Autopilot({pack,questions,onReview,onClose,onCheck}:Props){
       <button className="study-secondary" disabled={rating} onClick={()=>back?next():setBack(true)}>{back?'Berikutnya':'Ungkap sekarang'}</button>
       <label>Tempo <select value={pace} onChange={e=>setPace(+e.target.value)}><option value={1}>Normal</option><option value={1.75}>Lambat</option><option value={0.7}>Cepat</option></select></label>
       {back&&<button className="study-secondary" disabled={rating||rated} onClick={()=>void flag()}>{rated?'Terjadwal':'Lupa · jadwalkan ulang'}</button>}</div>
-    </article>:<article className="study-surface question-card"><h3>Sesi selesai</h3><p>{session.current?.shown.length} kartu ditampilkan · {Math.round((session.current?.activeMs??0)/1000)} detik aktif.</p><button className="study-secondary" onClick={async()=>{setDeck([]);try{if(session.current)await saveExposure(pack.ownerId,pack.id,session.current);await refresh();}catch(e){setError(String(e));}}}>Lihat riwayat</button></article>}
+    </article>:<article className="study-surface question-card"><h3>Sesi selesai</h3><p>{session.current?.shown.length} kartu ditampilkan · {Math.round((session.current?.activeMs??0)/1000)} detik aktif. Tampilan bukan bukti hafal.</p>{session.current&&(quickSaved||quickQuestion)&&<button className="study-primary" disabled={busy.current} onClick={()=>void check(session.current!,quickQuestion,'quick')}>{quickSaved?'Buka hasil cek cepat':'Quick Check · 1 soal berbeda'}</button>}{!quickQuestion&&!quickSaved&&<p>Belum ada soal lain yang belum dilihat untuk konsep yang sama. Minta ChatGPT menambah soal agar uji cepat tetap berbeda.</p>}<button className="study-secondary" onClick={async()=>{setDeck([]);try{if(session.current)await saveExposure(pack.ownerId,pack.id,session.current);await refresh();}catch(e){setError(String(e));}}}>Lihat riwayat</button></article>}
     {error&&<p role="alert">{error}</p>}
   </div></main></section>;
 }

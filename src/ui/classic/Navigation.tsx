@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState} from 'react';
+import {motion,useReducedMotion} from 'framer-motion';
 import {Home,FolderOpen,Settings,Brain,MessageSquare,Globe,Grid,X} from 'lucide-react';
 
 export type WorkspaceView='home'|'library'|'mix'|'review'|'public'|'settings';
@@ -10,6 +11,7 @@ export function Navigation({view,locale,onNavigate,onChat}:{
  view:WorkspaceView;locale:Locale;onNavigate:(view:WorkspaceView)=>void;onChat:()=>void;onTool:(tab:ToolTab)=>void;
 }){
  const [open,setOpen]=useState(false);
+ const reduced=useReducedMotion() || (typeof document!=='undefined'&&document.documentElement.dataset.reducedMotion==='true');
  const dialog=useRef<HTMLDialogElement>(null),trigger=useRef<HTMLButtonElement>(null);
  const id=locale==='id';
  const tabs=[
@@ -27,8 +29,14 @@ export function Navigation({view,locale,onNavigate,onChat}:{
  ];
  return <>
   <nav className="classic-nav desk-nav" aria-label={id?'Navigasi utama':'Primary navigation'}>
-   <div className="classic-nav-inner">{tabs.map(({view:key,Icon,label})=><button key={key} aria-current={current===key?'page':undefined} onClick={()=>onNavigate(key)}><Icon size={20} strokeWidth={current===key?2.5:2}/><span>{label}</span></button>)}
-    <button ref={trigger} aria-haspopup="dialog" aria-expanded={open} aria-current={view==='settings'?'page':undefined} onClick={()=>setOpen(true)}><Grid size={20}/><span>{id?'Lainnya':'More'}</span></button>
+   <div className="classic-nav-inner">{tabs.map(({view:key,Icon,label})=><button className="v3-nav-tab" key={key} aria-current={current===key?'page':undefined} onClick={()=>onNavigate(key)}>
+    {current===key&&!reduced&&<motion.span className="v3-nav-indicator" layoutId="v3-main-nav-indicator" transition={{type:'spring',stiffness:460,damping:42}} aria-hidden="true"/>}
+    <Icon size={20} strokeWidth={current===key?2.5:2}/><span>{label}</span>
+   </button>)}
+    <button className="v3-nav-tab" ref={trigger} aria-haspopup="dialog" aria-expanded={open} aria-current={view==='settings'?'page':undefined} onClick={()=>setOpen(true)}>
+     {view==='settings'&&!reduced&&<motion.span className="v3-nav-indicator" layoutId="v3-main-nav-indicator" transition={{type:'spring',stiffness:460,damping:42}} aria-hidden="true"/>}
+     <Grid size={20}/><span>{id?'Lainnya':'More'}</span>
+    </button>
    </div>
   </nav>
   <dialog ref={dialog} className="classic-dialog desk-dialog" aria-labelledby="desk-hub-title" onCancel={()=>setOpen(false)} onClose={()=>setOpen(false)}>

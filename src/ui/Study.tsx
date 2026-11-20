@@ -9,9 +9,9 @@ import {motion,useReducedMotion} from 'framer-motion';
 import {StudyText as Text} from './StudyText';
 import {Autopilot} from './Autopilot';
 import {client} from '../client';
-import {diagnosticQuestion,diagnosticAttempt} from '../shared/practice';
+import {diagnosticQuestion,diagnosticAttempt,remediationQuestions} from '../shared/practice';
 import type {Attempt,Pack,Question,ReviewEvent} from '../shared/types';
-import {advanceAttempt,answerAttempt,correctAnswerText,itemsToRetry,progressFor} from '../shared/engine';
+import {advanceAttempt,answerAttempt,createAttempt,correctAnswerText,itemsToRetry,progressFor} from '../shared/engine';
 import './Study.css';
 import {Assistive} from './Assistive';
 function tone(correct:boolean){try{const c=new AudioContext();const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=correct?660:200;g.gain.setValueAtTime(.06,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.18);o.start();o.stop(c.currentTime+.18);o.onended=()=>void c.close();}catch{/* Audio is optional. */}}
@@ -132,8 +132,38 @@ export function Results({attempt,packs,attempts,guest,onReview,onRetry,onOpenAtt
  const p=progressFor(attempt);useEffect(()=>{if(!attempt.diagnostic&&p.score>=80)void confetti({particleCount:65,spread:65,origin:{y:.65},disableForReducedMotion:true});},[attempt.id,p.score]);
  const answers=new Map(attempt.answers.map(a=>[a.occurrenceId,a]));const wrong=itemsToRetry(attempt);
  const weakTopics=p.topics.filter(topic=>topic.correct<topic.total);
+ const observedTopics=(()=>{
+  const byName=new Map<string,{name:string;wrong:number;answered:number}>();
+  for(const item of attempt.items){
+   const response=answers.get(item.id);if(!response)continue;
+   const name=item.question.conceptName?.trim()||'Tanpa label konsep';
+   const entry=byName.get(name)??{name,wrong:0,answered:0};
+   entry.answered++;
+   if(!response.isCorrect)entry.wrong++;
+   byName.set(name,entry);
+  }
+  return [...byName.values()].filter(t=>t.wrong>0).sort((a,b)=>b.wrong-a.wrong).slice(0,4);
+ })();
  const existingCheck=attempts.find(a=>a.diagnostic?.attemptId===attempt.id);
  const candidate=React.useMemo(()=>existingCheck?undefined:diagnosticQuestion(attempt,packs,attempts),[attempt,packs,attempts,existingCheck]);
+ const remediation=React.useMemo(()=>remediationQuestions(attempt,packs,attempts),[attempt,packs,attempts]);
+ const repairId='repair-'+attempt.id;
+ const savedRepair=attempts.find(a=>a.id===repairId);
+ async function openRepair(){
+  if(sending)return;
+  if(savedRepair){onOpenAttempt(savedRepair);return;}
+  if(!remediation.length)return;
+  setSending(true);setMessage('');
+  try{
+   const pack=remediation[0].pack;
+   const next=createAttempt(pack,{mode:'BATCH',batchSize:remediation.length,shuffle:true,retention:false,mixed:false},
+    attempt.ownerId,remediation.map(x=>({question:x.question,sourcePackId:x.pack.id})));
+   next.id=repairId;
+   next.title='Latihan perbaikan · '+attempt.title;
+   onOpenAttempt(await client.saveAttempt(next));
+  }catch(e){setMessage(e instanceof Error?e.message:String(e));}
+  finally{setSending(false);}
+ }
  const launching=useRef(false);
  async function checkConcept(){
   if(launching.current)return;
@@ -146,7 +176,24 @@ export function Results({attempt,packs,attempts,guest,onReview,onRetry,onOpenAtt
  if(cards)return <Flashcards onOpenAttempt={onOpenAttempt} pack={cards.pack} questions={cards.questions} onReview={onReview} onClose={()=>setCards(null)}/>;
  if(tool&&pack)return <LearningTools pack={pack} attempts={attempts} initialTab={tool} onClose={()=>setTool(null)}/>;
 
- return <section className="study-player results-screen"><header className="study-top"><button className="study-icon" aria-label="Kembali" onClick={onClose}><ArrowLeft size={20}/></button><div><small>HASIL LATIHAN</small><h2>{attempt.title}</h2></div></header><div className="study-surface">{attempt.diagnostic?<div><h2>Cek konsep · {attempt.items[0].question.conceptName}</h2><p>{attempt.answers.length===1?`${attempt.answers[0].isCorrect?1:0} dari 2 benar. Jawaban awal salah, jawaban susulan ${attempt.answers[0].isCorrect?'benar':'salah'}.`:'Soal susulan belum dijawab.'}</p></div>:<div className="study-result-hero"><div className="study-score" style={{background:`conic-gradient(var(--study-accent) ${p.score}%,var(--study-border) 0)`}}><div><b>{p.score}<small>%</small></b><span>akurasi</span></div></div><div><span className="study-mascot">{p.score>=80?'( ✧ ▽ ✧ )':'( ◕ ‿ ◕ )'}</span><h2>{p.score>=80?'Kerja bagus.':'Sekarang tahu bagian yang perlu diulang.'}</h2><p>{p.correct} benar dari {p.total} soal · {attempt.answers.length} dijawab</p></div></div>}<div className="study-result-actions">{wrong.length>0?<button className="study-primary" onClick={()=>onRetry(true)}>Ulangi {wrong.length} soal belum benar</button>:<button className="study-primary" onClick={onClose}>Selesai</button>}<button className="study-secondary" onClick={()=>onRetry(false)}><RotateCcw size={17}/>Ulangi semua</button></div>{pack&&<details className="study-plan result-tools"><summary>Alat belajar</summary><div className="study-result-actions"><button className="study-secondary" onClick={()=>setCards({pack,questions:pack.questions})}>Flashcards<ChevronRight size={17}/></button>
+ return <motion.section className="study-player results-screen" initial={false} animate={{opacity:1}} transition={{duration:.22}}><header className="study-top"><button className="study-icon" aria-label="Kembali" onClick={onClose}><ArrowLeft size={20}/></button><div><small>HASIL LATIHAN</small><h2>{attempt.title}</h2></div></header><div className="study-surface">{attempt.diagnostic?<div><h2>Cek konsep · {attempt.items[0].question.conceptName}</h2><p>{attempt.answers.length===1?`${attempt.answers[0].isCorrect?1:0} dari 2 benar. Jawaban awal salah, jawaban susulan ${attempt.answers[0].isCorrect?'benar':'salah'}.`:'Soal susulan belum dijawab.'}</p></div>:<div className="study-result-hero"><div className="study-score" style={{background:`conic-gradient(var(--study-accent) ${p.score}%,var(--study-border) 0)`}}><div><b>{p.score}<small>%</small></b><span>akurasi</span></div></div><div><span className="study-mascot">{p.score>=80?'( ✧ ▽ ✧ )':'( ◕ ‿ ◕ )'}</span><h2>{p.score>=80?'Kerja bagus.':'Sekarang tahu bagian yang perlu diulang.'}</h2><p>{p.correct} benar dari {p.total} soal · {attempt.answers.length} dijawab</p></div></div>}<div className="study-result-actions">
+ {(remediation.length>0||savedRepair)?
+  <button className="study-primary" disabled={sending} onClick={()=>void openRepair()}><RotateCcw size={17}/>{savedRepair?'Lanjutkan latihan perbaikan':`Uji ulang dengan ${remediation.length} soal berbeda`}</button>:
+  wrong.length>0?
+  <button className="study-primary" disabled={sending} onClick={()=>void ask('Buat beberapa soal baru yang berbeda untuk menguji konsep yang salah. Gunakan append_questions pada bank yang relevan jika tersedia, lalu jelaskan bagaimana memulai latihan ulang.',{
+   topics:observedTopics,previous:wrong.slice(0,5).map(x=>({question:x.question.text,concept:x.question.conceptName??null,sourcePackId:x.sourcePackId,sourceQuestionId:x.sourceQuestionId}))
+  })}>Minta soal pembanding di ChatGPT</button>:
+  <button className="study-primary" onClick={onClose}>Selesai</button>}
+ {wrong.length>0&&<button className="study-secondary" onClick={()=>onRetry(true)}><RotateCcw size={17}/>Ulangi {wrong.length} soal lama</button>}
+ <button className="study-secondary" onClick={()=>onRetry(false)}><RotateCcw size={17}/>Ulangi semua</button>
+ </div>{!attempt.diagnostic&&observedTopics.length>0&&<section className="v3-mistake-loop" aria-labelledby="v3-mistake-title">
+ <div className="v3-mistake-heading"><span>LANGKAH BERIKUTNYA</span><h3 id="v3-mistake-title">Perbaiki konsep yang keliru</h3><p>Diambil dari jawaban yang benar-benar tersimpan, bukan perkiraan penguasaan.</p></div>
+ <div className="v3-mistake-rows">{observedTopics.map(t=><div key={t.name}><strong>{t.name}</strong><span>{t.wrong} salah dari {t.answered} jawaban</span></div>)}</div>
+ <button className="study-primary" disabled={sending} onClick={()=>void ask('Bahas konsep yang salah berdasarkan jawabanku, jelaskan mengapa keliru, lalu tawarkan satu cara untuk menguji ulang. Jangan klaim aku sudah menguasainya.',{
+  concepts:observedTopics,errors:wrong.slice(0,5).map(i=>({sourcePackId:i.sourcePackId,questionId:i.sourceQuestionId,question:i.question.text,answer:answers.get(i.id)?.value??null}))
+ })}>Bahas kesalahan di ChatGPT <ArrowRight size={17}/></button>
+ </section>}
+ {pack&&<details className="study-plan result-tools"><summary>Alat belajar</summary><div className="study-result-actions"><button className="study-secondary" onClick={()=>setCards({pack,questions:pack.questions})}>Flashcards<ChevronRight size={17}/></button>
  {pack&&(['material','graph','visual','comic'] as const).map(tab=><button key={tab} className="study-secondary" onClick={()=>setTool(tab)}>{{material:'Materi',graph:'Peta konsep',visual:'Visual Lab',comic:'Komik'}[tab]}</button>)}</div></details>}
  {(candidate||existingCheck)&&<button className="study-secondary" disabled={sending} onClick={()=>void checkConcept()}>{existingCheck?'Buka cek konsep':'Cek konsep dengan 1 soal lain'} · {candidate?.question.conceptName??existingCheck?.items[0].question.conceptName}</button>}
  <details className="study-plan"><summary>Soal lanjutan dari hasil latihan</summary>
@@ -156,5 +203,5 @@ export function Results({attempt,packs,attempts,guest,onReview,onRetry,onOpenAtt
   examples:(wrong.length?wrong:attempt.items).slice(0,5).map(i=>({question:i.question,sourcePackId:i.sourcePackId,answer:answers.get(i.id)?.value}))
  })}/></details>{message&&<p role="status">{message}</p>}<details className="desk-results-disclosure"><summary>Akurasi per topik</summary><div className="study-topic-list">{p.topics.map(t=><div key={t.name}><div><b>{t.name}</b><span>{t.correct}/{t.total}</span></div><div className="study-progress"><span style={{width:`${t.correct/t.total*100}%`}}/></div></div>)}</div></details></div><details className="desk-results-disclosure"><summary>Tinjau {attempt.items.length} soal dan pembahasannya</summary><div className="study-review-list">{attempt.items.map((item,i)=>{const a=answers.get(item.id);const source=packs.find(p=>p.id===item.sourcePackId);return <details key={item.id} className="study-surface"><summary><span className={`study-verdict ${a?.isCorrect?'yes':'no'}`}>{a?.isCorrect?'✓':'×'}</span><span>{i+1}. {item.question.text}</span></summary><p>Jawaban benar: <b>{correctAnswerText(item.question)}</b></p>{a&&<p>Jawaban lo: {typeof a.value==='boolean'?(a.value?'Benar':'Salah'):item.question.options?.find(o=>o.id===a.value)?.text||a.value||'Waktu habis'}</p>}<Text>{item.question.explanation}</Text>
  <div className="study-result-actions"><button className="study-secondary" disabled={sending} onClick={()=>void ask('Bahas soal ini, jawabanku, dan alasan kunci jawabannya.',{sourcePackId:item.sourcePackId,questionId:item.sourceQuestionId,question:item.question,answer:a?.value??null})}>Bahas soal ini</button>
- {source?.questions.some(q=>q.id===item.sourceQuestionId)&&<button className="study-secondary" onClick={()=>setCards({pack:source,questions:[item.question]})}>Jadikan flashcard</button>}</div></details>;})}</div></details></section>;
+ {source?.questions.some(q=>q.id===item.sourceQuestionId)&&<button className="study-secondary" onClick={()=>setCards({pack:source,questions:[item.question]})}>Jadikan flashcard</button>}</div></details>;})}</div></details></motion.section>;
 }
