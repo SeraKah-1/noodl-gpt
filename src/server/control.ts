@@ -1,6 +1,7 @@
 import {firstProbe,singleQuestion,diagnosticQuestion, diagnosticAttempt} from '../shared/practice';
 import {batchView} from '../shared/batch';
 import {comicGuide} from '../shared/comic';
+import {createStudyContext} from '../shared/studyContext';
 import type {Database} from './index';
 import type {Attempt,Pack,ReviewEvent,Operation,MutationResult,Snapshot,User} from '../shared/types';
 import {editBatch,submitBatch,createAttempt,answerAttempt,advanceAttempt,finishAttempt,progressFor,sessionProgress,replayReviews} from '../shared/engine';
@@ -18,6 +19,8 @@ export const controlTools=[
  tool('start_concept_probe','Start a one-question check, reserving a different unanswered question on the same tagged concept in the bank. Use batch draft and submission tools. After a miss offer start_diagnostic.',{packId:s,operationId:s},['packId','operationId'],false,true),
  tool('start_diagnostic','Offer one different, unanswered question on a missed concept from a completed session. Use update_batch_draft and submit_batch to answer. Report the two observed responses together.',{attemptId:s,operationId:s},['attemptId','operationId'],false,true),
  tool('get_capabilities','Discover all supported Noodl operations, schemas, design controls, input/output formats and limits.',{},[],true),
+ tool('get_study_context','Read compact owned bank, active attempt, due review, observed gaps and next-action evidence without fetching all questions or answer keys.',{packId:s,limit:{type:'integer',minimum:1,maximum:20}},[],true),
+ tool('get_operation_receipt','Check whether a server-side operation ID was committed. A missing ID may still be queued offline.',{operationId:s},['operationId'],true),
  tool('get_workspace','Read a paginated account workspace overview. Private records are limited to the authenticated user.',pageProps,[],true),
  tool('search_workspace','Search owned banks, individual questions, material, insights and visualizations by text.',{query:s,kind:{type:'string',enum:['all','pack','question','artifact']},...pageProps},['query'],true),
  tool('get_question','Read one question including its answer, explanation and current bank revision.',{packId:s,questionId:s},['packId','questionId'],true),
@@ -62,8 +65,22 @@ export async function callControlTool(db:Database,user:User,name:string,args:any
  const getAttempt=async()=>{const a=await deps.read<Attempt>(db,owner,'attempt',text(args.attemptId,'attemptId'));if(!active(a))throw new Error('Attempt not found');return a!;};
  const save=async(kind:Operation['kind'],entityId:string,payload:unknown,expectedRevision:number)=>{const result=await deps.mutate(db,owner,{id:text(args.operationId,'operationId'),kind,entityId,payload,expectedRevision,createdAt:now()});if(!result.ok)throw new Error(`${result.code}: ${result.error}`);return result.record;};
  if(controlTools.find(t=>t.name===name)?.annotations.readOnlyHint===false){const duplicate=await duplicateResult(db,owner,args.operationId);if(duplicate){const record=duplicate.record;return record?.options?.mode==='BATCH' && record.status==='active'?batchView(record):record;}}
+ if(name==='get_operation_receipt'){
+  const operationId=text(args.operationId,'operationId');
+  const result=await duplicateResult(db,owner,operationId);
+  if(!result)return {operationId,status:'not_found',note:'Not in this account server ledger. A client may still have an offline queued write.'};
+  const record=result.record;
+  return {operationId,status:result.ok?'committed':'rejected',
+   recordId:typeof record?.id==='string'?record.id:null,
+   revision:Number.isSafeInteger(record?.revision)?record.revision:null,
+   code:result.code??null};
+ }
+ if(name==='get_study_context'){
+  const snapshot=await deps.snapshot(db,owner);
+  return createStudyContext(snapshot,{packId:args.packId,limit:args.limit});
+ }
  if(name==='get_comic_guide')return comicGuide;
- if(name==='get_capabilities')return {version:'2.2.0',practice:{probe:'start_concept_probe',debugger:'open_knowledge_debugger',autopilot:'open_autopilot',diagnostic:'start_diagnostic'},batch:{mode:'BATCH',draft:'update_batch_draft',submit:'submit_batch',maximum:100},brainDump:{start:'start_brain_dump',resume:'get_brain_dump',source:'PPT attached in ChatGPT'},scope:'Authenticated user-owned workspace',comics:{guide:'get_comic_guide',clarificationRequired:true,reviewIsSelfReported:true},input:{questionTypes:['MULTIPLE_CHOICE','TRUE_FALSE','FILL_BLANK'],artifactKinds:['material','insight','visualization','comic'],sourceFiles:false,structuredContent:true},output:{formats:['json','csv','html','pdf'],interactiveUI:true},design:{tool:'get_design',update:'update_design'},pagination:{default:50,maximum:100},notes:['All writes require operationId; versioned updates require expectedRevision.','Banks require at least one question.','Completed sessions and review events are immutable; use delete/reset tools to remove history.','Design/preferences apply only to the signed-in account.']};
+ if(name==='get_capabilities')return {version:'2.3.0',workflow:{context:'get_study_context',receipt:'get_operation_receipt'},practice:{probe:'start_concept_probe',debugger:'open_knowledge_debugger',autopilot:'open_autopilot',diagnostic:'start_diagnostic'},batch:{mode:'BATCH',draft:'update_batch_draft',submit:'submit_batch',maximum:100},brainDump:{start:'start_brain_dump',resume:'get_brain_dump',source:'PPT attached in ChatGPT'},scope:'Authenticated user-owned workspace',comics:{guide:'get_comic_guide',clarificationRequired:true,reviewIsSelfReported:true},input:{questionTypes:['MULTIPLE_CHOICE','TRUE_FALSE','FILL_BLANK'],artifactKinds:['material','insight','visualization','comic'],sourceFiles:false,structuredContent:true},output:{formats:['json','csv','html','pdf'],interactiveUI:true},design:{tool:'get_design',update:'update_design'},pagination:{default:50,maximum:100},notes:['All writes require operationId; versioned updates require expectedRevision.','Banks require at least one question.','Completed sessions and review events are immutable; use delete/reset tools to remove history.','Design/preferences apply only to the signed-in account.']};
  if(name==='open_knowledge_debugger')return {view:'gastric-debugger'};
  if(name==='open_autopilot'){const pack=await getPack();return {view:'autopilot',packId:pack.id};}
  if(name==='start_diagnostic'){
