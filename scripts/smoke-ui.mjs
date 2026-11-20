@@ -263,6 +263,34 @@ try{
  assert.ok(await page.locator('.study-score').count()>=1,'Results must display score from the completed attempt');
  assert.ok(await page.locator('.v3-mistake-loop').count()>=1,'Incorrect answers must offer evidence-based error repair');
  await save('16-results-repair-loop');
+ // Open a real saved V4 concept-map/simulation fixture through the same import path as users.
+ await page.locator('.results-screen .study-icon[aria-label="Kembali"]').click();
+ await page.locator('#desk-pack-title').waitFor();
+ await page.getByRole('button',{name:/Kembali ke Library/i}).click();
+ await page.locator('.classic-upload-label input[type="file"]').setInputFiles('examples/v4-studio.input.json');
+ await page.locator('.desk-library-open').filter({hasText:'V4 Studio verification bank'}).first().click();
+ await page.locator('#desk-pack-title').getByText('V4 Studio verification bank').waitFor();
+ await page.locator('.v3-workspace-mobile-tabs button').nth(2).click();
+ await page.locator('.v3-studio-actions button').filter({hasText:/Asosiasi konsep/i}).click();
+ await page.locator('.v4-map-root').waitFor();
+ assert.ok(await page.locator('.v4-map-node').count()>=2,'Structured map must show real saved nodes');
+ await page.locator('.v4-map-node').first().click();
+ await page.locator('.v4-map-relation').first().click();
+ assert.ok((await page.locator('.v4-map-inspector').innerText()).includes('Sumber disertakan'),'Typed edge must expose source provenance');
+ await save('17-evidence-linked-concept-map');
+ await page.getByRole('button',{name:'Tutup alat belajar'}).click();
+ await page.locator('#desk-pack-title').waitFor();
+ await page.locator('.v3-workspace-mobile-tabs button').nth(2).click();
+ await page.locator('.v3-studio-actions button').filter({hasText:'Visual Lab'}).click();
+ await page.locator('.v4-simulation-root').waitFor();
+ assert.equal((await page.locator('.v4-sim-metrics strong').nth(1).innerText()).trim(),'7','Simulator must compute declared baseline');
+ const slider=page.locator('#v4-sim-parameter');
+ await slider.focus();
+ for(let i=0;i<3;i++)await slider.press('ArrowRight');
+ assert.equal((await page.locator('.v4-sim-metrics strong').nth(1).innerText()).trim(),'13','Changing parameter must recompute declared formula');
+ await page.getByRole('button',{name:/Reset ke baseline/i}).click();
+ assert.equal((await page.locator('.v4-sim-metrics strong').nth(1).innerText()).trim(),'7','Simulation reset returns to baseline');
+ await save('18-model-simulation');
  assert.deepEqual(errors,[],`Browser exceptions: ${errors.join('; ')}`);
  console.log('Noodl V3 browser smoke PASS: real Today, import, Bank Workspace, quiz, resume, review, Settings preview/Cancel, 320/390/768/1440 widths.');
 }catch(error){
