@@ -135,7 +135,7 @@ html[data-noodl-theme="default"] .batch-quiz .study-surface{
 }
 html[data-noodl-theme="default"] .study-player .study-question,
 html[data-noodl-theme="default"] .batch-quiz .study-question{
- font-family:Georgia,"Times New Roman",serif;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);
  font-weight:700;
  font-size:clamp(1.5rem,3.2vw,2.3rem);
  line-height:1.45;
@@ -196,7 +196,7 @@ html[data-noodl-theme="default"] .study-player .study-flashcard{
  box-shadow:none;
 }
 html[data-noodl-theme="default"] .study-player .study-flashcard>.study-rich{
- font-family:Georgia,"Times New Roman",serif;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);
 }
 @media(prefers-reduced-motion:reduce){
  html[data-noodl-theme="default"] .study-player .study-option{transition:none}
