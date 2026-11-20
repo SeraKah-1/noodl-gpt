@@ -41,6 +41,26 @@ try{
   };
  });
  assert.deepEqual(editorial,{theme:'default',nav:'rgb(23, 38, 48)',selectedNav:'rgb(217, 244, 95)',hero:'rgb(23, 38, 48)',action:'rgb(217, 244, 95)'},'Editorial palette must use ink structure and lime only on focused actions');
+ const visualSystem=await page.evaluate(()=>{
+  const css=selector=>getComputedStyle(document.querySelector(selector));
+  return {
+   brandFamily:css('.classic-wordmark').fontFamily,
+   pageFamily:css('.desk-page-head h1').fontFamily,
+   featureFamily:css('.desk-next h2').fontFamily,
+   sectionFamily:css('.desk-section-heading h2').fontFamily,
+   sectionRule:css('.desk-queue').borderTopWidth,
+   actionTextSize:parseFloat(css('.desk-next .desk-primary').fontSize),
+   titleSize:parseFloat(css('.desk-page-head h1').fontSize),
+   controlBoundary:css('.classic-account').borderTopWidth
+  };
+ });
+ assert.equal(visualSystem.pageFamily,visualSystem.brandFamily,'Page title and wordmark must use one type family');
+ assert.equal(visualSystem.featureFamily,visualSystem.pageFamily,'Feature heading must share type family');
+ assert.equal(visualSystem.sectionFamily,visualSystem.pageFamily,'Section titles must share type family');
+ assert.equal(visualSystem.sectionRule,'2px','Secondary sections need a deliberate visible boundary');
+ assert.ok(visualSystem.actionTextSize>=14,'Primary action typography must remain readable');
+ assert.ok(visualSystem.titleSize>visualSystem.actionTextSize*2,'Page heading must establish clear hierarchy');
+ assert.equal(visualSystem.controlBoundary,'1px','Controls must have a visible boundary');
  await save('01-today-empty-mobile');
  await fits(320);await save('02-today-320');await fits(390);
  await page.getByRole('button',{name:'Library',exact:true}).click();
