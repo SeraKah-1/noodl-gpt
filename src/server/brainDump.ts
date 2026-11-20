@@ -15,6 +15,7 @@ const schemas={
   start_brain_dump:z.object({operationId:title,title,units:z.array(unit).min(1).max(80)}).strict(),
   list_brain_dumps:z.object({offset:z.number().int().nonnegative().optional()}).strict(),
   get_brain_dump:z.object({sessionId:title}).strict(),
+  get_brain_dump_gaps:z.object({sessionId:title,offset:z.number().int().nonnegative().optional(),limit:z.number().int().min(1).max(50).optional()}).strict(),
   record_recall:z.object({...base,answer:phrase,hint:phrase.optional(),hintPoint:number.optional()}).strict(),
   review_recall:z.object({...base,feedback:z.array(feedback).min(1).max(12)}).strict(),
   retry_recall:z.object({...base,unitNumber:number}).strict()
@@ -24,13 +25,14 @@ const descriptions:Record<Name,string>={
   start_brain_dump:'Read the PPT attached in ChatGPT first. Confirm per-slide or per-topic grouping with the learner. Skip title/reference slides. Request a slide image/PDF for unreadable diagrams. Set objective to one observable learning goal per unit. Match the task to the slide: identify a structure, distinguish two cases, or explain a mechanism. Store only points needed for that objective. Show only the current prompt before the learner answers.',
   list_brain_dumps:'List private recall sessions, newest changes first. Use get_brain_dump to resume.',
   get_brain_dump:'Resume the private session. Show only the prompt to the learner until they finish recalling. Assessment references become available to the tutor after the initial response.',
+  get_brain_dump_gaps:'Read only the latest reviewed evidence per Brain Dump unit. Return missed, partial, incorrect, or hinted concepts with their author-supplied slide numbers and next-step options. No learner answers, no automatic grading, no generated questions, no source verification. Use prepare_pack_change / commit_pack_change for source-grounded new questions.',
   record_recall:'Save the learner’s own explanation verbatim. If a short answer already meets the stated objective, omit hint and call review_recall immediately. Use hintPoint to cite the numbered missing reference point. Only ask one neutral follow-up for a specific missing reference point needed for that objective. Do not request elaboration for length or fluency. After that, record their reply separately. Do not reveal the rubric before feedback.',
   review_recall:'After the learner finishes, assess every numbered reference point. Accept accurate paraphrases, distinguish initial and prompted recall, explain missing or incorrect concepts with slide evidence. Label outside context separately. Display feedback, then the next prompt. On request use create_pack or append_questions for selected gaps without copying private responses. Those questions also work as flashcards.',
   retry_recall:'Revisit a previously reviewed unit. Keeps its previous answers and feedback in history.'
 };
 export const brainTools=(Object.keys(schemas) as Name[]).map(name=>({
   name,description:descriptions[name],inputSchema:z.toJSONSchema(schemas[name],{target:'draft-7'}),
-  annotations:{readOnlyHint:['get_brain_dump','list_brain_dumps'].includes(name),destructiveHint:false,openWorldHint:false,idempotentHint:true}
+  annotations:{readOnlyHint:['get_brain_dump','get_brain_dump_gaps','list_brain_dumps'].includes(name),destructiveHint:false,openWorldHint:false,idempotentHint:true}
 }));
 type Round={unitNumber:number;initial?:string;hint?:string;hintPoint?:number;supplement?:string;feedback?:z.infer<typeof feedback>[]};
 interface Session {id:string;title:string;units:z.infer<typeof unit>[]; round:Round|null;history:Round[];revision:number;updatedAt:string}
@@ -66,7 +68,38 @@ export async function callBrainTool(db:Database,owner:string,name:string,input:u
     const session=await get(args.sessionId);
     return {...state(session),history:session.history.map(r=>report(session,r))};
   }
-  const args=schemas[name as Exclude<Name,'list_brain_dumps'|'get_brain_dump'>].parse(input);
+  if(name==='get_brain_dump_gaps'){
+    const {sessionId,offset=0,limit=25}=schemas.get_brain_dump_gaps.parse(input);
+    const session=await get(sessionId);
+    // A retry can supersede earlier feedback. Only the most recently reviewed round per unit is evidence.
+    const latest=new Map<number,Round>();
+    for(const round of session.history)if(round.feedback)latest.set(round.unitNumber,round);
+    const gaps:{
+      unitNumber:number;objective:string|null;prompt:string;slide:number;concept:string;
+      point:number;verdict:'partial'|'missing'|'incorrect'|'prompted_recall';feedback:string;
+      sourceStatus:'tutor_provided_unverified';
+    }[]=[];
+    for(const [unitNumber,round] of [...latest].sort(([a],[b])=>a-b)){
+      const unit=session.units[unitNumber-1];
+      if(!unit)continue;
+      for(const item of round.feedback??[]){
+        const point=unit.points[item.point-1];
+        if(!point)continue;
+        const hinted=round.hintPoint===item.point;
+        if(item.verdict==='recalled'&&!hinted)continue;
+        gaps.push({unitNumber,objective:unit.objective??null,prompt:unit.prompt,
+          slide:point.slide,concept:point.concept,point:item.point,
+          verdict:item.verdict==='recalled'?'prompted_recall':item.verdict,
+          feedback:item.explanation,sourceStatus:'tutor_provided_unverified'});
+      }
+    }
+    const page=gaps.slice(offset,offset+limit);
+    return {sessionId,title:session.title,revision:session.revision,
+      status:session.round?'active':'completed',reviewedUnits:latest.size,
+      total:gaps.length,offset,limit,nextOffset:offset+limit<gaps.length?offset+limit:null,
+      gaps:page,nextAction:gaps.length?'Generate different questions grounded in the original source using prepare_pack_change, commit_pack_change, then start practice. The saved slide numbers were supplied by the tutor, not independently verified by Noodl.':'No missed or hinted reference point in the latest reviewed rounds.'};
+  }
+  const args=schemas[name as Exclude<Name,'list_brain_dumps'|'get_brain_dump'|'get_brain_dump_gaps'>].parse(input);
   const fingerprint=await digest([name,args]);
   const replay=async()=>{
     const row=await db.prepare("SELECT data FROM records WHERE owner_id=? AND kind='recall-op' AND id=?").bind(owner,args.operationId).first<{data:string}>();
