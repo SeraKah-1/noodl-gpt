@@ -7,7 +7,7 @@ export interface Question {
  keyPoint?: string; difficulty: 'Easy'|'Medium'|'Hard'; conceptName?: string;
  conceptPriority?: 'HIGH'|'MODERATE'|'FILLER';
 }
-export interface Artifact { id: string; kind: 'insight'|'material'|'visualization'|'comic'; title: string; content: string; explanation?: string; interactionGuide?: string }
+export interface Artifact { id: string; kind: 'insight'|'material'|'visualization'|'comic'|'concept_map'|'simulation'; title: string; content: string; explanation?: string; interactionGuide?: string }
 export interface Pack { id: string; ownerId: string; title: string; description: string; folder: string; tags: string[]; questions: Question[]; artifacts: Artifact[]; revision: number; createdAt: string; updatedAt: string; deletedAt?: string }
 export interface StudyOptions { mode: QuizMode; batchSize?: number; shuffle: boolean; retention: boolean; mixed: boolean }
 export interface Occurrence { id: string; sourcePackId: string; sourceQuestionId: string; question: Question }

@@ -1,0 +1,44 @@
+{
+  "title": "V4 Studio verification bank",
+  "description": "Disposable browser fixture for source-linked map and deterministic model; not a scientific claim.",
+  "folder": "Examples",
+  "tags": [
+    "v4",
+    "fixture"
+  ],
+  "questions": [
+    {
+      "id": "q-v4",
+      "type": "MULTIPLE_CHOICE",
+      "text": "For y = 2x + 3, what is y when x = 2?",
+      "options": [
+        {
+          "id": "a",
+          "text": "5"
+        },
+        {
+          "id": "b",
+          "text": "7"
+        }
+      ],
+      "correctOptionId": "b",
+      "explanation": "Substitute x=2: 2×2+3=7.",
+      "difficulty": "Easy",
+      "conceptName": "Linear relationship"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "map-v4",
+      "kind": "concept_map",
+      "title": "Linear model concept map",
+      "content": "{\"version\":1,\"title\":\"Toy linear model relationships\",\"concepts\":[{\"id\":\"input\",\"label\":\"Input x\"},{\"id\":\"model\",\"label\":\"Linear formula\"},{\"id\":\"output\",\"label\":\"Output y\"}],\"relations\":[{\"id\":\"r1\",\"from\":\"input\",\"to\":\"model\",\"type\":\"part_of\",\"rationale\":\"x is the input variable in the declared formula.\",\"status\":\"draft\",\"sourceRefs\":[{\"title\":\"Author-provided toy model\",\"status\":\"provided\"}]},{\"id\":\"r2\",\"from\":\"model\",\"to\":\"output\",\"type\":\"causes\",\"rationale\":\"Evaluating the declared linear model produces y.\",\"status\":\"draft\",\"sourceRefs\":[{\"title\":\"Author-provided toy model\",\"status\":\"provided\"}]}]}"
+    },
+    {
+      "id": "sim-v4",
+      "kind": "simulation",
+      "title": "Linear model simulator",
+      "content": "{\"version\":1,\"title\":\"Linear toy model y=2x+3\",\"objective\":\"Change x and inspect a repeatable output of a stated toy formula.\",\"control\":{\"id\":\"x\",\"label\":\"Input x\",\"unit\":\"unit\",\"min\":0,\"max\":10,\"step\":1,\"default\":2},\"output\":{\"label\":\"Output y\",\"unit\":\"unit\"},\"model\":{\"kind\":\"linear\",\"slope\":2,\"intercept\":3},\"assumptions\":[\"Toy linear model with fixed parameters; not a scientific or medical prediction.\"],\"sources\":[{\"title\":\"Formula stated in the example\",\"status\":\"provided\"}],\"expectedCases\":[{\"input\":2,\"expected\":7,\"tolerance\":0},{\"input\":5,\"expected\":13,\"tolerance\":0}],\"validity\":\"Valid only for this mathematical example.\"}"
+    }
+  ]
+}

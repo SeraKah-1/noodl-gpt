@@ -21,7 +21,7 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
  const [selectedId,setSelectedId]=useState<string|null>(null),[selectedTopic,setSelectedTopic]=useState<string|null>(null);
  const [asking,setAsking]=useState(false),[feedback,setFeedback]=useState('');
  const materials=pack.artifacts.filter(a=>a.kind==='material'||a.kind==='insight');
- const visuals=pack.artifacts.filter(a=>a.kind==='visualization');
+ const visuals=pack.artifacts.filter(a=>a.kind==='visualization'||a.kind==='simulation');
  const comics=pack.artifacts.filter(a=>a.kind==='comic');
  const selected=materials.find(a=>a.id===selectedId);
  const topicNames=useMemo(()=>[...new Set(pack.questions.map(q=>q.conceptName?.trim()).filter((v):v is string=>!!v))], [pack.questions]);
