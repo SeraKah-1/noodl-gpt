@@ -1,5 +1,6 @@
 import {validDiagnostic} from '../shared/practice';
 import {brainTools,callBrainTool} from './brainDump';
+import {recallRepairTools,callRecallRepairTool} from './recallRepair';
 import {guestIdentity,startGuestSession} from './guest';
 import {bankBackup,storageConfigured,type SupabaseEnv} from './supabase';
 import {controlTools,callControlTool} from './control';
@@ -205,7 +206,7 @@ const destructivePackTools=new Set(['update_pack','save_artifacts','delete_pack'
  'app_mutate','app_publish','app_unpublish']);
 function tool(name:string,description:string,properties:Record<string,unknown>={},required:string[]=[],app=false,readOnly=false,ui=false){return {name,description,inputSchema:{type:'object',properties,required,additionalProperties:false},annotations:{readOnlyHint:readOnly,destructiveHint:destructivePackTools.has(name),openWorldHint:publicCatalogTools.has(name),idempotentHint:true},_meta:{ui:{visibility:app?['app']:['model','app'],...(ui?{resourceUri:'ui://noodl/workspace'}:{})}}};}
 export const toolsList=[
- ...brainTools,...controlTools,...preferenceTools,...exportTools,
+ ...brainTools,...recallRepairTools,...controlTools,...preferenceTools,...exportTools,
  tool('create_pack','Save finished study questions from the ChatGPT conversation. No AI calls or source uploads. Use unique question IDs and option IDs.',{operationId:stringSchema,pack:packSchema},['operationId','pack'],false,false,true),
  tool('update_pack','Replace a private pack at an expected revision.',{operationId:stringSchema,packId:stringSchema,expectedRevision:{type:'integer'},pack:packSchema},['operationId','packId','expectedRevision','pack']),
  tool('append_questions','Append new questions without changing existing content.',{operationId:stringSchema,packId:stringSchema,expectedRevision:{type:'integer'},questions:{type:'array',items:questionSchema}},['operationId','packId','expectedRevision','questions']),
@@ -227,6 +228,7 @@ export const toolsList=[
 async function callTool(db:Database,user:User,name:string,args:any,origin:string){
  if(name.startsWith('app_')&&args.expectedOwner!==undefined&&args.expectedOwner!==user.id)throw new AccessError('Akun aktif sudah berubah. Masuk kembali untuk menyinkronkan.');
  const brain=await callBrainTool(db,user.id,name,args);if(brain!==undefined)return brain;
+ const recallRepair=await callRecallRepairTool(db,user.id,name,args,{snapshot,mutate});if(recallRepair!==undefined)return recallRepair;
  const control=await callControlTool(db,user,name,args,{read:readRecord,snapshot,mutate});if(control!==undefined)return control;
  const preference=await callPreferenceTool(db,user.id,name,args);if(preference!==undefined)return preference;
  const exported=await callExportTool(db,user.id,name,args,origin);if(exported!==undefined)return exported;
