@@ -6,7 +6,7 @@ import {controlTools,callControlTool} from './control';
 import {preferenceTools,callPreferenceTool,getPreferences,updatePreferences} from './preferences';
 import {exportTools,callExportTool,handleExportRequest} from './exports';
 import type { Attempt, MutationResult, Operation, Pack, Publication, Snapshot, User } from '../shared/types';
-import { evaluate, missedReviewEvents, sessionProgress, correctAnswerText } from '../shared/engine';
+import { evaluate, missedReviewEvents, sessionProgress, correctAnswerText, normalizeAnswer } from '../shared/engine';
 import { requestTooLarge, validateAttempt, validatePackInput, validateQuestion, validateReviewEvent, validateArtifact } from '../shared/validation';
 export interface Statement { bind(...values:unknown[]):Statement; first<T=Record<string,unknown>>():Promise<T|null>; all<T=Record<string,unknown>>():Promise<{results:T[]}>; run():Promise<unknown> }
 export interface Database {prepare(sql:string):Statement;batch(statements:Statement[]):Promise<unknown[]>}
@@ -65,12 +65,45 @@ export async function mutate(db:Database,owner:string,op:Operation):Promise<Muta
   if(current){
    if(current.deletedAt)return {operationId:id,ok:false,code:'CONFLICT',error:'Attempt was deleted',current};
    if(current.status==='completed')return {operationId:id,ok:false,code:'CONFLICT',error:'Completed attempt is immutable',current};
-   for(const key of ['items','options','packId','packRevision','createdAt','diagnostic'])if(JSON.stringify(record[key])!==JSON.stringify(current[key]))throw new Error('Attempt snapshot is immutable');
+   for(const key of ['items','options','packId','packRevision','createdAt','diagnostic','recallRepair'])if(JSON.stringify(record[key])!==JSON.stringify(current[key]))throw new Error('Attempt snapshot is immutable');
    for(const previous of current.answers){const next=record.answers.find((a:any)=>a.occurrenceId===previous.occurrenceId);if(!next||next.value!==previous.value||next.answeredAt!==previous.answeredAt)throw new Error('Existing answers are immutable');}
   }else{
    if(record.diagnostic){
      const source=await readRecord<Attempt & {deletedAt?:string}>(db,owner,'attempt',record.diagnostic.attemptId);
      if(!source || source.deletedAt || !validDiagnostic(source,record.diagnostic.occurrenceId,record))throw new Error('Invalid diagnostic source');
+   }
+   if(record.recallRepair){
+    const link=record.recallRepair;
+    const recall=await readRecord<any>(db,owner,'recall',link.sessionId);
+    if(!recall||recall.revision!==link.feedbackRevision)throw new Error('Invalid or stale Brain Dump evidence origin');
+    if(record.options.mode!=='BATCH'||record.items.length>20)throw new Error('Brain Dump repair requires a short Batch session');
+    const latest=new Map<number,any>();
+    for(const round of recall.history??[])if(round.feedback)latest.set(round.unitNumber,round);
+    const supported=new Set<string>();
+    for(const [unitNumber,round] of latest){
+     const unit=recall.units?.[unitNumber-1];
+     if(!unit)continue;
+     for(const feedback of round.feedback){
+      if(feedback.verdict==='recalled'&&round.hintPoint!==feedback.point)continue;
+      const point=unit.points?.[feedback.point-1];
+      if(point?.concept)supported.add(normalizeAnswer(point.concept));
+     }
+    }
+    if(!supported.size||record.items.some(item=>!supported.has(normalizeAnswer(item.question.conceptName??''))))
+     throw new Error('Repair questions must match actually observed Brain Dump gaps');
+    const prior=await db.prepare("SELECT data FROM records WHERE owner_id=? AND kind='attempt'").bind(owner).all<{data:string}>();
+    const shownIds=new Set<string>(),shownStems=new Set<string>();
+    for(const row of prior.results)for(const item of (JSON.parse(row.data) as Attempt).items??[]){
+     shownIds.add(item.sourcePackId+':'+item.sourceQuestionId);
+     shownStems.add(normalizeAnswer(item.question.text));
+    }
+    const stems=new Set<string>();
+    for(const item of record.items){
+     const stem=normalizeAnswer(item.question.text);
+     if(shownIds.has(item.sourcePackId+':'+item.sourceQuestionId)||shownStems.has(stem)||stems.has(stem))
+      throw new Error('Brain Dump repair must use genuinely unseen, distinct questions');
+     stems.add(stem);
+    }
    }
    const itemsByPack = new Map<string, Attempt['items']>();
    for (const item of (record as Attempt).items) {
