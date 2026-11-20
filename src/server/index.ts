@@ -1,5 +1,6 @@
 import {validDiagnostic} from '../shared/practice';
 import {brainTools,callBrainTool} from './brainDump';
+import {submitDebugger,listDebuggerResults} from './debugger';
 import {recallRepairTools,callRecallRepairTool} from './recallRepair';
 import {guestIdentity,startGuestSession} from './guest';
 import {bankBackup,storageConfigured,type SupabaseEnv} from './supabase';
@@ -211,7 +212,7 @@ const packSchema={type:'object',properties:{title:stringSchema,description:strin
 const publicCatalogTools=new Set(['publish_pack','browse_publications','copy_publication','unpublish_pack',
  'app_publications','app_publish','app_unpublish','app_unpublish_source','app_copy_publication']);
 const destructivePackTools=new Set(['update_pack','save_artifacts','delete_pack','publish_pack','unpublish_pack',
- 'app_mutate','app_publish','app_unpublish','app_unpublish_source']);
+ 'app_mutate','app_publish','app_unpublish','app_unpublish_source','app_submit_debugger']);
 function tool(name:string,description:string,properties:Record<string,unknown>={},required:string[]=[],app=false,readOnly=false,ui=false){return {name,description,inputSchema:{type:'object',properties,required,additionalProperties:false},annotations:{readOnlyHint:readOnly,destructiveHint:destructivePackTools.has(name),openWorldHint:publicCatalogTools.has(name),idempotentHint:true},_meta:{ui:{visibility:app?['app']:['model','app'],...(ui?{resourceUri:'ui://noodl/workspace'}:{})}}};}
 export const toolsList=[
  ...brainTools,...recallRepairTools,...controlTools,...preferenceTools,...exportTools,
@@ -228,6 +229,8 @@ export const toolsList=[
  tool('browse_publications','Browse content-only shared packs.',{},[],false,true),
  tool('copy_publication','Copy a shared pack into a new private pack with fresh question IDs.',{publicationId:stringSchema,operationId:stringSchema},['publicationId','operationId']),
  tool('unpublish_pack','Remove one of your published snapshots.',{publicationId:stringSchema},['publicationId']),
+ tool('app_submit_debugger','Server-grade and save a correction attempt against an owned, revisioned debugger artifact.',{...ownerArgument,packId:stringSchema,artifactId:stringSchema,expectedRevision:{type:'integer'},operationId:stringSchema,selections:{type:'object'}},['packId','artifactId','expectedRevision','operationId','selections'],true),
+ tool('app_debugger_results','Read privately stored debugger results for a specific bank and artifact.',{...ownerArgument,packId:stringSchema,artifactId:stringSchema},['packId','artifactId'],true,true),
  tool('app_identity','Authenticated user.',{},[],true,true),tool('app_snapshot','Account snapshot.',ownerArgument,[],true,true),
  tool('app_mutate','Synchronize pending offline changes.',{...ownerArgument,operations:{type:'array',items:{type:'object',additionalProperties:true}}},['operations','expectedOwner'],true),
  tool('app_publications','Publication list.',ownerArgument,[],true,true),tool('app_publish','Publish content including answer keys.',{...ownerArgument,packId:stringSchema,expectedRevision:{type:'integer'},operationId:stringSchema},['packId','expectedRevision','operationId'],true),
@@ -241,6 +244,8 @@ async function callTool(db:Database,user:User,name:string,args:any,origin:string
  const preference=await callPreferenceTool(db,user.id,name,args);if(preference!==undefined)return preference;
  const exported=await callExportTool(db,user.id,name,args,origin);if(exported!==undefined)return exported;
  if(['create_pack','update_pack','append_questions','save_artifacts','delete_pack','copy_publication','publish_pack','app_copy_publication','app_publish'].includes(name)&&args.operationId){const duplicate=await db.prepare('SELECT result FROM operations WHERE owner_id=? AND id=?').bind(user.id,text(args.operationId,'operationId')).first<{result:string}>();if(duplicate)return JSON.parse(duplicate.result).record;}
+ if(name==='app_submit_debugger')return submitDebugger(db,user.id,args);
+ if(name==='app_debugger_results')return listDebuggerResults(db,user.id,text(args.packId,'packId'),text(args.artifactId,'artifactId'));
  if(name==='app_identity')return user;
  if(name==='app_snapshot')return snapshot(db,user.id);
  if(name==='app_mutate')return mutateBatch(db,user.id,args);
@@ -327,6 +332,8 @@ export async function handleRequest(request:Request,env:Env,_ctx:unknown,assets:
     return json(await bankBackup(env,user.id,'PUT',banks));
    }
   }
+  if(url.pathname==='/api/debugger/submit'&&request.method==='POST')return json(await submitDebugger(env.DB,user.id,await body(request)));
+  if(url.pathname==='/api/debugger/results'&&request.method==='GET')return json(await listDebuggerResults(env.DB,user.id,text(url.searchParams.get('packId'),'packId'),text(url.searchParams.get('artifactId'),'artifactId')));
   const exportResponse=await handleExportRequest(request,env.DB,user.id);if(exportResponse)return exportResponse;
   if(url.pathname==='/api/preferences'){if(request.method==='GET')return json(await getPreferences(env.DB,user.id));if(request.method==='PATCH')return json(await updatePreferences(env.DB,user.id,await body(request)));}
   if(url.pathname==='/mcp'){

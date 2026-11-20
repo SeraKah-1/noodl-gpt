@@ -109,6 +109,7 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
      <button onClick={()=>onTool('material')}><FileText size={20}/><span><strong>{en?'Materials':'Materi'}</strong><small>{materials.length} {en?'saved':'tersimpan'}</small></span><ArrowRight size={17}/></button>
      <button onClick={()=>onTool('graph')}><Network size={20}/><span><strong>{en?'Concept associations':'Asosiasi konsep'}</strong><small>{en?'Text similarity, not causal proof':'Kemiripan teks, bukan sebab-akibat'}</small></span><ArrowRight size={17}/></button>
      {visuals.length>0&&<button onClick={()=>onTool('visual')}><Orbit size={20}/><span><strong>Visual Lab</strong><small>{visuals.length} {en?'saved':'tersimpan'}</small></span><ArrowRight size={17}/></button>}
+     <button onClick={()=>onTool('debugger')}><Network size={20}/><span><strong>Knowledge Debugger</strong><small>{pack.artifacts.filter(a=>a.kind==='debugger').length} {en?'saved scenarios · corrections are graded':'skenario · koreksi dinilai'}</small></span><ArrowRight size={17}/></button>
      {comics.length>0&&<button onClick={()=>onTool('comic')}><BookMarked size={20}/><span><strong>{en?'Comics':'Komik'}</strong><small>{comics.length} {en?'saved':'tersimpan'}</small></span><ArrowRight size={17}/></button>}
     </div>
     {onAskChatGPT&&<div className="v3-studio-chat"><MessageSquare size={20}/><h3>{en?'Improve with ChatGPT':'Perluas lewat ChatGPT'}</h3>

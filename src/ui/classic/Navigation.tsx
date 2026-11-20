@@ -3,7 +3,7 @@ import {motion,useReducedMotion} from 'framer-motion';
 import {Home,FolderOpen,Settings,Brain,MessageSquare,Globe,Grid,X} from 'lucide-react';
 
 export type WorkspaceView='home'|'library'|'mix'|'review'|'public'|'settings';
-export type ToolTab='material'|'graph'|'visual'|'comic';
+export type ToolTab='material'|'graph'|'visual'|'comic'|'debugger';
 export type Locale='id'|'en';
 
 /** The three recurring jobs stay in primary navigation. Tools belong to the selected bank. */

@@ -231,3 +231,69 @@ test('embedded Noodl app supports source-scoped revocation of opaque links via i
  const missing=await make('app_unpublish_source',{packId:'p',expectedOwner:'user'});
  assert.equal(missing.result.isError,true);
 });
+
+test('knowledge debugger scores and stores real owner-isolated results with stable retries',async()=>{
+ const db=database();
+ const doc={version:1,title:'Electrical circuit',prompt:'Correct the faulty directed relation',
+  nodes:[{id:'battery',label:'Battery'},{id:'lamp',label:'Lamp'}],
+  edges:[{id:'flow',from:'battery',to:'lamp',displayLabel:'absorbs from',correctLabel:'supplies to',
+   choices:['absorbs from','supplies to'],explanation:'Battery supplies energy in this toy model.',
+   sourceRefs:[{title:'Author-provided physics notes',status:'provided'}]}],
+  limitations:'Toy model, not a wiring safety instruction.'};
+ const pack=(await mutate(db,'alice',op('make-debugger',0,{...input,artifacts:[
+  {id:'artifact-debugger',kind:'debugger',title:'Electrical Debugger',content:JSON.stringify(doc)}
+ ]}))).record as Pack;
+ const headers={'oai-authenticated-user-id':'alice','content-type':'application/json'};
+ const send=async(owner:string,operationId:string,selection:string,revision=1)=>{
+  const response=(await handleRequest(new Request('https://app/api/debugger/submit',{method:'POST',
+   headers:{...headers,'oai-authenticated-user-id':owner},
+   body:JSON.stringify({packId:pack.id,artifactId:'artifact-debugger',expectedRevision:revision,
+    operationId,selections:{flow:selection}})}),{DB:db},null))!;
+  return {status:response.status,data:await response.json() as any};
+ };
+ const first=await send('alice','debug-one','absorbs from');
+ assert.equal(first.status,200);
+ assert.equal(first.data.status,'committed');
+ assert.equal(first.data.grade.correct,0);
+ assert.equal(first.data.grade.results[0].correctLabel,'supplies to');
+ assert.equal((await send('alice','debug-one','absorbs from')).data.resultId,first.data.resultId,'Idempotent retry keeps original saved record');
+ assert.equal((await send('alice','debug-one','supplies to')).status,400,'Same operation ID cannot change the grade');
+ assert.equal((await send('bob','debug-another','supplies to')).status,400,'Unowned pack cannot be graded');
+ const correct=await send('alice','debug-two','supplies to');
+ assert.equal(correct.data.grade.passed,true);
+ const history=await handleRequest(new Request('https://app/api/debugger/results?packId=p&artifactId=artifact-debugger',{headers}),{DB:db},null);
+ assert.equal(history!.status,200);
+ const rows=await history!.json() as {items:any[]};
+ assert.equal(rows.items.length,2);
+ assert.equal(rows.items[0].correct,1);
+ assert.equal(JSON.stringify(rows).includes('supplies to'),false,'History list must omit answer keys');
+ const someone=await handleRequest(new Request('https://app/api/debugger/results?packId=p&artifactId=artifact-debugger',
+  {headers:{'oai-authenticated-user-id':'bob'}}),{DB:db},null);
+ assert.equal((await someone!.json() as {items:unknown[]}).items.length,0);
+ await mutate(db,'alice',op('change-bank',1,{...input,title:'Updated bank',artifacts:[
+  {id:'artifact-debugger',kind:'debugger',title:'Electrical Debugger',content:JSON.stringify(doc)}
+ ]}));
+ assert.equal((await send('alice','debug-stale','supplies to',1)).status,400,'Stale bank revision must refuse new scoring');
+});
+test('embedded MCP debugger tool respects current owner and stores only validated submissions',async()=>{
+ const db=database();
+ const doc={version:1,title:'Flow',prompt:'Fix one link',nodes:[{id:'a',label:'A'},{id:'b',label:'B'}],
+  edges:[{id:'r',from:'a',to:'b',displayLabel:'blocks',correctLabel:'allows',choices:['blocks','allows'],
+   explanation:'Toy relation',sourceRefs:[{title:'Course note',status:'provided'}]}],
+  limitations:'Abstract toy model'};
+ await mutate(db,'learner',op('make',0,{...input,artifacts:[{id:'debug',kind:'debugger',title:'Flow',content:JSON.stringify(doc)}]}));
+ const tool=async(name:string,args:unknown)=>{
+  const res=(await handleRequest(new Request('https://app/mcp',{method:'POST',
+   headers:{'oai-authenticated-user-id':'learner'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',
+    params:{name,arguments:args}})}),{DB:db},null))!;
+  return res.json() as Promise<any>;
+ };
+ const forbidden=await tool('app_submit_debugger',{expectedOwner:'someone-else',packId:'p',artifactId:'debug',
+  expectedRevision:1,operationId:'first',selections:{r:'allows'}});
+ assert.equal(forbidden.result.isError,true);
+ const valid=await tool('app_submit_debugger',{expectedOwner:'learner',packId:'p',artifactId:'debug',
+  expectedRevision:1,operationId:'first',selections:{r:'allows'}});
+ assert.equal(valid.result.structuredContent.grade.correct,1);
+ const list=await tool('app_debugger_results',{expectedOwner:'learner',packId:'p',artifactId:'debug'});
+ assert.equal(list.result.structuredContent.items.length,1);
+});
