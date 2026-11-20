@@ -65,6 +65,10 @@ try{
  await fits(320);await save('02-today-320');await fits(390);
  await page.getByRole('button',{name:'Library',exact:true}).click();
  await page.getByRole('heading',{name:/Bank soal/i}).waitFor();
+ const selectedBankTab=await page.locator('.classic-input-tabs button[aria-pressed="true"]').evaluate(el=>{
+  const s=getComputedStyle(el);return {color:s.color,background:s.backgroundColor};
+ });
+ assert.deepEqual(selectedBankTab,{color:'rgb(246, 242, 232)',background:'rgb(23, 38, 48)'},'Library selected tab must have a readable ink/ivory state');
  await page.locator('.classic-upload-label input[type="file"]').setInputFiles('examples/pack.input.json');
  await page.locator('.desk-library-open').first().waitFor();
  assert.equal(await page.locator('.desk-library-index').first().innerText(),'01','Library must be indexed without boxed icons');
