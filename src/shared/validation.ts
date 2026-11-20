@@ -1,5 +1,7 @@
 import {maxBatchSize,readBatchDraft,validBatchAnswer} from './batch';
 import {parseComic} from './comic';
+import {parseConceptMap} from './conceptMap';
+import {parseSimulation} from './simulation';
 import type { Artifact, Attempt, Pack, Question, ReviewEvent, StudyOptions } from './types';
 
 export class DomainError extends Error {
@@ -50,9 +52,11 @@ export function validateQuestion(input: unknown): Question {
 
 export function validateArtifact(input: unknown): Artifact {
   const a = record(input,'artifact');
-  if (!['insight','material','visualization','comic'].includes(String(a.kind))) throw new DomainError('Invalid artifact kind');
+  if (!['insight','material','visualization','comic','concept_map','simulation'].includes(String(a.kind))) throw new DomainError('Invalid artifact kind');
   const result: Artifact = {id:id(a.id,'artifact.id'),kind:a.kind as Artifact['kind'],title:string(a.title,'artifact.title',300),content:string(a.content,'artifact.content',500000)};
   if(result.kind==='comic')result.content=JSON.stringify(parseComic(result.content));
+  if(result.kind==='concept_map')result.content=JSON.stringify(parseConceptMap(result.content));
+  if(result.kind==='simulation')result.content=JSON.stringify(parseSimulation(result.content));
   if (a.explanation!==undefined) result.explanation=string(a.explanation,'artifact.explanation',20000,true);
   if (a.interactionGuide!==undefined) result.interactionGuide=string(a.interactionGuide,'interactionGuide',20000,true);
   return result;
