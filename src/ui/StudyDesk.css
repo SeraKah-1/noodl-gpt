@@ -457,3 +457,28 @@ html[data-noodl-theme="editorial"] .desk-link:hover{
  html[data-noodl-theme="editorial"] .desk-face{transform:none;transition:none}
 }
 html[data-reduced-motion="true"][data-noodl-theme="default"] .desk-face{transform:none;transition:none}
+
+/* Saved micro-sessions: one clear choice, no infinite-scroll learning gimmick. */
+.desk-quick-session{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.4fr);align-items:start;
+ gap:clamp(1rem,3vw,2rem);margin:1.35rem 0 1.65rem;padding:clamp(1rem,2vw,1.35rem) 0;
+ border-top:1px solid var(--desk-border);border-bottom:1px solid var(--desk-border);}
+.desk-quick-copy h2{font-size:clamp(1.03rem,2vw,1.25rem);letter-spacing:-.02em;margin:.4rem 0 .45rem;
+ color:var(--desk-ink);line-height:1.4;}
+.desk-quick-copy p{font-size:.77rem;line-height:1.65;max-width:38rem;color:var(--desk-muted);margin:0;}
+.desk-quick-actions{display:grid;gap:.65rem;min-width:0;}
+.desk-quick-choice{display:flex;align-items:center;text-align:left;gap:.8rem;width:100%;min-height:65px;
+ padding:.7rem .85rem;border:1px solid var(--desk-border);border-radius:12px;
+ background:var(--desk-card,var(--desk-paper,#fff));color:var(--desk-ink);font:inherit;cursor:pointer;}
+.desk-quick-choice:hover:not(:disabled){border-color:var(--desk-ink);}
+.desk-quick-choice:focus-visible{outline:3px solid var(--desk-action,#ffba59);outline-offset:3px;}
+.desk-quick-choice:disabled{opacity:.55;cursor:not-allowed;}
+.desk-quick-choice>span:first-child{display:grid;gap:.2rem;min-width:0;flex:1;}
+.desk-quick-choice strong{font-size:.85rem;}
+.desk-quick-choice small{font-size:.71rem;line-height:1.4;color:var(--desk-muted);overflow-wrap:anywhere;}
+.desk-quick-count{flex-shrink:0;display:inline-block;padding:.35rem .5rem;border-radius:7px;
+ background:color-mix(in srgb,var(--desk-action,#ffba59) 23%,transparent);
+ color:var(--desk-ink);font-size:.68rem;font-weight:650;max-width:125px;}
+html[data-noodl-theme="editorial"] .desk-quick-choice{border-radius:0;border-inline:0;border-top:0;
+ background:transparent;padding-inline:.3rem;}
+@media(max-width:800px){.desk-quick-session{grid-template-columns:minmax(0,1fr);gap:.8rem;}}
+@media(max-width:390px){.desk-quick-choice{flex-wrap:wrap;gap:.5rem}.desk-quick-count{margin-left:auto;}}
