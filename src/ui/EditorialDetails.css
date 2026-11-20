@@ -808,3 +808,26 @@ html[data-noodl-theme="default"]{
  --noodl-control-border:#626F69;
  --noodl-sheet:var(--glass-bg,#FFFDF7);
 }
+
+html[data-noodl-theme="default"] .desk-next .desk-primary:focus-visible{
+ outline:3px solid #F6F2E8;
+ outline-offset:4px;
+}
+@media(max-width:540px){
+ html[data-noodl-theme="default"] .noodl-app .n-filters{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:0 16px;
+  margin:16px 0 18px;
+ }
+ html[data-noodl-theme="default"] .noodl-app .n-filters button{
+  width:100%;
+  justify-content:flex-start;
+  min-width:0;
+  font-size:.8125rem;
+  border-bottom:1px solid var(--noodl-hairline);
+ }
+ html[data-noodl-theme="default"] .noodl-app .n-filters button.active{
+  border-bottom:3px solid var(--noodl-ink);
+ }
+}
