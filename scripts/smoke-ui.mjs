@@ -76,6 +76,26 @@ try{
  await save('03-library-populated');
  await page.locator('.desk-library-open').first().click();
  await page.locator('#desk-pack-title').getByText('Example question bank').waitFor();
+ // Publish consent is an actual modal gate; dismissing it must not publish anything.
+ await page.locator('.desk-actions-menu summary').click();
+ await page.locator('.desk-actions-menu').getByRole('button',{name:/Publikasikan salinan/}).click();
+ const publishModal=page.locator('dialog.v4-publish-dialog');
+ await publishModal.waitFor({state:'visible'});
+ assert.ok((await publishModal.innerText()).includes('kunci jawaban'),'Publish preview must warn about public answers');
+ assert.ok((await publishModal.innerText()).includes('1/3')===false,'Sources are reported as actual count, not invented data');
+ const publishConfirm=publishModal.getByRole('button',{name:'Publikasikan salinan'});
+ assert.ok(await publishConfirm.isDisabled(),'Publish must require explicit acknowledgement');
+ await publishModal.getByRole('checkbox').check();
+ assert.ok(await publishConfirm.isEnabled(),'User can publish only after checking consent');
+ await save('03b-publish-consent');
+ await publishModal.getByRole('button',{name:'Batal'}).click();
+ await publishModal.waitFor({state:'hidden'});
+ await page.locator('.desk-actions-menu summary').click();
+ await page.locator('.desk-actions-menu').getByRole('button',{name:/Publikasikan salinan/}).click();
+ await publishModal.waitFor({state:'visible'});
+ assert.ok(await publishConfirm.isDisabled(),'Consent must not remain checked after cancellation');
+ await page.keyboard.press('Escape');
+ await publishModal.waitFor({state:'hidden'});
  // Materials, learning canvas and studio are real and connected to the selected bank.
  assert.equal(await page.locator('.v3-workspace-columns').count(),1,'Bank must open functional three-column workspace');
  assert.ok(await page.locator('.v3-studio-actions button').count()>=3,'Existing tools must remain operable');
