@@ -43,6 +43,48 @@ export function diagnosticQuestion(source:Attempt,packs:Pack[],history:Attempt[]
   }
 }
 // Reserve another distinct question from the same bank for a possible follow-up.
+
+/**
+ * Build a real repair drill from different, unanswered questions.
+ * Only concepts with recorded incorrect answers qualify. Timeouts without a
+ * submitted response are not treated as diagnosed misconceptions.
+ * No inferred mastery, generated content, or duplicated question stems.
+ */
+export function remediationQuestions(source:Attempt,packs:Pack[],history:Attempt[],limit=5):
+ {pack:Pack;question:Question}[]{
+ if(source.status!=='completed'||source.diagnostic||limit<1)return [];
+ const misses=new Map<string,{name:string;sourcePackId:string;count:number}>();
+ const items=new Map(source.items.map(i=>[i.id,i]));
+ for(const answer of source.answers){
+  if(answer.isCorrect||answer.value==='')continue;
+  const item=items.get(answer.occurrenceId);
+  if(!item)continue;
+  const name=concept(item.question);
+  if(!name)continue;
+  const v=misses.get(name)??{name,sourcePackId:item.sourcePackId,count:0};
+  v.count++;misses.set(name,v);
+ }
+ const bankList=packs.filter(p=>p.ownerId===source.ownerId&&!p.deletedAt);
+ const seen=answeredQuestions(source.ownerId,[source,...history.filter(a=>a.id!==source.id)]);
+ const selected:{pack:Pack;question:Question}[]=[],used=new Set<string>();
+ const groups=[...misses.values()].sort((a,b)=>b.count-a.count);
+ let changed=true;
+ while(selected.length<Math.min(20,Math.trunc(limit))&&changed){
+  changed=false;
+  for(const group of groups){
+   const sorted=bankList.slice().sort((a,b)=>Number(b.id===group.sourcePackId)-Number(a.id===group.sourcePackId));
+   const found=sorted.flatMap(pack=>pack.questions.map(question=>({pack,question}))).find(({pack,question})=>
+    concept(question)===group.name&&!seen(pack.id,question)&&!used.has(normalizeAnswer(question.text)));
+   if(!found)continue;
+   used.add(normalizeAnswer(found.question.text));
+   // Already selected questions are not in history. Exclude them explicitly.
+   selected.push(found);changed=true;
+   if(selected.length>=Math.min(20,Math.trunc(limit)))break;
+  }
+ }
+ return selected;
+}
+
 export function firstProbe(pack:Pack,history:Attempt[]){
   const seen=answeredQuestions(pack.ownerId,history);
   const first=new Map<string,Question>();
