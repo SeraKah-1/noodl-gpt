@@ -2,6 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
+import {createAttempt} from '../src/shared/engine';
 import {handleRequest,toolsList,type Database,type Statement} from '../src/server/index';
 function database():Database {const db=new DatabaseSync(':memory:');db.exec(readFileSync(new URL('../migrations/0001_initial.sql',import.meta.url),'utf8'));class S implements Statement{constructor(public sql:string,public values:unknown[]=[]){}bind(...v:unknown[]){return new S(this.sql,v)}async first<T>():Promise<T|null>{return (db.prepare(this.sql).get(...this.values as any[])??null) as T|null}async all<T>(){return {results:db.prepare(this.sql).all(...this.values as any[]) as T[]}}async run(){return db.prepare(this.sql).run(...this.values as any[])}}return {prepare:(sql)=>new S(sql),batch:async ss=>{db.exec('BEGIN');try{const out=[];for(const s of ss)out.push(await s.run());db.exec('COMMIT');return out}catch(e){db.exec('ROLLBACK');throw e}}};}
 const question={id:'q1',type:'FILL_BLANK',text:'Potassium symbol?',acceptedAnswers:['K'],explanation:'K is potassium',difficulty:'Easy',conceptName:'Chemistry'};
@@ -360,5 +361,18 @@ test('Brain Dump repair refuses made-up source metadata and unrelated concepts',
  assert.equal(preview.available,false);
  const unavailable=await ok(db,'start_recall_repair',{sessionId:recall.sessionId,packId:pack.id,operationId:'nothing-to-save'});
  assert.equal(unavailable.status,'needs_questions');
+ assert.equal((await ok(db,'list_attempts')).total,0);
+});
+
+test('server cannot be tricked into inventing a Brain Dump provenance link',async()=>{
+ const db=database(),p=await pack(db);
+ const attempt=createAttempt(p,{mode:'BATCH',batchSize:1,shuffle:false,retention:false,mixed:false},'a');
+ attempt.recallRepair={sessionId:'nonexistent-recall-session',feedbackRevision:1};
+ const result=await ok(db,'app_mutate',{expectedOwner:'a',operations:[{
+  id:'forged-recall-link',kind:'attempt.put',entityId:attempt.id,expectedRevision:0,
+  createdAt:new Date().toISOString(),payload:attempt
+ }]});
+ assert.equal(result.results[0].ok,false);
+ assert.equal(result.results[0].code,'INVALID');
  assert.equal((await ok(db,'list_attempts')).total,0);
 });
