@@ -1,0 +1,28 @@
+{
+  "title": "V4 Comic reader QA",
+  "description": "Synthetic two-panel comic, one image and one storyboard.",
+  "folder": "Examples",
+  "tags": [
+    "qa",
+    "comic"
+  ],
+  "questions": [
+    {
+      "id": "q1",
+      "type": "TRUE_FALSE",
+      "text": "A triangle has three sides.",
+      "correctBoolean": true,
+      "explanation": "Three-sided polygon.",
+      "difficulty": "Easy",
+      "conceptName": "Geometry"
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "comic-v4",
+      "kind": "comic",
+      "title": "Shapes comparison",
+      "content": "{\"version\":1,\"status\":\"draft\",\"brief\":{\"objective\":\"Explain the sample square/triangle comparison\",\"audience\":\"Browser QA\",\"language\":\"id\",\"style\":\"Simple shapes\",\"userConfirmation\":\"Synthetic testing fixture\",\"confirmed\":true},\"panels\":[{\"id\":\"p1\",\"title\":\"The square\",\"visualDescription\":\"A simple blue square\",\"caption\":\"A square has four sides.\",\"dialogue\":[{\"speaker\":\"Narrator\",\"text\":\"Four equal sides.\"}],\"alt\":\"A filled square\",\"illustrationSvg\":\"<svg xmlns=\\\"http://www.w3.org/2000/svg\\\" viewBox=\\\"0 0 100 100\\\"><rect x=\\\"18\\\" y=\\\"18\\\" width=\\\"64\\\" height=\\\"64\\\" fill=\\\"#487bc3\\\"/></svg>\"},{\"id\":\"p2\",\"title\":\"The triangle\",\"visualDescription\":\"Triangle composed of three line segments\",\"caption\":\"A triangle has three sides.\",\"dialogue\":[],\"alt\":\"A triangle storyboard pending illustration\"}],\"sources\":[],\"review\":{\"accuracy\":false,\"sequence\":false,\"text\":false,\"visuals\":false,\"userStyle\":false,\"notes\":\"Synthetic learning fixture, not reviewed.\",\"issues\":[\"Panel 2 image absent\"]}}"
+    }
+  ]
+}
