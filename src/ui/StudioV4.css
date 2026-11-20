@@ -79,3 +79,7 @@
  .v4-sim-metrics>div{padding:.5rem;}
  .v4-map-tools label{width:100%;}
 }
+
+.v4-lexical-details,.v4-html-visual-details{margin-top:1.2rem;border-top:1px solid var(--border,#ddd);padding-top:.85rem;}
+.v4-lexical-details>summary,.v4-html-visual-details>summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:.87rem;font-weight:700;list-style:revert;}
+.v4-lexical-details[open]>summary,.v4-html-visual-details[open]>summary{margin-bottom:.9rem;}
