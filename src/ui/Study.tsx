@@ -95,7 +95,7 @@ export function Results({attempt,packs,attempts,guest,onReview,onRetry,onOpenAtt
   if(sending)return;
   setSending(true);setMessage('');
   const scope=guest?'Gunakan konteks sesi guest yang diberikan. Jika membuat soal, kembalikan bank JSON Noodl (title, questions; setiap soal memiliki id, type, text, difficulty, explanation dan kunci sesuai tipenya) untuk diimpor melalui File.':
-   'Cek sesi melalui get_attempt. Gunakan get_question atau get_pack untuk melihat isi bank terkini. Jika menambah soal ke bank yang masih ada, gunakan append_questions dengan revisi terbaru.';
+   'Cek sesi melalui get_attempt. Gunakan get_question atau get_pack untuk melihat isi bank terkini. Siapkan soal berbeda lewat prepare_pack_change dengan referensi yang tersedia. Minta persetujuan sebelum commit_pack_change, lalu verifikasi get_operation_receipt. Request ChatGPT bukan bukti penyimpanan.';
   try{
    await sendChatRequest(prompt+' '+scope,{attemptId:attempt.id,packId:attempt.packId,title:attempt.title,context});
    setMessage(isEmbedded()?'Permintaan dikirim ke ChatGPT.':'Tempel permintaan yang sudah disalin ke ChatGPT.');
@@ -152,7 +152,7 @@ export function Results({attempt,packs,attempts,guest,onReview,onRetry,onOpenAtt
  {(remediation.length>0||savedRepair)?
   <button className="study-primary" disabled={sending} onClick={()=>void openRepair()}><RotateCcw size={17}/>{savedRepair?'Lanjutkan latihan perbaikan':`Uji ulang dengan ${remediation.length} soal berbeda`}</button>:
   wrong.length>0?
-  <button className="study-primary" disabled={sending} onClick={()=>void ask('Buat beberapa soal baru yang berbeda untuk menguji konsep yang salah. Gunakan append_questions pada bank yang relevan jika tersedia, lalu jelaskan bagaimana memulai latihan ulang.',{
+  <button className="study-primary" disabled={sending} onClick={()=>void ask('Buat soal pembanding yang berbeda untuk konsep yang salah. Gunakan materi asli yang tersedia dan sertakan sourceRefs (title, anchor jika terbukti, status sesuai pemeriksaan). Preview lewat prepare_pack_change dahulu; commit_pack_change setelah disetujui, lalu verifikasi receipt.',{
    topics:observedTopics,previous:wrong.slice(0,5).map(x=>({question:x.question.text,concept:x.question.conceptName??null,sourcePackId:x.sourcePackId,sourceQuestionId:x.sourceQuestionId}))
   })}>Minta soal pembanding di ChatGPT</button>:
   <button className="study-primary" onClick={onClose}>Selesai</button>}
@@ -174,6 +174,15 @@ export function Results({attempt,packs,attempts,guest,onReview,onRetry,onOpenAtt
   topics:weakTopics.length?weakTopics:p.topics,
   examples:(wrong.length?wrong:attempt.items).slice(0,5).map(i=>({question:i.question,sourcePackId:i.sourcePackId,answer:answers.get(i.id)?.value}))
  })}/></details>{message&&<p role="status">{message}</p>}<details className="desk-results-disclosure"><summary>Akurasi per topik</summary><div className="study-topic-list">{p.topics.map(t=><div key={t.name}><div><b>{t.name}</b><span>{t.correct}/{t.total}</span></div><div className="study-progress"><span style={{width:`${t.correct/t.total*100}%`}}/></div></div>)}</div></details></div><details className="desk-results-disclosure"><summary>Tinjau {attempt.items.length} soal dan pembahasannya</summary><div className="study-review-list">{attempt.items.map((item,i)=>{const a=answers.get(item.id);const source=packs.find(p=>p.id===item.sourcePackId);return <details key={item.id} className="study-surface"><summary><span className={`study-verdict ${a?.isCorrect?'yes':'no'}`}>{a?.isCorrect?'✓':'×'}</span><span>{i+1}. {item.question.text}</span></summary><p>Jawaban benar: <b>{correctAnswerText(item.question)}</b></p>{a&&<p>Jawaban lo: {typeof a.value==='boolean'?(a.value?'Benar':'Salah'):item.question.options?.find(o=>o.id===a.value)?.text||a.value||'Waktu habis'}</p>}<Text>{item.question.explanation}</Text>
+ {item.question.sourceRefs?.length?<div className="study-question-sources">
+  <strong>Referensi yang dicantumkan pembuat</strong>
+  <ul>{item.question.sourceRefs.map((reference,j)=><li key={j}>
+   {reference.uri?<a href={reference.uri} target="_blank" rel="noopener noreferrer">{reference.title}</a>:<span>{reference.title}</span>}
+   {reference.anchor?' · '+reference.anchor:''}
+   <small>{reference.status==='provided'?'Disertakan pembuat':reference.status==='model_inspected'?'Dilaporkan diperiksa ChatGPT':'Sumber tidak tersedia'}</small>
+  </li>)}</ul>
+  <p>Rujukan disimpan bersama soal; dokumen aslinya tidak otomatis diperiksa oleh Noodl.</p>
+ </div>:null}
  <div className="study-result-actions"><button className="study-secondary" disabled={sending} onClick={()=>void ask('Bahas soal ini, jawabanku, dan alasan kunci jawabannya.',{sourcePackId:item.sourcePackId,questionId:item.sourceQuestionId,question:item.question,answer:a?.value??null})}>Bahas soal ini</button>
  {source?.questions.some(q=>q.id===item.sourceQuestionId)&&<button className="study-secondary" onClick={()=>setCards({pack:source,questions:[item.question]})}>Jadikan flashcard</button>}</div></details>;})}</div></details></motion.section>;
 }

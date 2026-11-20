@@ -252,3 +252,54 @@ test('MCP repair preview is read-only and saved repair uses a genuinely unseen q
  assert.equal(fallback.available,false);
  assert.match(fallback.reason,/source-grounded questions/);
 });
+
+test('Question source refs survive MCP storage, readback and update without exposing fabricated verification',async()=>{
+ const db=database();
+ const withSource={...question,sourceRefs:[{title:'Author PPT',anchor:'Slide 12',status:'provided'},
+  {title:'Uninspected excerpt',status:'unavailable'}]};
+ const saved=await ok(db,'create_pack',{operationId:'sources-create',pack:{title:'Sources demo',questions:[withSource]}});
+ assert.deepEqual(saved.questions[0].sourceRefs,withSource.sourceRefs);
+ assert.deepEqual((await ok(db,'get_question',{packId:saved.id,questionId:'q1'})).question.sourceRefs,withSource.sourceRefs);
+ assert.equal((await call(db,'create_question',{packId:saved.id,operationId:'bad-source',expectedRevision:1,
+  question:{...question,id:'bad',sourceRefs:[{title:'Unsafe',status:'provided',uri:'javascript:alert(1)'}]}})).isError,true);
+ const modified=await ok(db,'update_question',{packId:saved.id,questionId:'q1',operationId:'source-update',
+  expectedRevision:1,question:{...saved.questions[0],text:'Updated question with source?'}});
+ assert.equal(modified.questions[0].sourceRefs[0].anchor,'Slide 12');
+});
+
+test('Brain Dump gap reader takes latest evidence only, preserves slide provenance, and omits private answers',async()=>{
+ const db=database();
+ const first=await ok(db,'start_brain_dump',{operationId:'recall-start',title:'Acid physiology',
+  units:[{objective:'Explain gastric control',prompt:'Explain ECL and parietal regulation',slides:[4,5],
+   points:[{slide:4,concept:'ECL histamine'},{slide:5,concept:'Parietal acid secretion'}]}]});
+ const recorded=await ok(db,'record_recall',{operationId:'recall-first',sessionId:first.sessionId,
+  expectedRevision:first.revision,answer:'My first raw private answer',hint:'Consider parietal regulation',hintPoint:2});
+ const assessed=await ok(db,'review_recall',{operationId:'recall-grade',sessionId:first.sessionId,
+  expectedRevision:recorded.revision,feedback:[
+   {point:1,verdict:'missing',explanation:'No independent mention'},
+   {point:2,verdict:'recalled',explanation:'Only mentioned after a hint'}
+  ]});
+ assert.equal(assessed.status,'completed');
+ const initial=await ok(db,'get_brain_dump_gaps',{sessionId:first.sessionId});
+ assert.equal(initial.total,2,'Prompted recall is weaker evidence than unaided recall');
+ assert.deepEqual(initial.gaps.map((g:any)=>g.verdict),['missing','prompted_recall']);
+ assert.deepEqual(initial.gaps.map((g:any)=>g.slide),[4,5]);
+ assert.equal(initial.gaps[1].sourceStatus,'tutor_provided_unverified');
+ assert.equal(JSON.stringify(initial).includes('My first raw private answer'),false);
+ assert.equal((await call(db,'get_brain_dump_gaps',{sessionId:first.sessionId},'other-owner')).isError,true);
+ const retried=await ok(db,'retry_recall',{operationId:'recall-retry',sessionId:first.sessionId,
+  expectedRevision:assessed.revision,unitNumber:1});
+ const saved=await ok(db,'record_recall',{operationId:'recall-answer-again',sessionId:first.sessionId,
+  expectedRevision:retried.revision,answer:'My new independent answer'});
+ await ok(db,'review_recall',{operationId:'recall-grade-again',sessionId:first.sessionId,
+  expectedRevision:saved.revision,feedback:[
+   {point:1,verdict:'recalled',explanation:'Now independently recalled'},
+   {point:2,verdict:'partial',explanation:'Needs better sequence'}
+  ]});
+ const latest=await ok(db,'get_brain_dump_gaps',{sessionId:first.sessionId,limit:1});
+ assert.equal(latest.total,1,'Earlier incorrect verdicts must not survive a more recent assessment');
+ assert.equal(latest.gaps[0].concept,'Parietal acid secretion');
+ assert.equal(latest.nextOffset,null);
+ assert.equal((await ok(db,'get_workspace')).counts.packs,0,'Gap lookup must not create fake questions');
+ assert.equal((await call(db,'get_brain_dump_gaps',{sessionId:first.sessionId,limit:51})).isError,true);
+});
