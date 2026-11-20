@@ -62,7 +62,7 @@
 }
 .question-card .study-question { margin:1.1rem 0 1.4rem; }
 .question-card .study-question .study-rich { font-size:clamp(1.13rem,3vw,1.55rem); line-height:1.55; }
-.type-TRUE_FALSE .study-question { padding:1rem; text-align:center; border-radius:1rem; background:color-mix(in srgb,var(--study-accent) 6%,transparent); font-family:Georgia,serif; }
+.type-TRUE_FALSE .study-question { padding:1rem; text-align:center; border-radius:1rem; background:color-mix(in srgb,var(--study-accent) 6%,transparent); font-family:var(--noodl-typeface,system-ui,sans-serif); }
 .question-card .study-binary { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .question-card .study-binary button { flex-direction:column; align-items:center; justify-content:center; min-height:5rem; }
 .study-player :is(.study-rich,.study-option,.study-tags,.study-feedback,.study-bottom,.study-keypoint,.study-topic-list,.study-review-list,.recall-controls) {min-inline-size:0; max-inline-size:100%; overflow-wrap:anywhere;}
