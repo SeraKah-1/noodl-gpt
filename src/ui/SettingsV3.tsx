@@ -18,7 +18,7 @@ export function SettingsV3({preferences,locale,onSave,pending,conflict,onUseServ
  const en=locale==='en',reduce=useReducedMotion()||document.documentElement.dataset.reducedMotion==='true';
  const [category,setCategory]=useState<Category>('appearance');
  const [draft,setDraft]=useState<Preferences>({theme:preferences.theme,language:preferences.language,design:preferences.design,studyOptions:preferences.studyOptions});
- const [saving,setSaving]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
+ const [saving,setSaving]=useState(false),[chatBusy,setChatBusy]=useState(false),[error,setError]=useState(''),[message,setMessage]=useState('');
  useEffect(()=>{setDraft({theme:preferences.theme,language:preferences.language,design:preferences.design,studyOptions:preferences.studyOptions});setMessage('');},[preferences.revision,preferences.updatedAt]);
  const themes=getThemeList();
  const selected=themes.find(t=>t.id===draft.theme)??themes[0];
@@ -45,6 +45,13 @@ export function SettingsV3({preferences,locale,onSave,pending,conflict,onUseServ
   if(contrast<4.5)return en?'Text/background contrast must be at least 4.5:1.':'Kontras teks dengan background harus minimal 4,5:1.';
   if(custom.border&&colorContrast(custom.border,surface)<3)return en?'Control border needs at least 3:1 contrast against the surface.':'Border kontrol harus memiliki kontras minimal 3:1 terhadap surface.';
   return '';
+ }
+ async function openChat(){
+  if(chatBusy)return;
+  setChatBusy(true);setError('');setMessage('');
+  try{await onOpenChat();setMessage(en?'Request sent to ChatGPT. No bank changes are confirmed yet.':'Permintaan dikirim ke ChatGPT. Belum ada perubahan bank yang terkonfirmasi.');}
+  catch(e){setError(e instanceof Error?e.message:String(e));}
+  finally{setChatBusy(false);}
  }
  async function save(){
   if(!isDirty||saving)return;
@@ -93,7 +100,7 @@ export function SettingsV3({preferences,locale,onSave,pending,conflict,onUseServ
      </>}
      {category==='chat'&&<><h2>ChatGPT & MCP</h2><p>{en?'ChatGPT reads source files and creates content. Noodl stores structured learning data and evaluates answers.':'ChatGPT membaca dokumen dan membuat materi. Noodl menyimpan data belajar terstruktur serta menilai jawaban.'}</p>
       <div className="v3-connection"><MessageSquare size={23}/><div><strong>{embedded?(en?'ChatGPT panel connected':'Terbuka dalam panel ChatGPT'):(en?'ChatGPT opens separately':'ChatGPT dibuka terpisah')}</strong><p>{embedded?(en?'Requests are sent to the conversation; a successful MCP write is confirmed separately.':'Permintaan dikirim ke percakapan; hasil tulis MCP baru dianggap selesai setelah dikonfirmasi.'):(en?'Context is copied and ChatGPT opens in a new tab. No automatic completion is claimed.':'Konteks disalin dan ChatGPT dibuka di tab baru. Belum berarti materi berhasil disimpan.')}</p></div></div>
-      <button className="n-button primary" onClick={()=>void onOpenChat()}>{en?'Ask ChatGPT to create a bank':'Minta ChatGPT membuat bank soal'}</button>
+      <button className="n-button primary" disabled={chatBusy} onClick={()=>void openChat()}>{en?'Ask ChatGPT to create a bank':'Minta ChatGPT membuat bank soal'}</button>
       <p className="v3-note">{en?'Attach PDF, PPT or images in the ChatGPT conversation—not in Noodl.':'Lampirkan PDF, PPT, atau gambar di percakapan ChatGPT, bukan di Noodl.'}</p>
      </>}
      {category==='data'&&<><h2>{en?'Data & sync':'Data & sinkronisasi'}</h2>
