@@ -1,6 +1,6 @@
 # DESIGN.md — Noodl Study Desk
 
-**Design direction for Noodl. Status: Editorial source merged; refinement in progress. Production deployment is tracked separately.** This contract accompanies [docs/NOODL_REDESIGN_PLAN.md](docs/NOODL_REDESIGN_PLAN.md). It does not mean the redesign is already deployed.
+**Design direction for Noodl V3. Status: Slate source in PR #8, subject to CI and browser validation. OpenAI Sites deployment is tracked separately.** This contract accompanies [docs/NOODL_REDESIGN_PLAN.md](docs/NOODL_REDESIGN_PLAN.md). It does not mean the redesign is already deployed.
 
 ## Product thesis
 
@@ -12,9 +12,9 @@ Noodl is a study desk, not a productivity dashboard and not a page advertising A
 
 ## Brand continuity
 
-Keep the Noodl wordmark, kaomoji character, existing preferences, and the legacy Focus Indigo theme as a user-selectable option. The user explicitly selected Ink / Ivory / Lime as the new default visual direction. Preserve the original ten themes as well as the new Editorial default (eleven total) and custom design-token settings.
+Keep the Noodl wordmark, kaomoji character, existing preferences, and the legacy Focus Indigo theme as a user-selectable option. The user selected Slate / White / Amber for the new default and requested smooth, informative motion. Preserve the original ten themes and the former Editorial palette as optional themes (twelve total), including custom design-token settings.
 
-The new default uses Ink #172630, Ivory #F6F2E8, and Lime #D9F45F. Focus Indigo retains #4f46e5 as an optional theme. The Lime action must use dark foreground text. Background should feel like readable paper. Most surfaces are solid or subtle; use translucent glass for at most one strong layer per viewport. Keep focus and error states legible in dark and light themes. Validate every supported palette against real contrast computations.
+The new default uses Slate #172A36, canvas #F6F8FA, white surface #FFFFFF, muted text #485D69, and Amber CTA #FFBA59. Former Ink / Ivory / Lime is the selectable Editorial theme; Focus Indigo remains selectable. Amber uses dark foreground text; text/background, text/surface, control boundaries and selected states must remain legible in every theme. Most surfaces are solid or subtle; use translucent glass for at most one strong layer per viewport. Keep focus and error states legible in dark and light themes. Validate every supported palette against real contrast computations.
 
 ## Visual language
 
@@ -30,13 +30,13 @@ The new default uses Ink #172630, Ivory #F6F2E8, and Lime #D9F45F. Focus Indigo 
 ## Screen hierarchy
 
 ### Today
-First: **resume active session** (if present). Otherwise: **choose/start a recent bank**. Second: due review with a real count. Third: compact recent activity. One short mascot moment; no creation workflow grid. If user has no banks, explain exactly how to import/create/copy.
+First: **resume active session** (if present). Otherwise: **due review** based on replayed SRS records; then evidence-based focus on repeated misses; then start a recent bank. Secondary: real review count and compact recent activity. One short mascot moment; no creation workflow grid. If user has no banks, explain exactly how to import/create/copy.
 
 ### Library
 Search and browse at a glance. Filters remain compact; bank rows show title, real count, folder, last activity, and one open action. Context menus hold edit, delete, publish and export. Multi-select opens Mix action only when selected; do not make a new bank implicitly. Public bank browsing is a subview of Library.
 
-### Pack detail
-Show a trustworthy snapshot of the bank and one primary **Practice** action. Secondary **Flashcards** and a contextual content area show what exists: Materials, Concept map (text association until enriched), Visual Lab and Comics. Hide unavailable tabs or show a precise empty state and real ChatGPT handoff. An explicit history area offers session resume.
+### Bank Workspace
+Desktop: real three-column **Materials / Learning Canvas / Studio**. Mobile: one active panel selected by tabs; Focus Mode retains an undistracted question page. Read real stored artifacts, concept-tagged questions and history. Studio opens existing Flashcards, text-association Concept Map, Visual Lab and Comics. An MCP handoff requests new questions/materials without pretending transport success means backend persistence. An actual contextual drill can run only when questions exist.
 
 ### Practice setup
 Choose one of Standard, Batch, Survival or Time Rush with a compact explanation and actual current rules. Defaults are visible, advanced switches collapsed. Start immediately with remembered defaults when the user uses a quick-start action; never overwrite user preferences for an animation.
@@ -48,13 +48,13 @@ Progress context at top, question and answer controls as the focal point, option
 Show answered/total, jump to unanswered, autosave status, and submit disabled until complete. Avoid animating entire banks of up to 100 questions. Persist drafts; never pretend unsaved input is safe.
 
 ### Results
-Use the actual stored score and attempted/unattempted counts, concise explanation of errors, and one clear retry action. Secondary links lead to specific bank resources. Do not turn a percentage into a mastery label.
+Use the actual stored score and attempted/unattempted counts, concise explanation of errors, and one clear retry action. When different unseen same-concept questions exist, offer a **saved remediation batch**; otherwise offer a ChatGPT MCP request for new questions. Repetition of old questions must be labeled as such. Secondary links lead to specific bank resources. Do not turn a percentage into a mastery label.
 
 ### Review
 Separate New, Due, and scheduled cards. Ratings are explicit actions with visible scheduling consequences. Never count unreviewed cards as overdue or invent retention metrics.
 
 ### Settings
-All existing themes and design preferences remain discoverable under account. Sync, offline state, backup and access controls use accurate labels. A failed save is visible and retryable.
+Category navigation for Appearance, Study Defaults, Accessibility, ChatGPT/MCP, Data & Sync, Account and Advanced. All 12 themes remain selectable with preview, Save/Cancel and working language controls; custom colors and density live in Advanced. Sync, offline status, backup and access controls use accurate labels. Failed saves are visible and retryable. Never overlay persistent status on page content.
 
 ## Motion principles
 
