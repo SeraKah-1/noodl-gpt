@@ -201,3 +201,12 @@ html[data-noodl-theme="editorial"] .study-player .study-flashcard>.study-rich{
 @media(prefers-reduced-motion:reduce){
  html[data-noodl-theme="editorial"] .study-player .study-option{transition:none}
 }
+
+/* Source links are authored metadata, not scientific verification by the app. */
+.study-question-sources{margin:1rem 0;border-top:1px solid var(--study-border);padding:.85rem 0;font-size:.8rem;line-height:1.55;}
+.study-question-sources>strong{font-size:.81rem;}
+.study-question-sources ul{padding-left:1.15rem;list-style:disc;margin:.65rem 0;}
+.study-question-sources li{padding:.25rem 0;overflow-wrap:anywhere;}
+.study-question-sources small{display:block;opacity:.7;font-size:.7rem;}
+.study-question-sources a{color:inherit;text-decoration:underline;text-underline-offset:3px;}
+.study-question-sources p{font-size:.73rem;opacity:.7;margin:.6rem 0;}
