@@ -2,6 +2,7 @@ import {firstProbe,singleQuestion,diagnosticQuestion, diagnosticAttempt} from '.
 import {batchView} from '../shared/batch';
 import {comicGuide} from '../shared/comic';
 import {createStudyContext} from '../shared/studyContext';
+import {planRepairPractice} from '../shared/repairWorkflow';
 import {preparePackChange,commitPackChange} from './packWorkflow';
 import type {Database} from './index';
 import type {Attempt,Pack,ReviewEvent,Operation,MutationResult,Snapshot,User} from '../shared/types';
@@ -23,6 +24,8 @@ export const controlTools=[
  tool('open_autopilot','Open hands-free flashcards for an owned bank in the panel. Timed exposures do not grade answers or rate cards.',{packId:s},['packId'],true,true),
  tool('start_concept_probe','Start a one-question check, reserving a different unanswered question on the same tagged concept in the bank. Use batch draft and submission tools. After a miss offer start_diagnostic.',{packId:s,operationId:s},['packId','operationId'],false,true),
  tool('start_diagnostic','Offer one different, unanswered question on a missed concept from a completed session. Use update_batch_draft and submit_batch to answer. Report the two observed responses together.',{attemptId:s,operationId:s},['attemptId','operationId'],false,true),
+ tool('prepare_repair_practice','Read a completed owned attempt and preview independently testable, genuinely unseen questions for explicitly missed concepts. No answer keys; no write. If none exist, explain why new source-grounded questions are required.',{attemptId:s,limit:{type:'integer',minimum:1,maximum:20}},['attemptId'],true),
+ tool('start_repair_practice','After learner requests repair, persist an actual Batch attempt with distinct unseen questions from observed misses. Returns learner-facing prompts and a saved attempt ID, or explicit insufficiency. Does not create AI content.',{attemptId:s,limit:{type:'integer',minimum:1,maximum:20},operationId:s},['attemptId','operationId'],false,true),
  tool('get_capabilities','Discover all supported Noodl operations, schemas, design controls, input/output formats and limits.',{},[],true),
  tool('get_study_context','Read compact owned bank, active attempt, due review, observed gaps and next-action evidence without fetching all questions or answer keys.',{packId:s,limit:{type:'integer',minimum:1,maximum:20}},[],true),
  tool('get_operation_receipt','Check whether a server-side operation ID was committed. A missing ID may still be queued offline.',{operationId:s},['operationId'],true),
@@ -89,9 +92,22 @@ export async function callControlTool(db:Database,user:User,name:string,args:any
   return createStudyContext(snapshot,{packId:args.packId,limit:args.limit});
  }
  if(name==='get_comic_guide')return comicGuide;
- if(name==='get_capabilities')return {version:'2.5.0',workflow:{context:'get_study_context',receipt:'get_operation_receipt',prepare:'prepare_pack_change',commit:'commit_pack_change'},practice:{probe:'start_concept_probe',debugger:'open_knowledge_debugger',autopilot:'open_autopilot',diagnostic:'start_diagnostic'},batch:{mode:'BATCH',draft:'update_batch_draft',submit:'submit_batch',maximum:100},brainDump:{start:'start_brain_dump',resume:'get_brain_dump',source:'PPT attached in ChatGPT'},scope:'Authenticated user-owned workspace',comics:{guide:'get_comic_guide',clarificationRequired:true,reviewIsSelfReported:true},input:{questionTypes:['MULTIPLE_CHOICE','TRUE_FALSE','FILL_BLANK'],artifactKinds:['material','insight','visualization','comic','concept_map','simulation'],sourceFiles:false,structuredContent:true},output:{formats:['json','csv','html','pdf'],interactiveUI:true},design:{tool:'get_design',update:'update_design'},pagination:{default:50,maximum:100},notes:['All writes require operationId; versioned updates require expectedRevision.','Banks require at least one question.','Completed sessions and review events are immutable; use delete/reset tools to remove history.','Design/preferences apply only to the signed-in account.']};
+ if(name==='get_capabilities')return {version:'2.6.0',workflow:{context:'get_study_context',receipt:'get_operation_receipt',prepare:'prepare_pack_change',commit:'commit_pack_change'},practice:{repairPreview:'prepare_repair_practice',repairStart:'start_repair_practice',probe:'start_concept_probe',debugger:'open_knowledge_debugger',autopilot:'open_autopilot',diagnostic:'start_diagnostic'},batch:{mode:'BATCH',draft:'update_batch_draft',submit:'submit_batch',maximum:100},brainDump:{start:'start_brain_dump',resume:'get_brain_dump',source:'PPT attached in ChatGPT'},scope:'Authenticated user-owned workspace',comics:{guide:'get_comic_guide',clarificationRequired:true,reviewIsSelfReported:true},input:{questionTypes:['MULTIPLE_CHOICE','TRUE_FALSE','FILL_BLANK'],artifactKinds:['material','insight','visualization','comic','concept_map','simulation'],sourceFiles:false,structuredContent:true},output:{formats:['json','csv','html','pdf'],interactiveUI:true},design:{tool:'get_design',update:'update_design'},pagination:{default:50,maximum:100},notes:['All writes require operationId; versioned updates require expectedRevision.','Banks require at least one question.','Completed sessions and review events are immutable; use delete/reset tools to remove history.','Design/preferences apply only to the signed-in account.']};
  if(name==='open_knowledge_debugger')return {view:'gastric-debugger'};
  if(name==='open_autopilot'){const pack=await getPack();return {view:'autopilot',packId:pack.id};}
+ if(name==='prepare_repair_practice'||name==='start_repair_practice'){
+  const source=await getAttempt(),snapshot=await deps.snapshot(db,owner);
+  const plan=planRepairPractice(source,snapshot,args.limit??5);
+  const summary={available:plan.available,sourceAttemptId:source.id,availableCount:plan.availableCount,
+   diagnosedConcepts:plan.diagnosedConcepts,reason:plan.reason??null};
+  if(name==='prepare_repair_practice'||!plan.available)return summary;
+  const selected=plan.candidates.map(x=>({question:x.question,sourcePackId:x.pack.id}));
+  const attempt=createAttempt(plan.candidates[0].pack,
+   {mode:'BATCH',batchSize:selected.length,shuffle:false,retention:false,mixed:false},
+   owner,selected);
+  const saved=await save('attempt.put',attempt.id,attempt,0) as Attempt;
+  return {...batchView(saved),sourceAttemptId:source.id,repairOf:plan.diagnosedConcepts.map(g=>g.name)};
+ }
  if(name==='start_diagnostic'){
   const source=await getAttempt(),snapshot=await deps.snapshot(db,owner);
   const attempts=snapshot.attempts.filter(active);

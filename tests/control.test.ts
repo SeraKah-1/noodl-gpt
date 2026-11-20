@@ -220,3 +220,35 @@ test('MCP prepared append checks owner, duplicate text, revision conflict and ex
   expectedRevision:2,questions:[{...question,id:'a',text:'Potassium symbol?'}]});
  assert.equal(duplicate.isError,true);
 });
+
+test('MCP repair preview is read-only and saved repair uses a genuinely unseen question',async()=>{
+ const db=database();
+ const original={...question,id:'q-one',text:'What is K?',conceptName:'Electrolytes'};
+ const alternate={...question,id:'q-two',text:'Which symbol denotes sodium?',acceptedAnswers:['Na'],conceptName:'Electrolytes'};
+ const p=await ok(db,'create_pack',{operationId:'repair-pack',pack:{title:'Repair bank',questions:[original,alternate]}});
+ const started=await ok(db,'start_attempt',{packId:p.id,operationId:'initial-one',
+  options:{mode:'BATCH',batchSize:1,shuffle:false,mixed:false,retention:false}});
+ assert.equal(started.questions.length,1);
+ const draft=await ok(db,'update_batch_draft',{attemptId:started.attemptId,expectedRevision:started.revision,
+  changes:[{number:1,value:'incorrect'}],operationId:'wrong-answer'});
+ const result=await ok(db,'submit_batch',{attemptId:started.attemptId,expectedRevision:draft.revision,operationId:'submit-wrong'});
+ assert.equal(result.status,'completed');
+ const before=await ok(db,'list_attempts');
+ const preview=await ok(db,'prepare_repair_practice',{attemptId:started.attemptId});
+ assert.equal(preview.available,true);
+ assert.equal(preview.availableCount,1);
+ assert.equal(preview.diagnosedConcepts[0].misses,1);
+ assert.equal((await ok(db,'list_attempts')).total,before.total,'Preview must not create an attempt');
+ const repair=await ok(db,'start_repair_practice',{attemptId:started.attemptId,operationId:'repair-start'});
+ assert.equal(repair.questions.length,1);
+ assert.equal(repair.questions[0].text,'Which symbol denotes sodium?');
+ assert.equal(repair.questions[0].correctOptionId,undefined,'Active Batch must not reveal answer keys');
+ assert.equal((await ok(db,'start_repair_practice',{attemptId:started.attemptId,operationId:'repair-start'})).attemptId,repair.attemptId);
+ assert.equal((await ok(db,'list_attempts')).total,before.total+1);
+ assert.equal((await call(db,'prepare_repair_practice',{attemptId:started.attemptId},'other-user')).isError,true);
+ const noMore=await ok(db,'prepare_repair_practice',{attemptId:started.attemptId});
+ assert.equal(noMore.available,false,'Question presented in repair is no longer unseen');
+ const fallback=await ok(db,'start_repair_practice',{attemptId:started.attemptId,operationId:'no-new-repair'});
+ assert.equal(fallback.available,false);
+ assert.match(fallback.reason,/source-grounded questions/);
+});
