@@ -780,3 +780,16 @@ html[data-noodl-theme="default"] .study-player.practice-screen .study-binary>.st
  html[data-noodl-theme="default"] .study-player.practice-screen .study-binary>.study-option{transition:none;}
 }
 html[data-reduced-motion="true"][data-noodl-theme="default"] .study-player.practice-screen .study-binary>.study-option{transition:none;}
+
+/* A grouped screen gets one boundary, not two competing horizontal bars. */
+html[data-noodl-theme="default"] .desk-pack-head{
+ border-bottom:0;
+ padding-bottom:clamp(8px,2vw,16px);
+}
+html[data-noodl-theme="default"] .desk-pack-resources,
+html[data-noodl-theme="default"] .desk-pack-history{
+ border-top:2px solid var(--noodl-ink);
+}
+html[data-noodl-theme="default"] .desk-pack{
+ row-gap:clamp(18px,3vw,30px);
+}
