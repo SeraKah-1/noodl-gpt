@@ -40,7 +40,7 @@ try{
    action:style('.desk-next .desk-primary').backgroundColor
   };
  });
- assert.deepEqual(editorial,{theme:'default',nav:'rgb(23, 38, 48)',selectedNav:'rgb(217, 244, 95)',hero:'rgb(23, 38, 48)',action:'rgb(217, 244, 95)'},'Editorial palette must use ink structure and lime only on focused actions');
+ assert.deepEqual(editorial,{theme:'default',nav:'rgb(23, 42, 54)',selectedNav:'rgb(255, 186, 89)',hero:'rgb(23, 42, 54)',action:'rgb(255, 186, 89)'},'V3 Slate theme must use dark structure and Amber focused actions');
  const visualSystem=await page.evaluate(()=>{
   const css=selector=>getComputedStyle(document.querySelector(selector));
   return {
@@ -68,14 +68,18 @@ try{
  const selectedBankTab=await page.locator('.classic-input-tabs button[aria-pressed="true"]').evaluate(el=>{
   const s=getComputedStyle(el);return {color:s.color,background:s.backgroundColor};
  });
- assert.deepEqual(selectedBankTab,{color:'rgb(246, 242, 232)',background:'rgb(23, 38, 48)'},'Library selected tab must have a readable ink/ivory state');
+ assert.deepEqual(selectedBankTab,{color:'rgb(255, 255, 255)',background:'rgb(23, 42, 54)'},'Library selected tab must use readable Slate/White state');
  await page.locator('.classic-upload-label input[type="file"]').setInputFiles('examples/pack.input.json');
  await page.locator('.desk-library-open').first().waitFor();
  assert.equal(await page.locator('.desk-library-index').first().innerText(),'01','Library must be indexed without boxed icons');
  await save('03-library-populated');
  await page.locator('.desk-library-open').first().click();
  await page.locator('#desk-pack-title').getByText('Example question bank').waitFor();
+ // Materials, learning canvas and studio are real and connected to the selected bank.
+ assert.equal(await page.locator('.v3-workspace-columns').count(),1,'Bank must open functional three-column workspace');
+ assert.ok(await page.locator('.v3-studio-actions button').count()>=3,'Existing tools must remain operable');
  await save('04-pack-detail');
+ await page.getByRole('button',{name:/Materi/i}).filter({has:page.locator('svg')}).first().count();
  await page.getByRole('button',{name:/Mulai latihan/i}).click();
  await page.getByRole('button',{name:/Mulai kuis/i}).click();
  await page.locator('.quiz-screen').waitFor();
@@ -87,7 +91,7 @@ try{
   return {theme:document.documentElement.dataset.noodlTheme,cardBorder:cardStyle?.borderTopWidth,cardBg:cardStyle?.backgroundColor,binaryBorder:binaryStyle?.borderTopWidth,binaryBg:binaryStyle?.backgroundColor};
  });
  console.log('VISUAL_QUIZ_COMPUTED',JSON.stringify(quizSurface));
- assert.equal(quizSurface.theme,'default','Quiz must retain active editorial theme');
+ assert.equal(quizSurface.theme,'default','Quiz must retain active Slate theme');
  assert.ok(parseFloat(quizSurface.cardBorder)>=1,'Fullscreen quiz reading sheet must have a real visible border');
  assert.notEqual(quizSurface.cardBg,'rgba(0, 0, 0, 0)','Fullscreen quiz reading sheet must have a real surface');
  if(quizSurface.binaryBorder){
@@ -122,17 +126,29 @@ try{
  await page.getByRole('button',{name:/Pengaturan/i}).click();
  await page.getByRole('heading',{name:/Pengaturan/i}).waitFor();
  await save('10-settings-mobile');
- const themeButtons=page.locator('.theme-grid button');
- assert.equal(await themeButtons.count(),11,'Editorial and ten existing themes must remain selectable');
- for(let i=0;i<await themeButtons.count();i++){
-  await themeButtons.nth(i).click();
-  await fits(390);
-  if(i===8)await save('11-settings-midnight');
-  if(i===9)await save('12-settings-oled');
- }
- await fits(320);await save('13-settings-paper-320');
+ const themeButtons=page.locator('.v3-theme-choice');
+ assert.equal(await themeButtons.count(),12,'Slate, Editorial and ten original themes must remain selectable');
+ const priorTheme=await page.evaluate(()=>document.documentElement.dataset.noodlTheme);
+ await page.getByRole('button',{name:/Focus Indigo/i}).click();
+ assert.equal(await page.evaluate(()=>document.documentElement.dataset.noodlTheme),priorTheme,'Theme preview must not persist before Save');
+ await page.getByRole('button',{name:/Batalkan/i}).click();
+ assert.equal(await page.locator('.v3-theme-choice[aria-pressed="true"]').count(),1,'Cancel returns selected saved theme');
+ await page.getByRole('button',{name:/Default latihan/i}).click();
+ await page.getByRole('button',{name:/Batch/i}).first().click();
+ assert.ok(await page.getByRole('button',{name:/Simpan perubahan/i}).isEnabled(),'Study preferences are real editable controls');
+ await page.getByRole('button',{name:/Batalkan/i}).click();
+ await page.getByRole('button',{name:/Tampilan/i}).click();
+ await save('11-settings-preview');
+ await page.getByRole('button',{name:/Aksesibilitas/i}).click();
+ const reduced=page.getByRole('checkbox',{name:/Kurangi animasi/i});
+ await reduced.check();
+ assert.ok(await page.getByRole('button',{name:/Simpan perubahan/i}).isEnabled(),'Reduced-motion change must be savable');
+ await page.getByRole('button',{name:/Batalkan/i}).click();
+ await fits(320);await save('12-settings-320');
+ await fits(768);await save('13-settings-tablet');
+ await fits(1440);await save('14-settings-desktop');
  assert.deepEqual(errors,[],`Browser exceptions: ${errors.join('; ')}`);
- console.log('Noodl browser smoke PASS: guest, Today, import, Library, pack detail, quiz answer, resume, Review, settings, 320/390/768/1440 widths.');
+ console.log('Noodl V3 browser smoke PASS: real Today, import, Bank Workspace, quiz, resume, review, Settings preview/Cancel, 320/390/768/1440 widths.');
 }catch(error){
  await save('failure').catch(()=>{});
  console.error('Noodl browser smoke FAILED',error);
