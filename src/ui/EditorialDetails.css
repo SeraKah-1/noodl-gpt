@@ -204,3 +204,488 @@ html[data-noodl-theme="default"] .noodl-app :is(.n-button.primary,.desk-primary,
 html[data-noodl-theme="default"] .desk-review .due-row:focus-visible {
  outline:3px solid #172630;outline-offset:-3px;
 }
+
+
+/*
+ * Refined editorial hierarchy, 2026-11-20.
+ * Single text family, five consistent roles, and one deliberate boundary
+ * treatment per level. Hero = enclosed; sections = rules; items = rows.
+ * Scoped to Editorial only, leaving alternate themes untouched.
+ */
+html[data-noodl-theme="default"] .noodl-app{
+ --noodl-typeface:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Arial,sans-serif;
+ --noodl-type-page:clamp(2.3rem,5vw,3.55rem);
+ --noodl-type-feature:clamp(1.35rem,2.6vw,2rem);
+ --noodl-type-section:clamp(1.2rem,2vw,1.55rem);
+ --noodl-type-body:1rem;
+ --noodl-type-meta:.875rem;
+ --noodl-ink:var(--text-main,#172630);
+ --noodl-muted:var(--text-muted,#4C5B61);
+ --noodl-boundary:#829189;
+ --noodl-hairline:#B6BFB6;
+ --noodl-control-border:#626F69;
+ --noodl-sheet:var(--glass-bg,#FFFDF7);
+ font-family:var(--noodl-typeface);
+ font-size:var(--noodl-type-body);
+ line-height:1.5;
+ font-weight:400;
+ -webkit-font-smoothing:antialiased;
+}
+html[data-noodl-theme="default"] .noodl-app :is(button,input,select,textarea){
+ font-family:inherit;
+}
+html[data-noodl-theme="default"] .noodl-app :is(button,a[href],summary,input,select,textarea):focus-visible{
+ outline:3px solid var(--noodl-ink);
+ outline-offset:3px;
+}
+html[data-noodl-theme="default"] .classic-toolbar{
+ border-bottom:1px solid var(--noodl-hairline);
+ padding-bottom:14px;
+ margin-bottom:24px;
+}
+html[data-noodl-theme="default"] .classic-wordmark{
+ font:800 1.6rem/1.15 var(--noodl-typeface);
+ letter-spacing:-.065em;
+}
+html[data-noodl-theme="default"] .classic-wordmark span{
+ color:var(--noodl-ink);
+}
+html[data-noodl-theme="default"] .classic-account,
+html[data-noodl-theme="default"] .classic-icon{
+ background:var(--noodl-sheet);
+ border:1px solid var(--noodl-hairline);
+ border-radius:10px;
+ font-size:.8125rem;
+}
+html[data-noodl-theme="default"] .classic-guest{
+ font-size:.8125rem;
+ line-height:1.5;
+ color:var(--noodl-muted);
+}
+html[data-noodl-theme="default"] .desk-page-head{
+ padding:clamp(8px,3vw,24px) 0 clamp(18px,3vw,30px);
+}
+html[data-noodl-theme="default"] .desk-page-head h1{
+ font-family:var(--noodl-typeface);
+ font-size:var(--noodl-type-page);
+ font-weight:790;
+ line-height:1.07;
+ letter-spacing:-.055em;
+ margin:12px 0 12px;
+}
+html[data-noodl-theme="default"] .desk-page-head p{
+ font-size:1rem;
+ line-height:1.65;
+ max-width:34rem;
+ margin:0;
+}
+html[data-noodl-theme="default"] .desk-page-head>.desk-kicker{
+ border-top:2px solid var(--noodl-ink);
+ padding-top:10px;
+}
+html[data-noodl-theme="default"] .desk-kicker{
+ font:750 .75rem/1.3 var(--noodl-typeface);
+ letter-spacing:.105em;
+ color:var(--noodl-muted);
+}
+html[data-noodl-theme="default"] .desk-next{
+ border:1px solid #172630;
+ border-left:0;
+ border-radius:14px;
+ box-shadow:0 6px 20px #17263012;
+ padding:clamp(22px,3.6vw,38px);
+}
+html[data-noodl-theme="default"] .desk-next:before{
+ width:4px;
+ border-radius:14px 0 0 14px;
+}
+html[data-noodl-theme="default"] .desk-next h2{
+ font-family:var(--noodl-typeface);
+ font-size:var(--noodl-type-feature);
+ line-height:1.25;
+ letter-spacing:-.035em;
+ font-weight:750;
+ max-width:26ch;
+ margin:10px 0 10px;
+}
+html[data-noodl-theme="default"] .desk-next p{
+ font-size:.9375rem;
+ line-height:1.6;
+}
+html[data-noodl-theme="default"] .desk-next .desk-primary{
+ min-height:50px;
+ padding:12px 17px;
+ font-size:.9375rem;
+ font-weight:750;
+}
+html[data-noodl-theme="default"] .desk-today-lower{
+ gap:clamp(24px,4vw,48px);
+ margin-top:clamp(32px,4vw,46px);
+}
+html[data-noodl-theme="default"] .desk-queue,
+html[data-noodl-theme="default"] .desk-recent{
+ border-top:2px solid var(--noodl-ink);
+ padding-top:15px;
+}
+html[data-noodl-theme="default"] .desk-section-heading{
+ border-bottom:0;
+ padding:0 0 14px;
+ margin:0;
+ align-items:end;
+}
+html[data-noodl-theme="default"] .desk-section-heading h2{
+ font-family:var(--noodl-typeface);
+ font-size:var(--noodl-type-section);
+ line-height:1.3;
+ font-weight:760;
+ letter-spacing:-.03em;
+ margin-top:6px;
+}
+html[data-noodl-theme="default"] .desk-link{
+ font-size:.875rem;
+ font-weight:660;
+ text-underline-offset:4px;
+ padding:8px 3px;
+}
+html[data-noodl-theme="default"] .desk-queue-count{
+ border-top:1px solid var(--noodl-hairline);
+ padding:16px 0 0;
+}
+html[data-noodl-theme="default"] .desk-queue-count strong{
+ font-family:var(--noodl-typeface);
+ font-size:1.35rem;
+ font-weight:750;
+}
+html[data-noodl-theme="default"] .desk-queue-count p,
+html[data-noodl-theme="default"] .desk-bank-row small{
+ font-size:var(--noodl-type-meta);
+}
+html[data-noodl-theme="default"] .desk-bank-row{
+ border-top:1px solid var(--noodl-hairline);
+ min-height:66px;
+ padding:14px 4px;
+}
+html[data-noodl-theme="default"] .desk-bank-row strong{
+ font-size:.975rem;
+ font-weight:700;
+}
+html[data-noodl-theme="default"] .desk-empty-note{
+ border-top:1px solid var(--noodl-hairline);
+ padding-top:16px;
+ font-size:.9375rem;
+}
+html[data-noodl-theme="default"] .desk-companion{
+ border-top:1px solid var(--noodl-hairline);
+ gap:14px;
+ margin-top:clamp(26px,4vw,42px);
+}
+html[data-noodl-theme="default"] .desk-face{
+ min-width:62px;
+ min-height:62px;
+ transform:none;
+ font-size:17px;
+ background:var(--noodl-sheet);
+ border:2px solid var(--noodl-ink);
+}
+html[data-noodl-theme="default"] .desk-companion p{font-size:.9rem;}
+html[data-noodl-theme="default"] .desk-companion small{font-size:.8rem;}
+html[data-noodl-theme="default"] .desk-pack-head{
+ border-bottom:2px solid var(--noodl-ink);
+ padding-bottom:24px;
+}
+html[data-noodl-theme="default"] .desk-pack-head h1,
+html[data-noodl-theme="default"] .desk-review>.tools-between h2{
+ font-family:var(--noodl-typeface);
+ font-size:clamp(1.9rem,4vw,2.6rem);
+ font-weight:770;
+ line-height:1.15;
+ letter-spacing:-.04em;
+}
+html[data-noodl-theme="default"] .desk-pack-resources,
+html[data-noodl-theme="default"] .desk-pack-history{
+ border-top:2px solid var(--noodl-ink);
+ padding-top:16px;
+}
+html[data-noodl-theme="default"] .desk-pack-history{
+ border-left:0;
+ padding-left:0;
+}
+html[data-noodl-theme="default"] .desk-resource-list>button{
+ border-bottom:1px solid var(--noodl-hairline);
+ min-height:72px;
+ padding:15px 4px;
+}
+html[data-noodl-theme="default"] .desk-resource-list>button:first-child{
+ border-top:1px solid var(--noodl-hairline);
+}
+html[data-noodl-theme="default"] .desk-resource-list>button strong{
+ font-family:var(--noodl-typeface);
+ font-size:1rem;
+ font-weight:700;
+ letter-spacing:-.01em;
+}
+html[data-noodl-theme="default"] .desk-library-index{
+ min-width:34px;
+ font:650 1rem/1.2 var(--noodl-typeface);
+ letter-spacing:0;
+ color:var(--noodl-muted);
+}
+html[data-noodl-theme="default"] .desk-library-card{
+ border-bottom:1px solid var(--noodl-hairline);
+}
+html[data-noodl-theme="default"] .desk-library-card:first-child{
+ border-top:2px solid var(--noodl-ink);
+}
+html[data-noodl-theme="default"] .desk-library-open{
+ min-height:86px;
+ padding:16px 12px 16px 4px;
+ gap:14px;
+}
+html[data-noodl-theme="default"] .desk-library-info strong{
+ font-family:var(--noodl-typeface);
+ font-size:1.08rem;
+ line-height:1.35;
+ font-weight:740;
+ letter-spacing:-.012em;
+}
+html[data-noodl-theme="default"] .desk-library-desc{
+ font-size:.9rem;
+ line-height:1.5;
+}
+html[data-noodl-theme="default"] .desk-library-info small{
+ font-size:.8rem;
+ line-height:1.55;
+}
+html[data-noodl-theme="default"] .desk-library-card:hover,
+html[data-noodl-theme="default"] .desk-library-card.is-selected{
+ background:color-mix(in srgb,var(--noodl-ink) 5%,var(--app-bg));
+}
+html[data-noodl-theme="default"] .n-section-title h2{
+ font-size:1.55rem;
+ line-height:1.25;
+ letter-spacing:-.03em;
+ font-weight:760;
+}
+html[data-noodl-theme="default"] .noodl-app .n-button{
+ font-size:.875rem!important;
+ font-weight:680!important;
+ min-height:44px;
+ padding:10px 14px;
+ border:1px solid var(--noodl-hairline);
+}
+html[data-noodl-theme="default"] .noodl-app .n-button.primary{
+ background:var(--primary);
+ color:var(--desk-on-action,#172630);
+ border-color:var(--primary);
+}
+html[data-noodl-theme="default"] .n-library-controls{
+ background:var(--noodl-sheet);
+ border:1px solid var(--noodl-boundary);
+ border-radius:14px;
+ padding:12px;
+}
+html[data-noodl-theme="default"] .n-search,
+html[data-noodl-theme="default"] .n-library-controls select,
+html[data-noodl-theme="default"] .n-design-fields input:not([type="checkbox"]),
+html[data-noodl-theme="default"] .n-design-fields select{
+ border:1px solid var(--noodl-control-border);
+ background:var(--app-bg);
+ border-radius:9px;
+ min-height:44px;
+ color:var(--noodl-ink);
+ font-size:.9rem;
+}
+html[data-noodl-theme="default"] .n-search input{
+ font-size:1rem;
+ min-height:22px;
+ color:var(--noodl-ink);
+}
+html[data-noodl-theme="default"] .n-search:focus-within{
+ outline:3px solid var(--noodl-ink);
+ outline-offset:2px;
+}
+html[data-noodl-theme="default"] .n-filters{
+ border-bottom:1px solid var(--noodl-hairline);
+ gap:clamp(14px,3vw,28px);
+ overflow-x:auto;
+ padding-bottom:0;
+ margin-bottom:0;
+}
+html[data-noodl-theme="default"] .n-filters button{
+ color:var(--noodl-muted);
+ font-size:.825rem;
+ font-weight:600;
+ min-height:44px;
+ white-space:nowrap;
+}
+html[data-noodl-theme="default"] .n-filters button.active{
+ color:var(--noodl-ink);
+ border-bottom:3px solid var(--noodl-ink);
+ font-weight:760;
+}
+html[data-noodl-theme="default"] .n-filters span{
+ background:#E8EBC8;
+ color:var(--noodl-ink);
+}
+html[data-noodl-theme="default"] .classic-input-tabs{
+ border:1px solid var(--noodl-boundary);
+ background:var(--noodl-sheet);
+ border-radius:11px;
+}
+html[data-noodl-theme="default"] .classic-input-tabs button.active{
+ background:var(--noodl-ink);
+ color:var(--app-bg);
+ border-radius:8px;
+}
+html[data-noodl-theme="default"] .desk-mode-grid{
+ border-top:2px solid var(--noodl-ink);
+}
+html[data-noodl-theme="default"] .desk-mode{
+ border-bottom:1px solid var(--noodl-hairline);
+ min-height:88px;
+ padding:16px 12px;
+}
+html[data-noodl-theme="default"] .desk-mode[aria-pressed=true]{
+ border-bottom:2px solid var(--noodl-ink);
+ background:var(--noodl-sheet);
+}
+html[data-noodl-theme="default"] .desk-mode[aria-pressed=true]>svg{
+ outline:0;
+ background:transparent;
+ color:var(--noodl-ink);
+}
+html[data-noodl-theme="default"] .desk-mode strong{font-size:.975rem;}
+html[data-noodl-theme="default"] .desk-mode small{font-size:.8375rem;}
+html[data-noodl-theme="default"] .desk-review .review-stats{
+ border-top:2px solid var(--noodl-ink);
+ border-bottom:1px solid var(--noodl-hairline);
+}
+html[data-noodl-theme="default"] .desk-review .review-stats article{
+ border-right:1px solid var(--noodl-hairline);
+ padding:16px clamp(8px,2vw,22px);
+}
+html[data-noodl-theme="default"] .desk-review .review-stats strong{
+ font-family:var(--noodl-typeface);
+ font-size:clamp(1.4rem,3vw,2rem);
+ font-weight:760;
+}
+html[data-noodl-theme="default"] .desk-review .review-stats span{font-size:.8125rem;}
+html[data-noodl-theme="default"] .desk-review .tools-panel:not(.review-card){
+ border-top:2px solid var(--noodl-ink);
+ padding-top:20px;
+}
+html[data-noodl-theme="default"] .desk-review .tools-panel h3,
+html[data-noodl-theme="default"] .desk-review .review-card h3{
+ font-family:var(--noodl-typeface);
+ font-weight:760;
+ font-size:1.27rem;
+ letter-spacing:-.025em;
+}
+html[data-noodl-theme="default"] .desk-review .due-row{
+ border-bottom:1px solid var(--noodl-hairline);
+ padding:16px 3px!important;
+}
+html[data-noodl-theme="default"] .desk-review .review-card{
+ background:var(--noodl-sheet);
+ border:1px solid var(--noodl-boundary);
+ border-top:3px solid var(--noodl-ink);
+ border-radius:12px;
+}
+html[data-noodl-theme="default"] .desk-review .tools-primary{
+ background:var(--primary)!important;
+ color:var(--desk-on-action,#172630)!important;
+ border-color:var(--primary)!important;
+}
+html[data-noodl-theme="default"] .study-player{
+ --study-border:var(--noodl-hairline);
+ max-width:720px;
+ color:var(--noodl-ink);
+ font-size:1rem;
+}
+html[data-noodl-theme="default"] .study-player .study-surface{
+ border:1px solid var(--noodl-boundary);
+ border-radius:13px;
+ background:var(--noodl-sheet);
+ box-shadow:none;
+ padding:clamp(20px,4vw,34px);
+}
+html[data-noodl-theme="default"] .study-player .study-question,
+html[data-noodl-theme="default"] .batch-quiz .study-question{
+ font-family:var(--noodl-typeface);
+ font-size:clamp(1.3rem,2.4vw,1.65rem);
+ font-weight:740;
+ line-height:1.48;
+ letter-spacing:-.018em;
+ margin:16px 0 22px;
+}
+html[data-noodl-theme="default"] .study-player .study-option,
+html[data-noodl-theme="default"] .batch-quiz .study-option{
+ border:0;
+ border-bottom:1px solid var(--noodl-hairline);
+ border-radius:0;
+ min-height:64px;
+ background:transparent;
+ font-size:.975rem;
+ padding:16px 8px;
+ gap:12px;
+}
+html[data-noodl-theme="default"] .study-player .study-option:first-child{
+ border-top:1px solid var(--noodl-hairline);
+}
+html[data-noodl-theme="default"] .study-player .study-option:hover:not(:disabled),
+html[data-noodl-theme="default"] .batch-quiz .study-option:hover:not(:disabled){
+ background:color-mix(in srgb,var(--noodl-ink) 5%,var(--noodl-sheet));
+ transform:none;
+}
+html[data-noodl-theme="default"] .study-player .study-option.correct,
+html[data-noodl-theme="default"] .study-player .study-option.incorrect{
+ border:1px solid currentColor;
+ border-radius:8px;
+}
+html[data-noodl-theme="default"] .study-player .study-option>span{
+ font-size:1rem;
+ line-height:1.5;
+}
+html[data-noodl-theme="default"] .study-player .study-top h2{
+ font-family:var(--noodl-typeface);
+ font-weight:700;
+ font-size:1rem;
+}
+html[data-noodl-theme="default"] .study-player .study-counter{
+ font-size:.8125rem;
+ opacity:1;
+ color:var(--noodl-muted);
+}
+html[data-noodl-theme="default"] .study-player .study-fill input{
+ border:1px solid var(--noodl-control-border);
+ background:var(--noodl-sheet);
+ font-size:1rem;
+ min-height:48px;
+}
+html[data-noodl-theme="default"] .study-player .study-flashcard>.study-rich{
+ font-family:var(--noodl-typeface);
+ font-weight:720;
+}
+html[data-noodl-theme="default"] .desk-results-disclosure{
+ border:1px solid var(--noodl-boundary);
+ background:var(--noodl-sheet);
+ border-radius:11px;
+}
+@media(max-width:760px){
+ html[data-noodl-theme="default"] .desk-pack-history{
+  padding-top:16px;
+ }
+}
+@media(max-width:480px){
+ html[data-noodl-theme="default"] .noodl-app{font-size:.9375rem;}
+ html[data-noodl-theme="default"] .desk-page-head h1{font-size:2.85rem;}
+ html[data-noodl-theme="default"] .desk-today-lower{gap:30px;}
+ html[data-noodl-theme="default"] .desk-section-heading{align-items:center;gap:10px;}
+ html[data-noodl-theme="default"] .desk-section-heading h2{font-size:1.12rem;}
+ html[data-noodl-theme="default"] .desk-next{padding:24px 20px;}
+ html[data-noodl-theme="default"] .desk-queue-count>svg{width:42px;height:42px;padding:10px;}
+ html[data-noodl-theme="default"] .n-library-controls{padding:10px;}
+ html[data-noodl-theme="default"] .desk-library-open{gap:10px;}
+ html[data-noodl-theme="default"] .desk-library-index{min-width:26px;font-size:.875rem;}
+ html[data-noodl-theme="default"] .study-player .study-surface{padding:20px 16px;}
+}
