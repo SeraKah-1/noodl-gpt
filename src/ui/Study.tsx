@@ -8,6 +8,7 @@ import confetti from 'canvas-confetti';
 import {motion,useReducedMotion} from 'framer-motion';
 import {StudyText as Text} from './StudyText';
 import {Autopilot} from './Autopilot';
+import {FlashcardDeck} from './FlashcardDeck';
 import {client} from '../client';
 import {diagnosticQuestion,diagnosticAttempt,remediationQuestions} from '../shared/practice';
 import type {Attempt,Pack,Question,ReviewEvent} from '../shared/types';
@@ -22,9 +23,6 @@ function ignoreStudyKey(event:KeyboardEvent){
  if(event.repeat){if(['Enter',' '].includes(event.key))event.preventDefault();return true;}
  return !!target?.closest('button,a[href],summary')&&['Enter',' '].includes(event.key);
 }
-const flashRatings:Record<string,ReviewEvent['rating']>={
- '1':0,ArrowLeft:0,'2':1,ArrowDown:1,'3':2,ArrowUp:2,'4':3,ArrowRight:3
-};
 export function StudyPlayer({attempt,onChange,onComplete,onExit}:{attempt:Attempt;onChange:(a:Attempt)=>void|Promise<void>;onComplete:(a:Attempt)=>void;onExit:()=>void}){
  const reduced=useReducedMotion() || (typeof document!=='undefined'&&document.documentElement.dataset.reducedMotion==='true');
  const [current,setCurrent]=useState(attempt),[input,setInput]=useState(''),[hint,setHint]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState(''),[now,setNow]=useState(Date.now()),[sound,setSound]=useState(false),[failedSave,setFailedSave]=useState<Attempt|null>(null);
@@ -82,33 +80,7 @@ interface FlashProps {
 export function Flashcards(props:FlashProps){
  const [auto,setAuto]=useState(props.initialAuto??false);
  if(auto)return <Autopilot pack={props.pack} questions={props.questions??props.pack.questions} onReview={props.onReview} onClose={props.onClose} onCheck={props.onOpenAttempt}/>;
- return <ManualFlashcards {...props} onAuto={()=>setAuto(true)}/>;
-}
-function ManualFlashcards({pack,questions=pack.questions,onReview,onClose,onAuto}:FlashProps&{onAuto:()=>void}){
- const [index,setIndex]=useState(0),[flipped,setFlipped]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');const start=useRef<number|null>(null),skipClick=useRef(false),saving=useRef(false);
- const [offset,setOffset]=useState(0);
- const q=questions[index];
- const cardButton=useRef<HTMLButtonElement>(null);
- useEffect(()=>{cardButton.current?.focus({preventScroll:true});},[index]);
-
- const rate=useCallback(async(rating:0|1|2|3)=>{if(!q||!flipped||saving.current)return;saving.current=true;setBusy(true);setError('');try{await onReview({id:crypto.randomUUID(),cardId:`${pack.id}:${q.id}`,packId:pack.id,questionId:q.id,question:structuredClone(q),rating,reviewedAt:new Date().toISOString()});setIndex(i=>i+1);setFlipped(false);if(!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)navigator.vibrate?.(12);}catch(e){setError(e instanceof Error?e.message:'Rating gagal disimpan. Coba lagi.');}finally{saving.current=false;setBusy(false);}},[q,flipped,pack.id,onReview]);
- useEffect(()=>{
-  const listener=(event:KeyboardEvent)=>{
-   if(ignoreStudyKey(event)||!q||saving.current)return;
-   if(event.key==='Escape'){event.preventDefault();onClose();return;}
-   if([' ','Enter'].includes(event.key)){event.preventDefault();setFlipped(f=>!f);return;}
-   const rating=flashRatings[event.key];
-   if(flipped&&rating!==undefined){event.preventDefault();void rate(rating);}
-  };
-  window.addEventListener('keydown',listener);
-  return ()=>window.removeEventListener('keydown',listener);
- },[q,flipped,rate,onClose]);
- return <section className="study-player practice-screen flash-screen"><div className="practice-head"><header className="study-top"><button className="study-icon" onClick={onClose} aria-label="Kembali"><X size={20}/></button><div><small>FLASHCARDS</small><h2>{pack.title}</h2></div><div className="flash-tools"><button className="study-secondary" disabled={busy} onClick={onAuto}>Autopilot</button><Assistive flashcards/></div><span className="flash-count">{Math.min(index+1,questions.length)} / {questions.length}</span></header><div className="study-progress"><span style={{width:`${questions.length?index/questions.length*100:100}%`}}/></div></div>{!q?<div className="study-surface study-done"><span className="study-mascot">( ✧ ▽ ✧ )</span><h2>Sesi kartu selesai.</h2><p>{questions.length} kartu sudah lo review. Jadwal pengulangan diperbarui dari rating lo.</p><button className="study-primary" onClick={onClose}>Kembali ke bank</button></div>:<><main className="flash-stage"><button ref={cardButton} className={`study-flashcard ${flipped?'flipped':''}`} disabled={busy} style={{'--drag-x':offset+'px','--drag-angle':offset/28+'deg'} as React.CSSProperties}
- onClick={e=>{if((e.detail===0||!skipClick.current)&&!saving.current)setFlipped(f=>!f);skipClick.current=false;}}
- onPointerDown={e=>{if(!e.isPrimary||e.button!==0)return;skipClick.current=false;if(flipped){start.current=e.clientX;e.currentTarget.setPointerCapture(e.pointerId);}}}
- onPointerMove={e=>{if(e.isPrimary&&start.current!==null)setOffset(Math.max(-120,Math.min(120,e.clientX-start.current)));}}
- onPointerCancel={()=>{start.current=null;setOffset(0);}}
- onPointerUp={e=>{if(!e.isPrimary||start.current===null)return;const dx=e.clientX-start.current;start.current=null;setOffset(0);skipClick.current=Math.abs(dx)>12;if(Math.abs(dx)>=80)void rate(dx>0?3:0);}} aria-label={flipped?'Tampilkan pertanyaan':'Balik kartu untuk melihat jawaban'}><small>{flipped?'JAWABAN':'PERTANYAAN'} · {q.conceptName||q.difficulty}</small><div className="flash-copy" key={q.id+String(flipped)}><Text>{flipped?correctAnswerText(q):q.text}</Text>{flipped&&<div className="study-flash-explanation"><Text>{q.explanation}</Text></div>}</div><span className="study-flip-cue"><RotateCcw size={16}/>{flipped?(Math.abs(offset)>12?(offset>0?'→ Mudah':'← Lupa'):'Geser kiri untuk Lupa · kanan untuk Mudah'):'Klik, Spasi, atau Enter untuk balik'}</span></button></main><footer className="flash-controls">{flipped?<div className="study-ratings">{(['Lupa','Sulit','Bagus','Mudah'] as const).map((label,i)=><button key={label} disabled={busy} onClick={()=>void rate(i as 0|1|2|3)}><b>{['←','↓','↑','→'][i]} · {i+1}</b>{label}<small>{['1 menit','10 menit / ulang','Jadwal normal','Interval lebih jauh'][i]}</small></button>)}</div>:<p className="study-center-note">Pikirkan jawabannya dulu. Rating muncul setelah kartu dibalik.</p>}{error&&<p className="study-error" role="alert">{error}</p>}</footer></>}</section>;
+ return <FlashcardDeck {...props} questions={props.questions??props.pack.questions} onAuto={()=>setAuto(true)}/>;
 }
 export function Results({attempt,packs,attempts,guest,onReview,onRetry,onOpenAttempt,onClose}:{onOpenAttempt:(a:Attempt)=>void;attempt:Attempt;packs:Pack[];attempts:Attempt[];guest:boolean;onReview:(e:ReviewEvent)=>Promise<void>;onRetry:(wrongOnly:boolean)=>void;onClose:()=>void}){
  const [tool,setTool]=useState<ToolTab|null>(null);

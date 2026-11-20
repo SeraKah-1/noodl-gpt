@@ -1,0 +1,54 @@
+
+/* A physical-looking deck without changing the underlying SRS scoring engine. */
+.flash-deck .flash-deck-stage{position:relative;isolation:isolate;display:block;min-height:clamp(320px,48vh,520px);padding-block:1rem 1.4rem;}
+.flash-deck .flash-deck-next{position:absolute;inset:calc(1rem + 12px) calc(clamp(.75rem,3vw,1.5rem) + 10px) calc(1.4rem - 8px);
+ border:1px solid var(--study-border);border-radius:26px;background:color-mix(in srgb,var(--surface,#fff) 88%,var(--study-accent) 12%);
+ transform:scale(.985);box-shadow:0 12px 35px #00000010;pointer-events:none;}
+.flash-deck .flash-deck-motion{position:relative;z-index:1;min-height:clamp(320px,48vh,520px);cursor:grab;touch-action:pan-y;}
+.flash-deck .flash-deck-motion:active{cursor:grabbing;}
+.flash-deck .flash-deck-card{min-height:clamp(320px,48vh,520px);height:100%;margin:0;display:flex;flex-direction:column;
+ align-items:stretch;gap:clamp(.7rem,2vw,1.4rem);justify-content:space-between;padding:clamp(1.25rem,4vw,2.3rem);
+ border:1.5px solid var(--study-border);border-radius:26px;background:var(--surface,#fff);box-shadow:0 18px 50px #00000012;
+ rotate:none;translate:none;transform:none;transition:border-color .18s,box-shadow .18s;cursor:pointer;touch-action:pan-y;}
+.flash-deck .flash-deck-card.flipped{border-color:var(--study-accent);box-shadow:0 20px 44px #00000015;}
+.flash-deck .flash-deck-head{display:flex;justify-content:space-between;gap:.75rem;flex-wrap:wrap;min-width:0;}
+.flash-deck .flash-deck-head small{font-size:.64rem;line-height:1.4;letter-spacing:.11em;text-transform:uppercase;font-weight:750;opacity:.75;}
+.flash-deck .flash-copy{flex:1;max-height:52vh;overflow:auto;overscroll-behavior:contain;min-width:0;text-align:center;display:flex;justify-content:center;gap:1rem;flex-direction:column;}
+.flash-deck .flash-copy>.study-rich{font-size:clamp(1.15rem,3vw,1.75rem);line-height:1.5;font-weight:650;overflow-wrap:anywhere;}
+.flash-deck .flipped .flash-copy{text-align:left;justify-content:flex-start;}
+.flash-deck .flash-copy .study-flash-explanation{max-width:100%;overflow-wrap:anywhere;}
+.flash-deck .flash-deck-flip{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;align-self:center;min-height:44px;
+ border:1px solid var(--study-border);border-radius:999px;background:color-mix(in srgb,var(--surface,#fff) 92%,var(--study-accent));
+ color:inherit;font:inherit;font-size:.77rem;font-weight:650;padding:.5rem 1rem;cursor:pointer;}
+.flash-deck .flash-deck-flip:hover:not(:disabled){border-color:var(--study-accent);}
+.flash-deck .flash-deck-flip:focus-visible,.flash-deck .flash-deck-help:focus-visible{outline:3px solid var(--study-accent);outline-offset:4px;}
+.flash-deck .flash-deck-direction{display:flex;justify-content:space-between;gap:1rem;min-height:1.1rem;
+ color:var(--study-accent);font-size:.72rem;font-weight:750;pointer-events:none;}
+.flash-deck .flash-deck-direction>span:first-child{color:#c64c60;}
+.flash-deck .flash-deck-direction>span:last-child{color:#208c70;}
+.flash-deck .flash-deck-controls{padding-block:.4rem max(.85rem,env(safe-area-inset-bottom));}
+.flash-deck .flash-deck-meta{text-align:center;font-size:.78rem;min-height:2.2rem;margin-top:.6rem;}
+.flash-deck .flash-deck-help{padding:.5rem .75rem;min-height:40px;border:0;background:transparent;color:inherit;font:inherit;
+ text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
+.flash-deck .flash-deck-meta p{margin:.25rem auto;max-width:44rem;line-height:1.5;}
+.flash-deck .flash-deck-status{color:var(--text-main,currentColor);opacity:.75;}
+.flash-deck .flash-deck-meta .study-error{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:.7rem;margin-top:.5rem;}
+.flash-deck .study-ratings button:focus-visible{outline:3px solid var(--study-accent);outline-offset:3px;}
+@media(max-width:390px){
+ .flash-deck .flash-deck-stage{min-height:310px;padding-block:.5rem 1rem;}
+ .flash-deck .flash-deck-motion,.flash-deck .flash-deck-card{min-height:310px;}
+ .flash-deck .flash-deck-card{padding:1rem;gap:.6rem;}
+ .flash-deck .flash-deck-next{inset:13px 18px 1px;}
+ .flash-deck .flash-copy{max-height:44vh;}
+ .flash-deck .study-ratings button{padding:12px 3px;font-size:.75rem;}
+ .flash-deck .study-ratings small{font-size:.58rem;}
+}
+@media(max-height:440px){
+ .flash-deck .flash-deck-stage,.flash-deck .flash-deck-motion,.flash-deck .flash-deck-card{min-height:240px;}
+ .flash-deck .flash-copy{max-height:36vh;}
+}
+@media(prefers-reduced-motion:reduce){
+ .flash-deck .flash-deck-card{transition:none!important;}
+ .flash-deck .flash-deck-next{transform:none;}
+}
+html[data-reduced-motion="true"] .flash-deck .flash-deck-card{transition:none!important;}

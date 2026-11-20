@@ -150,3 +150,32 @@ test('an initial concept probe reserves a second unanswered question',async()=>{
  const next=await ok(db,'start_diagnostic',{attemptId:probe.attemptId,operationId:'follow'});
  assert.notEqual(next.questions[0].text,probe.questions[0].text);
 });
+
+test('MCP compact learning context exposes real counts without answer keys and returns scoped next action',async()=>{
+ const db=database(),p=await pack(db);
+ const empty=await ok(db,'get_study_context',{limit:5});
+ assert.equal(empty.bankCount,1);
+ assert.equal(empty.banks[0].questionCount,1);
+ assert.equal(empty.banks[0].questions,undefined);
+ assert.equal(empty.banks[0].correctOptionId,undefined);
+ assert.equal(empty.activeAttempt,null);
+ assert.equal(empty.nextAction.kind,'start_practice');
+ const attempt=await ok(db,'start_attempt',{packId:p.id,operationId:'ctx-attempt',options:{mode:'STANDARD',shuffle:false,mixed:false,retention:false}});
+ const active=await ok(db,'get_study_context',{packId:p.id});
+ assert.equal(active.activeAttempt.id,attempt.id);
+ assert.equal(active.activeAttempt.total,1);
+ assert.equal(active.nextAction.kind,'resume_attempt');
+ assert.equal((await call(db,'get_study_context',{packId:p.id},'someone-else')).isError,true);
+ assert.equal((await call(db,'get_study_context',{limit:21})).isError,true);
+});
+
+test('MCP operation receipt is account-scoped, idempotent and never returns a whole answer key',async()=>{
+ const db=database(),p=await pack(db);
+ const receipt=await ok(db,'get_operation_receipt',{operationId:'create'});
+ assert.equal(receipt.status,'committed');
+ assert.equal(receipt.recordId,p.id);
+ assert.equal(receipt.revision,1);
+ assert.equal(receipt.record,undefined);
+ assert.equal((await ok(db,'get_operation_receipt',{operationId:'create'},'other-account')).status,'not_found');
+ assert.equal((await ok(db,'get_operation_receipt',{operationId:'not-issued'})).status,'not_found');
+});
