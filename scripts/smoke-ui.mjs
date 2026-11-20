@@ -87,7 +87,10 @@ try{
   return {theme:document.documentElement.dataset.noodlTheme,cardBorder:cardStyle?.borderTopWidth,cardBg:cardStyle?.backgroundColor,binaryBorder:binaryStyle?.borderTopWidth,binaryBg:binaryStyle?.backgroundColor};
  });
  console.log('VISUAL_QUIZ_COMPUTED',JSON.stringify(quizSurface));
- if(quizSurface.theme==='default' && quizSurface.binaryBorder){
+ assert.equal(quizSurface.theme,'default','Quiz must retain active editorial theme');
+ assert.ok(parseFloat(quizSurface.cardBorder)>=1,'Fullscreen quiz reading sheet must have a real visible border');
+ assert.notEqual(quizSurface.cardBg,'rgba(0, 0, 0, 0)','Fullscreen quiz reading sheet must have a real surface');
+ if(quizSurface.binaryBorder){
   assert.ok(parseFloat(quizSurface.binaryBorder)>=1,'True/false choices must have visible borders');
  }
  await save('05-focused-quiz');
