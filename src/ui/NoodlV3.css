@@ -613,3 +613,23 @@ html[data-noodl-theme] .v3-mistake-rows span{font-size:.84rem;color:var(--v3-mut
  html[data-noodl-theme] .v3-mistake-rows>div{display:block;}
  html[data-noodl-theme] .v3-mistake-rows span{display:block;margin-top:4px;}
 }
+
+/* Language is a user-facing setting, not just the tiny toolbar abbreviation. */
+html[data-noodl-theme] .v3-language-control{
+ display:flex;align-items:center;justify-content:space-between;gap:16px;
+ border-top:1px solid var(--v3-divider);border-bottom:1px solid var(--v3-divider);
+ margin:20px 0;padding:17px 0;
+}
+html[data-noodl-theme] .v3-language-control>span{display:grid;gap:3px;}
+html[data-noodl-theme] .v3-language-control>span strong{font-size:.9rem;}
+html[data-noodl-theme] .v3-language-control>span small{font-size:.78rem;color:var(--v3-muted);}
+html[data-noodl-theme] .v3-language-control>div{display:flex;gap:3px;flex:none;background:var(--v3-soft);padding:4px;border-radius:10px;border:1px solid var(--v3-divider);}
+html[data-noodl-theme] .v3-language-control button{
+ border:0;background:transparent;color:var(--v3-ink);
+ border-radius:7px;min-height:40px;padding:7px 12px;font-size:.82rem;font-weight:650;
+}
+html[data-noodl-theme] .v3-language-control button[aria-pressed="true"]{background:var(--v3-focus-bg);color:var(--v3-focus-on);}
+@media(max-width:540px){
+ html[data-noodl-theme] .v3-language-control{display:block;}
+ html[data-noodl-theme] .v3-language-control>div{margin-top:12px;width:fit-content;}
+}
