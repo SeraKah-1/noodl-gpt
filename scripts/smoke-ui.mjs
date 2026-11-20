@@ -90,6 +90,8 @@ try{
  await save('03b-publish-consent');
  await publishModal.getByRole('button',{name:'Batal'}).click();
  await publishModal.waitFor({state:'hidden'});
+ assert.equal(await page.locator('.desk-actions-menu').getAttribute('open'),null,'Publishing menu closes after preview');
+ await page.locator('.desk-actions-menu > summary').click();
  await page.locator('.desk-actions-menu').getByRole('button',{name:/Publikasikan salinan/}).click();
  await publishModal.waitFor({state:'visible'});
  assert.ok(await publishConfirm.isDisabled(),'Consent must not remain checked after cancellation');
