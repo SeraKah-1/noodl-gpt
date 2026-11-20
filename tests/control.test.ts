@@ -179,3 +179,44 @@ test('MCP operation receipt is account-scoped, idempotent and never returns a wh
  assert.equal((await ok(db,'get_operation_receipt',{operationId:'create'},'other-account')).status,'not_found');
  assert.equal((await ok(db,'get_operation_receipt',{operationId:'not-issued'})).status,'not_found');
 });
+
+test('MCP prepare validates draft without publishing a bank, then commit returns stable saved receipt',async()=>{
+ const db=database();
+ const prepared=await ok(db,'prepare_pack_change',{operationId:'prep-new',mode:'create',title:'New bank',
+  questions:[{type:'MULTIPLE_CHOICE',text:'Water formula?',difficulty:'Easy',explanation:'H2O',
+   options:[{text:'CO2'},{text:'H2O'}],correctOptionIndex:1}]});
+ assert.equal(prepared.status,'prepared');
+ assert.equal(prepared.questionsAdded,1);
+ assert.equal((await ok(db,'get_workspace')).counts.packs,0);
+ const committed=await ok(db,'commit_pack_change',{prepareId:'prep-new',operationId:'commit-new'});
+ assert.equal(committed.status,'committed');
+ assert.equal(committed.revision,1);
+ assert.equal(committed.questionCount,1);
+ const saved=await ok(db,'get_pack',{packId:committed.packId});
+ assert.equal(saved.questions[0].options[1].id,saved.questions[0].correctOptionId);
+ assert.equal(saved.questions[0].text,'Water formula?');
+ assert.equal((await ok(db,'get_operation_receipt',{operationId:'commit-new'})).recordId,committed.packId);
+ assert.equal((await ok(db,'commit_pack_change',{prepareId:'prep-new',operationId:'commit-new'})).revision,1);
+ assert.equal((await ok(db,'get_workspace')).counts.packs,1);
+});
+
+test('MCP prepared append checks owner, duplicate text, revision conflict and exact retry',async()=>{
+ const db=database(),p=await pack(db);
+ const args={operationId:'prep-add',mode:'append',packId:p.id,expectedRevision:1,
+  questions:[{...question,id:undefined,text:'Sodium symbol?',acceptedAnswers:['Na']}]};
+ const proposed=await ok(db,'prepare_pack_change',args);
+ assert.equal(proposed.expectedRevision,1);
+ assert.equal((await ok(db,'prepare_pack_change',args)).prepareId,'prep-add');
+ assert.equal((await call(db,'prepare_pack_change',{...args,questions:[{...question,text:'Different',id:'other'}]})).isError,true);
+ assert.equal((await call(db,'commit_pack_change',{prepareId:'prep-add',operationId:'foreign-commit'},'other')).isError,true);
+ const updated=await ok(db,'create_question',{packId:p.id,operationId:'intervening',expectedRevision:1,
+  question:{...question,id:'q2',text:'Other question?'}});
+ assert.equal(updated.revision,2);
+ const conflict=await ok(db,'commit_pack_change',{prepareId:'prep-add',operationId:'commit-add'});
+ assert.equal(conflict.status,'conflict');
+ assert.equal(conflict.currentRevision,2);
+ assert.equal((await ok(db,'get_pack',{packId:p.id})).questions.length,2);
+ const duplicate=await call(db,'prepare_pack_change',{operationId:'dup-qs',mode:'append',packId:p.id,
+  expectedRevision:2,questions:[{...question,id:'a',text:'Potassium symbol?'}]});
+ assert.equal(duplicate.isError,true);
+});
