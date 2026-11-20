@@ -8,7 +8,7 @@ import type {WorkspacePreferences} from '../shared/preferences';
  * Disusun berdasarkan prinsip kenyamanan mata, psikologi warna, dan tren estetik.
  */
 
-export type ThemeName = 'default' | 'indigo' | 'matcha' | 'lilac' | 'blush' | 'sky' | 'vanilla' | 'sunset' | 'midnight' | 'oled' | 'paper';
+export type ThemeName = 'default' | 'editorial' | 'indigo' | 'matcha' | 'lilac' | 'blush' | 'sky' | 'vanilla' | 'sunset' | 'midnight' | 'oled' | 'paper';
 
 interface ThemePalette {
   name: string;
@@ -28,6 +28,21 @@ interface ThemePalette {
 
 const THEMES: Record<ThemeName, ThemePalette> = {
   default: {
+    name: "Noodl Slate",
+    desc: "Slate · White · Amber",
+    vars: {
+      '--app-bg': '#F6F8FA',
+      '--glass-bg': '#FFFFFF',
+      '--glass-border': '#B6C3CB',
+      '--text-main': '#172A36',
+      '--text-muted': '#485D69',
+      '--primary': '#FFBA59',
+      '--mesh-c1': 'transparent',
+      '--mesh-c2': 'transparent',
+      '--mesh-c3': 'transparent'
+    }
+  },
+  editorial: {
     name: "Noodl Editorial",
     desc: "Ink · Ivory · Lime",
     vars: {
