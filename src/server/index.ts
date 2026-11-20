@@ -139,13 +139,26 @@ async function publish(db:Database,owner:string,args:any){
  const operationId=text(args.operationId,'operationId');
  const duplicate=await db.prepare('SELECT result FROM operations WHERE owner_id=? AND id=?').bind(owner,operationId).first<{result:string}>();if(duplicate)return JSON.parse(duplicate.result).record;
  const pack=await readRecord<Pack>(db,owner,'pack',text(args.packId,'packId'));if(!pack||pack.deletedAt)throw new Error('Pack not found');if(pack.revision!==args.expectedRevision)throw new Error('Revision changed');
- const publication:Publication={id:`${owner}:${pack.id}`,title:pack.title,description:pack.description,questionCount:pack.questions.length,publishedAt:now(),pack:{title:pack.title,description:pack.description,tags:pack.tags,questions:pack.questions,artifacts:pack.artifacts}};
+ // Keep existing share links stable, including old legacy IDs; new links never contain owner/pack IDs.
+ const previous=await db.prepare('SELECT id FROM publications WHERE owner_id=? AND source_id=?')
+  .bind(owner,pack.id).first<{id:string}>();
+ const publication:Publication={id:previous?.id??`pub-${uuid()}`,title:pack.title,description:pack.description,
+  questionCount:pack.questions.length,publishedAt:now(),pack:{title:pack.title,description:pack.description,
+   tags:pack.tags,questions:pack.questions,artifacts:pack.artifacts}};
  const nonce=uuid();
  await db.batch([
-  db.prepare("INSERT INTO operations(owner_id,id,nonce,result) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM records WHERE owner_id=? AND kind='pack' AND id=? AND revision=?) ON CONFLICT(owner_id,id) DO NOTHING").bind(owner,operationId,nonce,JSON.stringify({operationId,ok:true,record:publication}),owner,pack.id,pack.revision),
-  db.prepare('INSERT INTO publications(id,owner_id,source_id,data) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM operations WHERE owner_id=? AND id=? AND nonce=?) ON CONFLICT(owner_id,source_id) DO UPDATE SET data=excluded.data').bind(publication.id,owner,pack.id,JSON.stringify(publication),owner,operationId,nonce)
+  db.prepare("INSERT INTO operations(owner_id,id,nonce,result) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM records WHERE owner_id=? AND kind='pack' AND id=? AND revision=?) ON CONFLICT(owner_id,id) DO NOTHING")
+   .bind(owner,operationId,nonce,JSON.stringify({operationId,ok:true,record:publication}),owner,pack.id,pack.revision),
+  // Concurrent publish requests keep the original row ID and publish a content-only snapshot.
+  db.prepare("INSERT INTO publications(id,owner_id,source_id,data) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM operations WHERE owner_id=? AND id=? AND nonce=?) ON CONFLICT(owner_id,source_id) DO UPDATE SET data=json_set(excluded.data,'$.id',publications.id)")
+   .bind(publication.id,owner,pack.id,JSON.stringify(publication),owner,operationId,nonce),
+  // Save the ACTUAL publication ID into the idempotent receipt (may differ on a concurrent upsert).
+  db.prepare("UPDATE operations SET result=json_object('operationId',?,'ok',json('true'),'record',json((SELECT data FROM publications WHERE owner_id=? AND source_id=?))) WHERE owner_id=? AND id=? AND nonce=?")
+   .bind(operationId,owner,pack.id,owner,operationId,nonce)
  ]);
- const result=await db.prepare('SELECT result FROM operations WHERE owner_id=? AND id=?').bind(owner,operationId).first<{result:string}>();if(!result)throw new Error('Revision changed');return JSON.parse(result.result).record;
+ const result=await db.prepare('SELECT result FROM operations WHERE owner_id=? AND id=?')
+  .bind(owner,operationId).first<{result:string}>();
+ if(!result)throw new Error('Revision changed');return JSON.parse(result.result).record;
 }
 async function copyPublication(db:Database,owner:string,args:any){const publication=await db.prepare('SELECT data FROM publications WHERE id=?').bind(text(args.publicationId,'publicationId')).first<{data:string}>();if(!publication)throw new Error('Publication not found');const p=JSON.parse(publication.data) as Publication;const operationId=text(args.operationId,'operationId');const duplicate=await db.prepare('SELECT result FROM operations WHERE owner_id=? AND id=?').bind(owner,operationId).first<{result:string}>();if(duplicate)return JSON.parse(duplicate.result).record;const pack={...p.pack,folder:'',questions:p.pack!.questions.map(q=>({...q,id:uuid()})),artifacts:p.pack!.artifacts.map(a=>({...a,id:uuid()}))};const result=await mutate(db,owner,{id:operationId,kind:'pack.put',entityId:uuid(),expectedRevision:0,payload:pack,createdAt:now()});if(!result.ok)throw new Error(result.error);return result.record;}
 async function unpublish(db:Database,owner:string,id:string){await db.prepare('DELETE FROM publications WHERE id=? AND owner_id=?').bind(id,owner).run();return {ok:true};}
