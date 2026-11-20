@@ -633,3 +633,11 @@ html[data-noodl-theme] .v3-language-control button[aria-pressed="true"]{backgrou
  html[data-noodl-theme] .v3-language-control{display:block;}
  html[data-noodl-theme] .v3-language-control>div{margin-top:12px;width:fit-content;}
 }
+ 
+html[data-noodl-theme="default"] .desk-next .v3-manual-link{
+ grid-column:1/-1;justify-self:start;width:fit-content;
+ border:0;background:transparent;color:#E3EDF1;min-height:35px;
+ padding:5px 0;font-size:.83rem;font-weight:670;text-decoration:underline;
+ text-underline-offset:4px;
+}
+html[data-noodl-theme="default"] .desk-next .v3-manual-link:hover{color:#FFFFFF;}
