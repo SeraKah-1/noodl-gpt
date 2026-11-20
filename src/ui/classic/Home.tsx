@@ -3,6 +3,7 @@ import {AnimatePresence,motion,useReducedMotion} from 'framer-motion';
 import {ArrowRight,BookOpen,Brain,Layers,Play,Plus,ChevronRight,Target} from 'lucide-react';
 import {buildReviewQueues} from '../reviewQueue';
 import {studyNextStep} from '../../shared/nextStep';
+import {quickSession} from '../../shared/quickSession';
 import type {Attempt,Pack,Question,ReviewEvent,StudyOptions as Options} from '../../shared/types';
 import {progressFor} from '../../shared/engine';
 import type {Locale} from './Navigation';
@@ -32,6 +33,8 @@ export function Home(props:Props){
  const step=studyNextStep(packs,attempts,reviews);
  const queue=buildReviewQueues(packs,reviews);
  const recent=[...packs].filter(p=>!p.deletedAt).sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt)).slice(0,3);
+ const quickOne=quickSession(packs,attempts,1);
+ const quickThree=quickSession(packs,attempts,3);
  const latest=completed.slice().sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0];
  const label=step.kind==='resume'?(id?'SESI BELUM SELESAI':'SESSION IN PROGRESS'):
    step.kind==='review'?(id?'SUDAH JATUH TEMPO':'DUE FOR REVIEW'):
@@ -65,6 +68,22 @@ export function Home(props:Props){
    {step.kind==='empty'&&<button className="v3-manual-link" onClick={onCreate}>{id?'Atau buat soal manual':'Or create questions manually'}</button>}
   </motion.section>
   </AnimatePresence>
+  {quickOne&&quickThree&&<section className="desk-quick-session" aria-labelledby="desk-quick-heading">
+   <div className="desk-quick-copy"><span className="desk-kicker">{id?'SESI SINGKAT':'SHORT SESSIONS'}</span>
+    <h2 id="desk-quick-heading">{id?'Mulai kecil, selesai jelas.':'Start small, finish clearly.'}</h2>
+    <p>{id?'Setiap pilihan membuat sesi Batch tersimpan dengan titik selesai. Soal yang pernah muncul ditandai sebagai pengulangan.':'Both options create real saved Batch sessions with a clear endpoint. Previously shown questions are labeled as repeats.'}</p>
+   </div>
+   <div className="desk-quick-actions">
+    {([{count:1 as const,data:quickOne,label:id?'Quick 1':'Quick 1'},
+      {count:3 as const,data:quickThree,label:id?'Batch singkat':'Short Batch'}]).map(({count,data,label})=>
+     <button type="button" key={count} disabled={busy} className="desk-quick-choice" onClick={()=>onFocus(data.pack,data.questions)}>
+      <span><strong>{label}</strong><small>{data.pack.title} · {data.questions.length} {id?'soal':'questions'}</small></span>
+      <span className="desk-quick-count">{data.unseen>0?
+       (id?`${data.unseen} belum ditampilkan`:`${data.unseen} unpresented`):
+       (id?'Ulang soal lama':'Repeat questions')}</span><ArrowRight size={17}/>
+     </button>)}
+   </div>
+  </section>}
   <div className="desk-today-lower">
    <section className="desk-queue" aria-labelledby="desk-queue-heading">
     <div className="desk-section-heading"><div><span className="desk-kicker">{id?'PENGULANGAN':'RECALL'}</span><h2 id="desk-queue-heading">{id?'Review terjadwal':'Scheduled review'}</h2></div><button className="desk-link" onClick={onReview}>{id?'Buka Review':'Open Review'} <ChevronRight size={16}/></button></div>
