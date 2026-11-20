@@ -34,6 +34,17 @@ npm run audit:production
 
 This asks npm to check production dependencies for high severity vulnerabilities. It is not part of `npm run build`.
 
+## V4 browser flows and release candidate
+
+GitHub Actions executes the normal `Noodl browser UX` workflow after changes to application source. It includes:
+- `scripts/smoke-ui.mjs`: responsive layout, flashcards, quiz, state recovery, evidence-linked concept map and deterministic simulation.
+- `scripts/smoke-comic.mjs`: focused comic reading, keyboard, zoom, missing artwork and 320px layout.
+- `scripts/smoke-quick.mjs`: Quick 1 and Short Batch 3, saved results and browser reload.
+
+The separate `Noodl knowledge debugger Chrome QA` workflow executes `scripts/smoke-debugger.mjs` to import **two non-gastric** scenarios, correct a relationship, inspect source references, retry, and verify honest local-only result status. Server scoring/ownership/idempotence is covered by `tests/server.test.ts`, not by a fake browser server.
+
+The `OpenAI Sites release candidate` workflow packages a verified archive, its SHA256 and archive manifest on `main`; the successful artifact from commit `46ca078d` is in Actions run `44770261984`. The archive does **not** deploy or migrate an OpenAI Sites project. Current connected MCP capability version must be checked independently because the repository can be ahead of production.
+
 ## Manual checks
 
 Use these checks when you have access to the relevant host:
