@@ -1,6 +1,6 @@
 # DESIGN.md — Noodl Study Desk
 
-**Design direction for Noodl. Status: Editorial theme implemented in feature PR #4, pending verification and deployment.** This contract accompanies [docs/NOODL_REDESIGN_PLAN.md](docs/NOODL_REDESIGN_PLAN.md). It does not mean the redesign is already deployed.
+**Design direction for Noodl. Status: Editorial source merged; refinement in progress. Production deployment is tracked separately.** This contract accompanies [docs/NOODL_REDESIGN_PLAN.md](docs/NOODL_REDESIGN_PLAN.md). It does not mean the redesign is already deployed.
 
 ## Product thesis
 
@@ -19,10 +19,10 @@ The new default uses Ink #172630, Ivory #F6F2E8, and Lime #D9F45F. Focus Indigo 
 ## Visual language
 
 - **Reading comes first.** Content width for quiz/prose roughly 40–46rem unless equations or diagrams need more. Larger application canvas can hold secondary material, not stretch question paragraphs across the screen.
-- **Type hierarchy.** Clear page title, contextual section title, question/body text, and quiet metadata. No miniature question text. A small label cannot bear the only explanation of an action.
+- **Type hierarchy.** One sans-serif typeface across wordmark, headings, questions, controls, and metadata. Five deliberate roles: page display, feature title, section title, body, and metadata. Never mix serif headlines with small sans-serif controls. Keep controls at 14px or larger and question text around 21–26px on phones/desktop.
 - **Spatial scale.** Derive one system from 4, 8, 12, 16, 24, 32, 48 spacing steps; named semantic spaces for section separation, card groups and inline controls. Responsive phone use is a distinct layout state.
 - **Radius hierarchy.** Approximately 10–12px controls, 14–18px standard surfaces, and up to 22–24px expressive focal surfaces, mapped to the existing user-controlled radius setting.
-- **Borders and shadows.** The default Editorial theme uses a dark focal study action, open sections, thin row separators and no default card chrome on Library or Today secondary sections. Elevation is reserved for overlays. Alternate themes retain their own surface language.
+- **Borders and shadows.** Three distinct grouping levels: one dark enclosed focal action on Today; 2px Ink rules at section boundaries; 1px muted dividers for rows. Only a reading sheet or search/filter group needs a light surface enclosure. Inputs use clearly visible control borders. Do not solve ambiguity by making every row a card. Alternate themes retain their own surface language.
 - **Mascot motif.** Appears on Today, meaningful completion feedback, or genuinely empty state. It should never compete with long questions or timers.
 - **Icons.** Use only for navigation meaning or affordance. Keep consistent weight and shape. Avoid generic sparkles as a substitute for product language.
 - **Copy.** Use familiar Indonesian/English labels. Primary action starts with a verb, e.g., "Lanjutkan sesi", "Mulai latihan", "Ulangi kesalahan". No claims like "mastered" without evidence. No fake statistics.
