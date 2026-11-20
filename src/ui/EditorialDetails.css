@@ -793,3 +793,18 @@ html[data-noodl-theme="default"] .desk-pack-history{
 html[data-noodl-theme="default"] .desk-pack{
  row-gap:clamp(18px,3vw,30px);
 }
+
+/*
+ * Quiz and flashcard players mount outside .noodl-app. Share editorial role
+ * tokens from the document root so a fullscreen player never loses its
+ * border and surface definitions.
+ */
+html[data-noodl-theme="default"]{
+ --noodl-typeface:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans",Arial,sans-serif;
+ --noodl-ink:var(--text-main,#172630);
+ --noodl-muted:var(--text-muted,#4C5B61);
+ --noodl-boundary:#829189;
+ --noodl-hairline:#B6BFB6;
+ --noodl-control-border:#626F69;
+ --noodl-sheet:var(--glass-bg,#FFFDF7);
+}
