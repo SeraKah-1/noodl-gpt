@@ -16,12 +16,23 @@
 | Opaque publication IDs | merged-code | PR #17; canonical and legacy link tests | Existing older ID links intentionally remain; approval and auditing |
 | Question source references + Brain Dump gap reader | merged-code | PR #18; last-reviewed/hinted gap tests | Independent document verification, source binding for generated questions |
 | Informed bank publication dialog | merged-code | PR #19; consent and keyboard Chrome tests | More granular public subset sharing, optional question/answer redaction |
-| Brain Dump → saved independent repair Batch | in PR #20; not yet merged at doc authoring | Server provenance validation and integration tests | Improve concept mapping beyond exact labels, UX entry from ChatGPT host |
+| Brain Dump → saved independent repair Batch | merged-code, limited | PR #20; server provenance validation, own-account tests | Improve concept matching beyond exact labels, source inspection, UI entry from ChatGPT host |
 | Autopilot exposure and quick checks | limited-existing | Existing code and tests | Better pause/resume UX, explicit evidence differentiation, accessibility/device trials |
-| Generalized Knowledge Debugger | planned (pilot exists) | Fixed gastric-acid pilot only | Validated scenario schema, distractor constraints, saved diagnostic evidence |
+| Generalized Knowledge Debugger | merged-code, limited | PR #23; two non-gastric scenarios, validator, server scoring/history, Chrome | Scientific source review still author-reported; expand authored scenarios and host/device validation; old gastric pilot remains distinct |
+| Short sessions — Quick 1 and Short Batch 3 | merged-code | PR #22; actual Batch persistence, unseen-first selection and Chrome reload test | Small-screen usability study and adaptive due review integration |
+| Opaque public link revocation | merged-code | PR #21; owner-scoped source lookup, REST + embedded MCP tests | Live owner-account verification before shipping |
 | Bloom & Calendar | limited-existing | Generation planning and .ics export | Honest target-vs-observed learning levels; actual notifications require scheduling integration |
 | Inline ChatGPT MCP result cards | planned | Whole workspace UI resource exists | Small receipt, error, due review and next-step widgets with host tests |
-| Production / Sites deployment | **not established by GitHub merges** | `docs/DEPLOYMENT.md` describes separate authorized workflow | Package Worker, release to existing Sites project, verify /api/health, MCP tools and auth in live host |
+| Production / Sites deployment | **not deployed by GitHub merges** | Release candidate built successfully at commit `46ca078d`, Actions run `44770261984`; still only an archive | Authorized Sites deployment, D1 readiness, verify `/api/health`, identity, MCP tools and stored writes using test account |
+
+## Active-host gap and next implementation gates
+
+The connected Noodl MCP returned `get_capabilities.version = 2.2.0` in a read-only call on 2026-11-20, while `src/server/control.ts` in `main` advertises `2.9.0`. The connected host therefore cannot be assumed to expose new V4 tools. A GitHub release artifact is **not** an OpenAI Sites deployment.
+
+1. Release the existing project's tested Sites candidate through the authorized Sites mechanism without replacing project ID or bypassing host authentication.
+2. Verify the live tool registry and owner-scoped write receipts on a **disposable account** only. Do not test mutation with personal study data.
+3. Continue P1/2 gaps: Autopilot evidence/UX, generalized debugger authoring UI, graph scalability, deeper simulation validity, truthful Bloom generation coverage, offline sync recovery and accessible host-specific inline MCP cards.
+4. Preserve this ledger on every future PR, distinguishing `merged-code`, `limited`, `planned`, and `verified-live`.
 
 ## Acceptance discipline
 
