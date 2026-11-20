@@ -79,6 +79,17 @@ try{
  await page.getByRole('button',{name:/Mulai latihan/i}).click();
  await page.getByRole('button',{name:/Mulai kuis/i}).click();
  await page.locator('.quiz-screen').waitFor();
+ const quizSurface=await page.evaluate(()=>{
+  const card=document.querySelector('.quiz-screen .question-card');
+  const binary=document.querySelector('.quiz-screen .study-binary .study-option');
+  const cardStyle=card?getComputedStyle(card):null;
+  const binaryStyle=binary?getComputedStyle(binary):null;
+  return {theme:document.documentElement.dataset.noodlTheme,cardBorder:cardStyle?.borderTopWidth,cardBg:cardStyle?.backgroundColor,binaryBorder:binaryStyle?.borderTopWidth,binaryBg:binaryStyle?.backgroundColor};
+ });
+ console.log('VISUAL_QUIZ_COMPUTED',JSON.stringify(quizSurface));
+ if(quizSurface.theme==='default' && quizSurface.binaryBorder){
+  assert.ok(parseFloat(quizSurface.binaryBorder)>=1,'True/false choices must have visible borders');
+ }
  await save('05-focused-quiz');
  const options=page.locator('.quiz-screen .study-option');
  if(await options.count())await options.first().click();
