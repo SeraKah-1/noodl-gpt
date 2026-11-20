@@ -18,7 +18,7 @@ export function PublishPreview({pack,locale,open,busy,onCancel,onConfirm}:Props)
  const [accepted,setAccepted]=useState(false);
  const en=locale==='en';
  const answerCount=pack.questions.length;
- const sourceCount=pack.questions.filter(q=>q.sourceRefs?.length).length;
+ const sourceCount=pack.questions.filter(q=>'sourceRefs' in q&&Array.isArray(q.sourceRefs)&&q.sourceRefs.length>0).length;
  const artCount=pack.artifacts.length;
  useEffect(()=>{
   const dialog=ref.current;
