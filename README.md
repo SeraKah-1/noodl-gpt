@@ -20,7 +20,7 @@ This repository is a derivative of [SeraKah-1/noodl](https://github.com/SeraKah-
 | Build and deploy | [Deployment](docs/DEPLOYMENT.md) | `.openai/hosting.json`, `scripts/` |
 | Review data access | [Security](docs/SECURITY.md) | Identity checks, owner filters, iframe policy |
 | Check missing functions | [Known limitations](docs/KNOWN_LIMITATIONS.md) | Current schemas and renderers |
-| Plan later work | [Decisions and proposals](docs/DECISIONS.md) | Confirm status before implementation |
+| Plan later work | [V4 MCP & Learning Studio master plan](docs/NOODL_V4_MCP_STUDIO_MASTER_PLAN.md) and [decisions](docs/DECISIONS.md) | Separate implemented behavior from proposed features |
 | Publish the GitHub source | [Source transfer](docs/SOURCE_TRANSFER.md) | Check repository access before a push |
 | Change the interface | [Design skills](docs/DESIGN_SKILLS.md) | `src/ui/`, `.agents/skills/` |
 | Review the original code | [Upstream audit](docs/UPSTREAM_AUDIT.md) | Pinned upstream checkout |
