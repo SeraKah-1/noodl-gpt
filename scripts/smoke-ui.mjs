@@ -30,6 +30,7 @@ async function waitForSite(){
 try{
  await page.goto(url,{waitUntil:'domcontentloaded'});
  await waitForSite();
+ assert.equal(await page.locator('.v3-sync-status').count(),0,'Guest local storage must not show an obstructive floating sync banner');
  const editorial=await page.evaluate(()=>{
   const style=selector=>getComputedStyle(document.querySelector(selector));
   return {
@@ -79,7 +80,16 @@ try{
  assert.equal(await page.locator('.v3-workspace-columns').count(),1,'Bank must open functional three-column workspace');
  assert.ok(await page.locator('.v3-studio-actions button').count()>=3,'Existing tools must remain operable');
  await save('04-pack-detail');
- await page.getByRole('button',{name:/Materi/i}).filter({has:page.locator('svg')}).first().count();
+ await fits(1440);
+ const cols=await page.locator('.v3-workspace-columns').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length);
+ assert.equal(cols,3,'Desktop bank workspace must show three real columns');
+ await save('04b-workspace-desktop');
+ await page.getByRole('button',{name:/Practice notes/i}).click();
+ await page.locator('.v3-reading-sheet').getByText('Check the question type before you submit a response.').waitFor();
+ await save('04c-material-reader');
+ await page.getByRole('button',{name:/Kembali ke ringkasan/i}).click();
+ await fits(390);
+
  await page.getByRole('button',{name:/Mulai latihan/i}).click();
  await page.getByRole('button',{name:/Mulai kuis/i}).click();
  await page.locator('.quiz-screen').waitFor();
