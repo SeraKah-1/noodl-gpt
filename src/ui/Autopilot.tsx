@@ -1,8 +1,8 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {client} from '../client';
 import {readExposures,saveExposure} from '../client/exposure';
-import {concept,needsOptions,delayedQuestion,phaseSeconds,recallDelay,singleQuestion,type Exposure} from '../shared/practice';
-import {correctAnswerText,normalizeAnswer} from '../shared/engine';
+import {concept,needsOptions,delayedQuestion,quickCheckQuestion,phaseSeconds,recallDelay,singleQuestion,type Exposure} from '../shared/practice';
+import {correctAnswerText} from '../shared/engine';
 import type {Attempt,Pack,Question,ReviewEvent} from '../shared/types';
 import {StudyText} from './StudyText';
 
@@ -73,19 +73,7 @@ export function Autopilot({pack,questions,onReview,onClose,onCheck}:Props){
     }catch(e){setError(String(e));}finally{busy.current=false;}
   }
   const attempts=client.getState().attempts;
-  const quickQuestion=(()=>{
-   const exposure=session.current;if(!exposure||!exposure.shown.length)return;
-   const usedIds=new Set([...exposure.shown,...history.flatMap(h=>h.shown)].map(x=>x.id));
-   const usedTexts=new Set([...exposure.shown,...history.flatMap(h=>h.shown)].map(x=>normalizeAnswer(x.text)));
-   for(const attempt of attempts.filter(a=>a.ownerId===pack.ownerId)){
-    for(const item of attempt.items){
-     usedTexts.add(normalizeAnswer(item.question.text));
-     if(item.sourcePackId===pack.id)usedIds.add(item.sourceQuestionId);
-    }
-   }
-   const concepts=new Set(exposure.shown.map(x=>x.concept).filter(Boolean));
-   return questions.find(question=>concepts.has(concept(question))&&!usedIds.has(question.id)&&!usedTexts.has(normalizeAnswer(question.text)));
-  })();
+  const quickQuestion=session.current?quickCheckQuestion(pack,session.current,history,attempts):undefined;
   const quickSaved=session.current?attempts.find(a=>a.id==='quick-'+session.current!.id):undefined;
   return <section className="study-player practice-screen"><div className="practice-head"><header className="study-top"><button className="study-secondary" disabled={rating} onClick={onClose}>Kembali</button><div><small>Autopilot Recall</small><h2>{pack.title}</h2></div></header></div><main className="practice-scroll"><div className="practice-column">
     {!deck.length?<div className="study-surface question-card"><h3>Latihan tanpa klik</h3>
