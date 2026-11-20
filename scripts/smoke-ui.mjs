@@ -30,12 +30,24 @@ async function waitForSite(){
 try{
  await page.goto(url,{waitUntil:'domcontentloaded'});
  await waitForSite();
+ const editorial=await page.evaluate(()=>{
+  const style=selector=>getComputedStyle(document.querySelector(selector));
+  return {
+   theme:document.documentElement.dataset.noodlTheme,
+   nav:style('.desk-nav .classic-nav-inner').backgroundColor,
+   selectedNav:style('.desk-nav button[aria-current="page"]').backgroundColor,
+   hero:style('.desk-next').backgroundColor,
+   action:style('.desk-next .desk-primary').backgroundColor
+  };
+ });
+ assert.deepEqual(editorial,{theme:'default',nav:'rgb(23, 38, 48)',selectedNav:'rgb(217, 244, 95)',hero:'rgb(23, 38, 48)',action:'rgb(217, 244, 95)'},'Editorial palette must use ink structure and lime only on focused actions');
  await save('01-today-empty-mobile');
  await fits(320);await save('02-today-320');await fits(390);
  await page.getByRole('button',{name:'Library',exact:true}).click();
  await page.getByRole('heading',{name:/Bank soal/i}).waitFor();
  await page.locator('.classic-upload-label input[type="file"]').setInputFiles('examples/pack.input.json');
  await page.locator('.desk-library-open').first().waitFor();
+ assert.equal(await page.locator('.desk-library-index').first().innerText(),'01','Library must be indexed without boxed icons');
  await save('03-library-populated');
  await page.locator('.desk-library-open').first().click();
  await page.locator('#desk-pack-title').getByText('Example question bank').waitFor();
@@ -60,6 +72,8 @@ try{
  await save('06-resume-available');
  await page.getByRole('button',{name:'Review',exact:true}).click();
  await page.locator('.desk-review .review-stats article').first().waitFor();
+ const reviewStyle=await page.locator('.desk-review .review-stats article').first().evaluate(el=>({radius:getComputedStyle(el).borderRadius,background:getComputedStyle(el).backgroundColor}));
+ assert.equal(reviewStyle.radius,'0px','Review status should scan like text, not a card');
  const due=(await page.locator('.desk-review .review-stats article strong').first().innerText()).trim();
  assert.equal(due,'0','New cards must not be counted as overdue');
  await save('07-review-new-vs-due');
@@ -75,8 +89,8 @@ try{
  for(let i=0;i<await themeButtons.count();i++){
   await themeButtons.nth(i).click();
   await fits(390);
-  if(i===7)await save('11-settings-midnight');
-  if(i===8)await save('12-settings-oled');
+  if(i===8)await save('11-settings-midnight');
+  if(i===9)await save('12-settings-oled');
  }
  await fits(320);await save('13-settings-paper-320');
  assert.deepEqual(errors,[],`Browser exceptions: ${errors.join('; ')}`);
