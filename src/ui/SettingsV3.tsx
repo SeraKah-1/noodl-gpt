@@ -57,7 +57,7 @@ export function SettingsV3({preferences,locale,onSave,pending,conflict,onUseServ
   if(!isDirty||saving)return;
   const issue=validate();if(issue){setError(issue);return;}
   setError('');setMessage('');setSaving(true);
-  try{await onSave({theme:draft.theme,language:draft.language,design:draft.design,studyOptions:draft.studyOptions});setMessage(en?'Preferences saved.':'Pengaturan tersimpan.');}
+  try{await onSave({theme:draft.theme,language:draft.language,design:draft.design,studyOptions:draft.studyOptions});setMessage(en?'Preferences updated locally. Check sync status under Data & Sync.':'Pengaturan diperbarui di perangkat. Periksa status pada Data & sinkronisasi.');}
   catch(e){setError(e instanceof Error?e.message:String(e));}
   finally{setSaving(false);}
  }
@@ -80,12 +80,19 @@ export function SettingsV3({preferences,locale,onSave,pending,conflict,onUseServ
        <span className="v3-theme-swatch" style={{background:t.previewColor,color:t.textColor}}><span>noodl</span><span className="v3-swatch-line" style={{background:t.textColor}}/></span>
        <strong>{t.name}</strong><small>{t.desc}</small>{draft.theme===t.id&&<Check size={19} aria-label={en?'Selected':'Dipilih'}/>}
       </button>)}</div>
+      <div className="v3-language-control" role="group" aria-label={en?'Workspace language':'Bahasa workspace'}>
+       <span><strong>{en?'Language':'Bahasa'}</strong><small>{en?'Interface labels, not source material translations.':'Bahasa antarmuka, bukan terjemahan isi materi.'}</small></span>
+       <div>
+        <button aria-pressed={draft.language==='id'} onClick={()=>setDraft(x=>({...x,language:'id'}))}>Indonesia</button>
+        <button aria-pressed={draft.language==='en'} onClick={()=>setDraft(x=>({...x,language:'en'}))}>English</button>
+       </div>
+      </div>
       <h3>{en?'Preview — not yet applied':'Preview — belum diterapkan'}</h3>
       <div className="v3-theme-preview" style={{background,color:foreground}}>
        <div className="v3-theme-preview-top"><strong>noodl ✦</strong><small style={{color:muted}}>{en?'Today':'Hari ini'}</small></div>
        <div className="v3-theme-preview-card" style={{background:surface,color:foreground,borderColor:foreground}}>
         <small>{en?'NEXT STEP':'LANGKAH BERIKUTNYA'}</small><strong>{en?'Continue practice':'Lanjutkan latihan'}</strong>
-        <span className="v3-preview-cta" style={{background:accent,color:colorContrast(accent,'#172A36')>=4.5?'#172A36':'#000000'}}>{en?'Start practice':'Mulai latihan'}</span>
+        <span className="v3-preview-cta" style={{background:accent,color:colorContrast(accent,'#172A36')>=4.5?'#172A36':colorContrast(accent,'#FFFFFF')>=4.5?'#FFFFFF':'#000000'}}>{en?'Start practice':'Mulai latihan'}</span>
        </div>
       </div>
       <p className="v3-validation" role="status">{en?'Text contrast':'Kontras teks'}: {contrast.toFixed(2)}:1 · {contrast>=4.5?(en?'Pass AA':'Lulus AA'):(en?'Too low — choose another combination':'Terlalu rendah — ganti kombinasi')}</p>
