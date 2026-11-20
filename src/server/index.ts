@@ -196,14 +196,22 @@ async function publish(db:Database,owner:string,args:any){
 }
 async function copyPublication(db:Database,owner:string,args:any){const publication=await db.prepare('SELECT data FROM publications WHERE id=?').bind(text(args.publicationId,'publicationId')).first<{data:string}>();if(!publication)throw new Error('Publication not found');const p=JSON.parse(publication.data) as Publication;const operationId=text(args.operationId,'operationId');const duplicate=await db.prepare('SELECT result FROM operations WHERE owner_id=? AND id=?').bind(owner,operationId).first<{result:string}>();if(duplicate)return JSON.parse(duplicate.result).record;const pack={...p.pack,folder:'',questions:p.pack!.questions.map(q=>({...q,id:uuid()})),artifacts:p.pack!.artifacts.map(a=>({...a,id:uuid()}))};const result=await mutate(db,owner,{id:operationId,kind:'pack.put',entityId:uuid(),expectedRevision:0,payload:pack,createdAt:now()});if(!result.ok)throw new Error(result.error);return result.record;}
 async function unpublish(db:Database,owner:string,id:string){await db.prepare('DELETE FROM publications WHERE id=? AND owner_id=?').bind(id,owner).run();return {ok:true};}
+/** Public URLs are opaque; source bank IDs must be resolved inside owner scope. */
+async function unpublishBySource(db:Database,owner:string,packId:string){
+ const row=await db.prepare('SELECT id FROM publications WHERE owner_id=? AND source_id=?')
+  .bind(owner,packId).first<{id:string}>();
+ if(!row)throw new Error('No publication exists for this bank in the current account');
+ await db.prepare('DELETE FROM publications WHERE owner_id=? AND source_id=?').bind(owner,packId).run();
+ return {ok:true,publicationId:row.id,sourcePackId:packId};
+}
 const stringSchema={type:'string'};
 const ownerArgument={expectedOwner:stringSchema};
 const questionSchema={type:'object',properties:{id:stringSchema,type:{type:'string',enum:['MULTIPLE_CHOICE','TRUE_FALSE','FILL_BLANK']},text:stringSchema,explanation:stringSchema,difficulty:{type:'string',enum:['Easy','Medium','Hard']},options:{type:'array',items:{type:'object',properties:{id:stringSchema,text:stringSchema},required:['id','text']}},correctOptionId:stringSchema,correctBoolean:{type:'boolean'},acceptedAnswers:{type:'array',items:stringSchema},hint:stringSchema,keyPoint:stringSchema,conceptName:stringSchema,conceptPriority:{type:'string',enum:['HIGH','MODERATE','FILLER']},sourceRefs:{type:'array',minItems:1,maxItems:12,items:{type:'object',additionalProperties:false,properties:{title:{type:'string'},anchor:{type:'string'},uri:{type:'string',pattern:'^https://'},status:{type:'string',enum:['provided','model_inspected','unavailable']}},required:['title','status']}}},required:['id','type','text','explanation','difficulty']};
 const packSchema={type:'object',properties:{title:stringSchema,description:stringSchema,folder:stringSchema,tags:{type:'array',items:stringSchema},questions:{type:'array',items:questionSchema},artifacts:{type:'array',items:{type:'object',additionalProperties:true}}},required:['title','questions']};
 const publicCatalogTools=new Set(['publish_pack','browse_publications','copy_publication','unpublish_pack',
- 'app_publications','app_publish','app_unpublish','app_copy_publication']);
+ 'app_publications','app_publish','app_unpublish','app_unpublish_source','app_copy_publication']);
 const destructivePackTools=new Set(['update_pack','save_artifacts','delete_pack','publish_pack','unpublish_pack',
- 'app_mutate','app_publish','app_unpublish']);
+ 'app_mutate','app_publish','app_unpublish','app_unpublish_source']);
 function tool(name:string,description:string,properties:Record<string,unknown>={},required:string[]=[],app=false,readOnly=false,ui=false){return {name,description,inputSchema:{type:'object',properties,required,additionalProperties:false},annotations:{readOnlyHint:readOnly,destructiveHint:destructivePackTools.has(name),openWorldHint:publicCatalogTools.has(name),idempotentHint:true},_meta:{ui:{visibility:app?['app']:['model','app'],...(ui?{resourceUri:'ui://noodl/workspace'}:{})}}};}
 export const toolsList=[
  ...brainTools,...recallRepairTools,...controlTools,...preferenceTools,...exportTools,
@@ -223,7 +231,7 @@ export const toolsList=[
  tool('app_identity','Authenticated user.',{},[],true,true),tool('app_snapshot','Account snapshot.',ownerArgument,[],true,true),
  tool('app_mutate','Synchronize pending offline changes.',{...ownerArgument,operations:{type:'array',items:{type:'object',additionalProperties:true}}},['operations','expectedOwner'],true),
  tool('app_publications','Publication list.',ownerArgument,[],true,true),tool('app_publish','Publish content including answer keys.',{...ownerArgument,packId:stringSchema,expectedRevision:{type:'integer'},operationId:stringSchema},['packId','expectedRevision','operationId'],true),
- tool('app_unpublish','Unpublish content.',{...ownerArgument,publicationId:stringSchema},['publicationId'],true),tool('app_copy_publication','Copy content.',{...ownerArgument,publicationId:stringSchema,operationId:stringSchema},['publicationId','operationId'],true)
+ tool('app_unpublish','Unpublish content.',{...ownerArgument,publicationId:stringSchema},['publicationId'],true),tool('app_unpublish_source','Revoke an owner-scoped publication by its source bank ID, including opaque and legacy public IDs.',{...ownerArgument,packId:stringSchema},['packId'],true),tool('app_copy_publication','Copy content.',{...ownerArgument,publicationId:stringSchema,operationId:stringSchema},['publicationId','operationId'],true)
 ];
 async function callTool(db:Database,user:User,name:string,args:any,origin:string){
  if(name.startsWith('app_')&&args.expectedOwner!==undefined&&args.expectedOwner!==user.id)throw new AccessError('Akun aktif sudah berubah. Masuk kembali untuk menyinkronkan.');
@@ -239,6 +247,7 @@ async function callTool(db:Database,user:User,name:string,args:any,origin:string
  if(name==='app_publications'||name==='browse_publications')return publications(db);
  if(name==='app_publish'||name==='publish_pack')return publish(db,user.id,args);
  if(name==='app_unpublish'||name==='unpublish_pack')return unpublish(db,user.id,text(args.publicationId,'publicationId'));
+ if(name==='app_unpublish_source')return unpublishBySource(db,user.id,text(args.packId,'packId'));
  if(name==='app_copy_publication'||name==='copy_publication')return copyPublication(db,user.id,args);
  if(name==='list_packs'){const s=await snapshot(db,user.id);const query=String(args.query??'').toLowerCase(),offset=args.offset??0,limit=args.limit??50;if(!Number.isSafeInteger(offset)||offset<0||!Number.isSafeInteger(limit)||limit<1||limit>100)throw new Error('Invalid pagination');const packs=s.packs.filter(p=>!p.deletedAt&&`${p.title} ${p.description} ${p.tags.join(' ')}`.toLowerCase().includes(query)).map(({questions,artifacts,...p})=>({...p,questionCount:questions.length}));return {packs:packs.slice(offset,offset+limit),offset,limit,total:packs.length,nextOffset:offset+limit<packs.length?offset+limit:null};}
  if(name==='open_pack'&&!args.packId)return {view:'library',user};
@@ -357,6 +366,8 @@ export async function handleRequest(request:Request,env:Env,_ctx:unknown,assets:
    if(request.method==='GET')return json(await publications(env.DB));
    if(request.method==='POST')return json(await publish(env.DB,user.id,await body(request)));
   }
+  const sourceMatch=url.pathname.match(/^\/api\/publications\/source\/([^/]+)$/);
+  if(sourceMatch&&request.method==='DELETE')return json(await unpublishBySource(env.DB,user.id,text(decodeURIComponent(sourceMatch[1]),'packId')));
   const match=url.pathname.match(/^\/api\/publications\/([^/]+)(\/copy)?$/);
   if(match){const id=decodeURIComponent(match[1]);if(match[2]&&request.method==='POST')return json(await copyPublication(env.DB,user.id,{...await body(request),publicationId:id}));if(!match[2]&&request.method==='DELETE')return json(await unpublish(env.DB,user.id,id));}
   return json({error:'Not found'},404);

@@ -186,3 +186,48 @@ test('legacy publication links retain their identifiers when refreshed',async()=
  const original=(await handleRequest(new Request('https://app/api/public/catalog/'+encodeURIComponent(legacyId)),{DB:db},null))!;
  assert.equal(original.status,200);
 });
+
+test('opaque publications can be revoked by owned source pack ID without guessing their public link',async()=>{
+ const db=database();
+ await mutate(db,'owner-a',op('save-a'));
+ await mutate(db,'owner-b',op('save-b'));
+ const post=async(owner:string,operationId:string)=>{
+  const res=(await handleRequest(new Request('https://app/api/publications',{method:'POST',
+   headers:{'oai-authenticated-user-id':owner},body:JSON.stringify({packId:'p',expectedRevision:1,operationId})}),{DB:db},null))!;
+  assert.equal(res.status,200);
+  return res.json() as Promise<{id:string}>;
+ };
+ const a=await post('owner-a','pub-a'),b=await post('owner-b','pub-b');
+ assert.match(a.id,/^pub-/);
+ assert.notEqual(a.id,b.id);
+ const source='/api/publications/source/p';
+ const other=(await handleRequest(new Request('https://app'+source,{method:'DELETE',headers:{'oai-authenticated-user-id':'owner-c'}}),{DB:db},null))!;
+ assert.equal(other.status,400,'Different owner may not revoke');
+ assert.equal((await handleRequest(new Request('https://app/api/public/catalog/'+encodeURIComponent(a.id)),{DB:db},null))!.status,200);
+ const revoked=(await handleRequest(new Request('https://app'+source,{method:'DELETE',headers:{'oai-authenticated-user-id':'owner-a'}}),{DB:db},null))!;
+ assert.equal(revoked.status,200);
+ assert.deepEqual(await revoked.json(),{ok:true,publicationId:a.id,sourcePackId:'p'});
+ assert.equal((await handleRequest(new Request('https://app/api/public/catalog/'+encodeURIComponent(a.id)),{DB:db},null))!.status,404);
+ assert.equal((await handleRequest(new Request('https://app/api/public/catalog/'+encodeURIComponent(b.id)),{DB:db},null))!.status,200,'Other owner publication remains');
+ const repeated=(await handleRequest(new Request('https://app'+source,{method:'DELETE',headers:{'oai-authenticated-user-id':'owner-a'}}),{DB:db},null))!;
+ assert.equal(repeated.status,400,'Do not report false success for repeated revoke');
+});
+
+test('embedded Noodl app supports source-scoped revocation of opaque links via its own tool',async()=>{
+ const db=database();await mutate(db,'user',op('save'));
+ const headers={'oai-authenticated-user-id':'user'};
+ const make=async(name:string,args:object)=> {
+  const res=(await handleRequest(new Request('https://app/mcp',{method:'POST',headers,
+   body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name,arguments:args}})}),{DB:db},null))!;
+  return res.json() as Promise<any>;
+ };
+ const published=await make('app_publish',{packId:'p',expectedRevision:1,operationId:'published',expectedOwner:'user'});
+ assert.match(published.result.structuredContent.id,/^pub-/);
+ const wrong=await make('app_unpublish_source',{packId:'p',expectedOwner:'someone-else'});
+ assert.equal(wrong.result.isError,true);
+ const revoked=await make('app_unpublish_source',{packId:'p',expectedOwner:'user'});
+ assert.equal(revoked.result.structuredContent.ok,true);
+ assert.equal(revoked.result.structuredContent.publicationId,published.result.structuredContent.id);
+ const missing=await make('app_unpublish_source',{packId:'p',expectedOwner:'user'});
+ assert.equal(missing.result.isError,true);
+});
