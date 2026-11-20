@@ -265,8 +265,9 @@ try{
  await save('16-results-repair-loop');
  // Open a real saved V4 concept-map/simulation fixture through the same import path as users.
  await page.locator('.results-screen .study-icon[aria-label="Kembali"]').click();
- await page.locator('#desk-pack-title').waitFor();
- await page.getByRole('button',{name:/Kembali ke Library/i}).click();
+ // Results exit returns to the previous global destination, not necessarily the bank detail.
+ await page.getByRole('button',{name:'Library',exact:true}).click();
+ await page.getByRole('heading',{name:/Bank soal/i}).waitFor();
  await page.locator('.classic-upload-label input[type="file"]').setInputFiles('examples/v4-studio.input.json');
  await page.locator('.desk-library-open').filter({hasText:'V4 Studio verification bank'}).first().click();
  await page.locator('#desk-pack-title').getByText('V4 Studio verification bank').waitFor();
