@@ -228,7 +228,15 @@ export default function App(){
     :<p>{lang==='id'?'Akses bank privat guest mengikuti cookie di browser ini. Unduh cadangan sebelum menghapus data situs.':'Private guest banks are tied to this browser’s cookie. Download a backup before clearing site data.'}</p>}
    <a className="n-button" href="/signin-with-chatgpt?returnTo=%2F" target="_top" onClick={e=>{e.preventDefault();void run(async()=>{await client.prepareAccountLogin();window.location.assign('/signin-with-chatgpt?returnTo=%2F');});}}>{w.sign}</a>
   </details>}
-  {(!state.online||state.syncing||state.pending>0)&&<div className="classic-island" role="status">{state.online?<Cloud size={16}/>:<CloudOff size={16}/>}<span>{!state.online?w.offlineState:state.syncing?(lang==='id'?'Menyinkronkan…':'Syncing…'):`${state.pending} ${w.pending}`}</span></div>}
+  <div className="classic-island v3-sync-status" role="status" aria-live="polite">
+   {state.localOnly||!state.online?<CloudOff size={16}/>:<Cloud size={16}/>}
+   <span>{state.localOnly?(lang==='id'?'Tersimpan di perangkat':'Device-only storage'):
+    !state.online?(lang==='id'?'Offline · perubahan menunggu koneksi':'Offline · waiting for connection'):
+    state.syncing?(lang==='id'?'Menyinkronkan…':'Syncing…'):
+    state.pending>0?`${state.pending} ${lang==='id'?'perubahan belum tersinkron':'changes pending sync'}`:
+    state.lastSync?(lang==='id'?'Tersinkron ke server':'Synced with server'):
+    (lang==='id'?'Online · belum ada sinkronisasi terkonfirmasi':'Online · no confirmed sync yet')}</span>
+  </div>
   {state.error&&<div role="alert" className="n-error">{state.error}</div>}
   {state.conflicts.map(c=><div className="n-conflict" key={c.id}><strong>{c.failure?.code==='CONFLICT'?w.conflict:lang==='id'?'Perubahan gagal disinkronkan.':'This change could not sync.'}</strong><span>{c.failure?.error||c.operation.entityId}</span><button onClick={()=>void run(()=>client.resolveConflict(c.id,'server'))}>{w.server}</button>{c.operation.kind.startsWith('pack.')&&<button onClick={()=>void run(()=>client.resolveConflict(c.id,'copy'))}>{w.copy}</button>}</div>)}
   {view==='settings'?<SettingsV3
