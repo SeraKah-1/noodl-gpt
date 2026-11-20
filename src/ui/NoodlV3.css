@@ -648,3 +648,18 @@ html[data-noodl-theme="default"] .v3-library-actions button{white-space:nowrap;}
  html[data-noodl-theme="default"] .v3-library-actions{width:100%;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
  html[data-noodl-theme="default"] .v3-library-actions button{white-space:normal;min-width:0;justify-content:center;}
 }
+
+/* A sync notice is status information, never a floating obstacle over content. */
+html[data-noodl-theme="default"] .classic-island.v3-sync-status{
+ position:static;top:auto;left:auto;right:auto;bottom:auto;transform:none;
+ z-index:auto;max-width:100%;width:fit-content;margin:0 0 16px auto;
+ border:1px solid var(--v3-border);border-radius:9px;
+ padding:8px 12px;background:var(--v3-surface);color:var(--v3-ink);
+ box-shadow:none;font-size:.78rem;
+}
+html[data-noodl-theme]:not([data-noodl-theme="default"]) .classic-island.v3-sync-status{
+ position:static;top:auto;left:auto;right:auto;bottom:auto;transform:none;
+ z-index:auto;max-width:100%;width:fit-content;margin:0 0 16px auto;
+ border:1px solid var(--v3-border);border-radius:9px;
+ padding:8px 12px;background:var(--v3-surface);color:var(--v3-ink);box-shadow:none;
+}
