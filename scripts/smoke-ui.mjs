@@ -147,6 +147,32 @@ try{
  await fits(320);await save('12-settings-320');
  await fits(768);await save('13-settings-tablet');
  await fits(1440);await save('14-settings-desktop');
+ // Complete the persisted practice with actual answers and inspect actionable Results.
+ await fits(390);
+ await page.getByRole('button',{name:'Hari ini',exact:true}).click();
+ await page.getByRole('button',{name:/Lanjutkan sesi/i}).click();
+ await page.locator('.quiz-screen').waitFor();
+ for(let i=0;i<12;i++){
+  if(await page.locator('.results-screen').count())break;
+  if(!await page.locator('.quiz-screen').count())throw Error('Practice disappeared before completion');
+  if(!await page.locator('.quiz-screen .study-feedback').count()){
+   const choices=page.locator('.quiz-screen .study-option');
+   if(await choices.count())await choices.last().click();
+   else{
+    const input=page.locator('.quiz-screen .study-fill input');
+    if(!await input.count())throw Error('Missing answer control during real attempt');
+    await input.fill('intentionally incorrect answer');
+    await page.locator('.quiz-screen .study-fill button[type="submit"]').click();
+   }
+   await page.locator('.quiz-screen .study-feedback').waitFor();
+  }
+  await page.locator('.quiz-screen .study-bottom .study-primary').click();
+  await page.waitForTimeout(100);
+ }
+ await page.locator('.results-screen').waitFor({timeout:10000});
+ assert.ok(await page.locator('.study-score').count()>=1,'Results must display score from the completed attempt');
+ assert.ok(await page.locator('.v3-mistake-loop').count()>=1,'Incorrect answers must offer evidence-based error repair');
+ await save('15-results-repair-loop');
  assert.deepEqual(errors,[],`Browser exceptions: ${errors.join('; ')}`);
  console.log('Noodl V3 browser smoke PASS: real Today, import, Bank Workspace, quiz, resume, review, Settings preview/Cancel, 320/390/768/1440 widths.');
 }catch(error){
