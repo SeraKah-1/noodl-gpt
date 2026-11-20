@@ -34,6 +34,21 @@ export function validateQuestion(input: unknown): Question {
     if (!['HIGH','MODERATE','FILLER'].includes(String(q.conceptPriority))) throw new DomainError('Invalid conceptPriority');
     result.conceptPriority = q.conceptPriority as Question['conceptPriority'];
   }
+  if (q.sourceRefs!==undefined) {
+    if(!Array.isArray(q.sourceRefs)||q.sourceRefs.length<1||q.sourceRefs.length>12)
+      throw new DomainError('Question sources must contain 1–12 references');
+    result.sourceRefs=q.sourceRefs.map((value,i)=>{
+      const source=record(value,'question source '+i);
+      const status=source.status;
+      if(status!=='provided'&&status!=='model_inspected'&&status!=='unavailable')
+        throw new DomainError('Invalid question source status');
+      const title=string(source.title,'source.title',300);
+      const anchor=source.anchor===undefined?undefined:string(source.anchor,'source.anchor',160);
+      const uri=source.uri===undefined?undefined:string(source.uri,'source.uri',2000);
+      if(uri&&!/^https:\/\//i.test(uri))throw new DomainError('Question source URI must use HTTPS');
+      return {title,status,...(anchor?{anchor}:{}),...(uri?{uri}:{})};
+    });
+  }
   if (result.type === 'MULTIPLE_CHOICE') {
     if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 12) throw new DomainError('Multiple choice requires 2–12 options');
     result.options = q.options.map((v) => { const o=record(v,'option'); return {id:id(o.id,'option.id'),text:string(o.text,'option.text')}; });
