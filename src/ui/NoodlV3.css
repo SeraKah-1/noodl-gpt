@@ -556,3 +556,45 @@ html[data-reduced-motion="true"][data-noodl-theme="default"] *::before,
 html[data-reduced-motion="true"][data-noodl-theme="default"] *::after{
  animation:none!important;transition:none!important;scroll-behavior:auto!important;
 }
+
+/* Shared-element navigation indicator: color never carries state alone;
+ * aria-current and clear labels remain visible to screen readers. */
+html[data-noodl-theme="default"] .desk-nav .v3-nav-tab{
+ position:relative;isolation:isolate;overflow:hidden;
+}
+html[data-noodl-theme="default"] .desk-nav .v3-nav-tab>svg,
+html[data-noodl-theme="default"] .desk-nav .v3-nav-tab>span:not(.v3-nav-indicator){
+ position:relative;z-index:1;
+}
+html[data-noodl-theme="default"] .desk-nav .v3-nav-indicator{
+ position:absolute;inset:0;background:var(--v3-accent);
+ border-radius:10px;z-index:0;pointer-events:none;
+}
+html[data-noodl-theme="default"] .desk-nav .v3-nav-tab[aria-current="page"]:has(.v3-nav-indicator){
+ background:transparent;
+}
+html[data-noodl-theme="default"] .v3-mistake-loop{
+ margin:26px 0 14px;border:1px solid var(--v3-border);
+ border-left:4px solid var(--v3-ink);border-radius:11px;
+ background:var(--v3-surface);padding:clamp(18px,3vw,25px);
+}
+html[data-noodl-theme="default"] .v3-mistake-heading>span{
+ color:var(--v3-muted);font-size:.73rem;font-weight:790;letter-spacing:.08em;
+}
+html[data-noodl-theme="default"] .v3-mistake-heading h3{
+ font-size:1.3rem;letter-spacing:-.02em;margin:9px 0;
+}
+html[data-noodl-theme="default"] .v3-mistake-heading p{
+ font-size:.875rem;color:var(--v3-muted);line-height:1.6;margin:0 0 14px;
+}
+html[data-noodl-theme="default"] .v3-mistake-rows{margin:10px 0 20px;}
+html[data-noodl-theme="default"] .v3-mistake-rows>div{
+ display:flex;align-items:baseline;justify-content:space-between;
+ gap:12px;border-top:1px solid var(--v3-divider);padding:11px 0;
+}
+html[data-noodl-theme="default"] .v3-mistake-rows strong{font-size:.9rem;overflow-wrap:anywhere;}
+html[data-noodl-theme="default"] .v3-mistake-rows span{font-size:.84rem;color:var(--v3-muted);white-space:nowrap;}
+@media(max-width:420px){
+ html[data-noodl-theme="default"] .v3-mistake-rows>div{display:block;}
+ html[data-noodl-theme="default"] .v3-mistake-rows span{display:block;margin-top:4px;}
+}
