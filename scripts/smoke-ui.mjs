@@ -77,7 +77,7 @@ try{
  await page.locator('.desk-library-open').first().click();
  await page.locator('#desk-pack-title').getByText('Example question bank').waitFor();
  // Publish consent is an actual modal gate; dismissing it must not publish anything.
- await page.locator('.desk-actions-menu summary').click();
+ await page.locator('.desk-actions-menu > summary').click();
  await page.locator('.desk-actions-menu').getByRole('button',{name:/Publikasikan salinan/}).click();
  const publishModal=page.locator('dialog.v4-publish-dialog');
  await publishModal.waitFor({state:'visible'});
@@ -90,7 +90,6 @@ try{
  await save('03b-publish-consent');
  await publishModal.getByRole('button',{name:'Batal'}).click();
  await publishModal.waitFor({state:'hidden'});
- await page.locator('.desk-actions-menu summary').click();
  await page.locator('.desk-actions-menu').getByRole('button',{name:/Publikasikan salinan/}).click();
  await publishModal.waitFor({state:'visible'});
  assert.ok(await publishConfirm.isDisabled(),'Consent must not remain checked after cancellation');
