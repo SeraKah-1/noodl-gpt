@@ -108,6 +108,39 @@ try{
  await save('04c-material-reader');
  await page.getByRole('button',{name:/Kembali ke ringkasan/i}).click();
  await fits(390);
+ // V4 Flashcards: the same local SRS path works with keyboard, pointer and a saved receipt.
+ await page.locator('.v3-workspace-mobile-tabs button').nth(2).click();
+ await page.locator('.v3-studio-actions button').first().click();
+ await page.locator('.flash-deck-card').waitFor();
+ assert.ok(await page.getByRole('button',{name:/Tampilkan jawaban/i}).isVisible(),'Flashcard has accessible flip control');
+ await save('04d-flashcards-front');
+ await page.getByRole('button',{name:/Tampilkan jawaban/i}).click();
+ assert.ok(await page.getByRole('button',{name:/Bagus/i}).isVisible(),'Four explicit SRS ratings must appear only after reveal');
+ await page.keyboard.press('3');
+ await page.waitForFunction(()=>document.querySelector('.flash-count')?.textContent?.trim().startsWith('2 /'));
+ assert.ok((await page.locator('.flash-deck-status').innerText()).includes('perangkat'),'Local save must not pretend cloud sync');
+ // A long vertical motion must not be interpreted as a horizontal rating.
+ await page.getByRole('button',{name:/Tampilkan jawaban/i}).click();
+ const deck=page.locator('.flash-deck-motion');
+ let rect=await deck.boundingBox();
+ assert.ok(rect);
+ await page.mouse.move(rect.x+rect.width*.52,rect.y+rect.height*.37);
+ await page.mouse.down();
+ await page.mouse.move(rect.x+rect.width*.52,rect.y+rect.height*.66,{steps:8});
+ await page.mouse.up();
+ assert.ok((await page.locator('.flash-count').innerText()).trim().startsWith('2 /'),'Vertical gesture must not grade');
+ // Deliberate swipe left rates the next card Forgot and advances exactly once.
+ rect=await deck.boundingBox();
+ assert.ok(rect);
+ await page.mouse.move(rect.x+rect.width*.65,rect.y+rect.height*.42);
+ await page.mouse.down();
+ await page.mouse.move(rect.x+rect.width*.65-150,rect.y+rect.height*.42,{steps:10});
+ await page.mouse.up();
+ await page.waitForFunction(()=>document.querySelector('.flash-count')?.textContent?.trim().startsWith('3 /'));
+ assert.ok(await page.locator('.flash-deck-status').count()>=1,'Swipe must return real persistence feedback');
+ await save('04e-flashcards-reviewed');
+ await page.getByRole('button',{name:/Simpan dan keluar/i}).click();
+ await page.locator('#desk-pack-title').waitFor();
 
  await page.getByRole('button',{name:/Mulai latihan/i}).click();
  await page.getByRole('button',{name:/Mulai kuis/i}).click();
