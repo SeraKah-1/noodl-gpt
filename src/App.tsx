@@ -152,7 +152,14 @@ export default function App(){
    setActive(await client.saveAttempt(singleQuestion(pack,question)));setLaunch(null);
   });
  }
- function ask(){const pack=packs[0];void run(()=>pack?requestTutor(pack,undefined,w.request):requestTutor({id:'',title:'Noodl',questions:[],description:'',ownerId:state.user?.id??'',folder:'',tags:[],artifacts:[],revision:0,createdAt:'',updatedAt:''},undefined,w.request));}
+ function ask(){void run(async()=>{
+  const prompt=lang==='id'?
+   'Bantu buat bank soal baru di Noodl. Tanyakan materi sumber dan tujuan belajar, lalu buat soal dengan kunci, pembahasan, label konsep dan simpan melalui MCP create_pack. Jangan menyatakan berhasil sampai penyimpanan MCP terkonfirmasi.':
+   'Help create a new Noodl question bank. Ask for source material and learning goals; then create questions with keys, explanations and concept labels using MCP create_pack. Confirm success only after the write is completed.';
+  await sendChatRequest(state.guest?prompt+' Bila akun Guest tidak bisa ditulis melalui MCP, kembalikan JSON Noodl yang bisa diimpor manual.':prompt);
+  setNotice(isEmbedded()?(lang==='id'?'Permintaan dikirim ke ChatGPT; bank belum otomatis tersimpan.':'Request sent; bank is not yet saved.'):
+   (lang==='id'?'Permintaan disalin. Tempel di ChatGPT untuk melanjutkan.':'Request copied. Paste it into ChatGPT to continue.'));
+ });}
  async function saveAttempt(next:Attempt){
   const saved=await client.saveAttempt(next);
   setActive(saved);
