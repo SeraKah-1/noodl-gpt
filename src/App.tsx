@@ -6,7 +6,7 @@ import {SettingsV3} from './ui/SettingsV3';
 import {useEffect,useMemo,useRef,useState,useSyncExternalStore} from 'react';
 import {ArrowRight,BookOpen,BrainCircuit,Check,Cloud,CloudOff,Download,Folder,Layers,LogOut,Plus,Search,Shuffle,Sparkles,Trash2,RefreshCw,Play,ChevronRight,Globe,MoreHorizontal,X} from 'lucide-react';
 import {client} from './client/index';
-import {isEmbedded,requestTutor,sendChatRequest} from './client/bridge';
+import {isEmbedded,sendChatRequest} from './client/bridge';
 import {createAttempt,itemsToRetry,missedReviewEvents,progressFor} from './shared/engine';
 import type {Attempt,Pack,Question,Publication,StudyOptions} from './shared/types';
 import {MAX_REQUEST_BYTES,type PackInput} from './shared/validation';
@@ -17,8 +17,8 @@ import {GastricDebugger} from './ui/GastricDebugger';
 import {BatchQuiz} from './ui/BatchQuiz';
 import {StudyPlayer,Flashcards,Results} from './ui/Study';
 import {LearningTools,ReviewDashboard,ExportMenu} from './ui/Tools';
-import {applyWorkspacePreferences,getThemeList,type ThemeName} from './ui/theme';
-import {defaultPreferences,type Preferences} from './shared/preferences';
+import {applyWorkspacePreferences,type ThemeName} from './ui/theme';
+import {defaultPreferences} from './shared/preferences';
 import './ui/App.css';
 
 import {Navigation,type WorkspaceView as View,type ToolTab} from './ui/classic/Navigation';
@@ -312,18 +312,3 @@ export default function App(){
 function PageTitle({title,text,action}:{title:string;text?:string;action?:React.ReactNode}){return <div className="n-section-title"><div><h2>{title}</h2>{text&&<p>{text}</p>}</div>{action}</div>;}
 function Empty({title,text,action}:{title:string;text:string;action?:React.ReactNode}){return <div className="n-panel n-empty"><span className="empty-doodle">( ◕ ‿ ◕ )</span><h2>{title}</h2><p>{text}</p>{action}</div>;}
 
-function DesignControls({preferences,onSave,pending,conflict,onUseServer}:{preferences:import('./shared/preferences').WorkspacePreferences;onSave:(p:Partial<Preferences>)=>Promise<void>;pending:boolean;conflict:boolean;onUseServer:()=>Promise<void>}){
- const [draft,setDraft]=useState(preferences.design),[saving,setSaving]=useState(false),[error,setError]=useState(''),[saved,setSaved]=useState(false);
- useEffect(()=>setDraft(preferences.design),[preferences.revision,preferences.updatedAt]);
- async function save(){setSaving(true);setError('');setSaved(false);try{await onSave({design:draft});setSaved(true);}catch(e){setError(e instanceof Error?e.message:String(e));}finally{setSaving(false);}}
- return <section className="n-design-controls"><h3>{preferences.language==='en'?'Design system':'Sistem desain'}</h3><p className="n-muted">{preferences.language==='en'?'These settings also follow design changes requested in ChatGPT.':'Pengaturan ini mengikuti perubahan desain yang lo minta di ChatGPT.'}</p><div className="n-design-fields">
- {(['accent','background','surface','text','muted','border'] as const).map(key=><label key={key}>{key}<input type="text" placeholder="#123456" pattern="#[0-9a-fA-F]{6}" value={draft[key]??''} onChange={e=>{const value=e.target.value;setDraft({...draft,[key]:value||null});}}/></label>)}
- <label>Radius <input type="range" min="0" max="32" value={draft.radius} onChange={e=>setDraft({...draft,radius:Number(e.target.value)})}/><output>{draft.radius}px</output></label>
- <label>Density<select value={draft.density} onChange={e=>setDraft({...draft,density:e.target.value as typeof draft.density})}>{['compact','comfortable','spacious'].map(v=><option key={v}>{v}</option>)}</select></label>
- <label>Font scale<input type="range" min="0.85" max="1.35" step="0.05" value={draft.fontScale} onChange={e=>setDraft({...draft,fontScale:Number(e.target.value)})}/><output>{draft.fontScale.toFixed(2)}×</output></label>
- <label>Content width<input type="number" min="640" max="1800" step="20" value={draft.contentWidth} onChange={e=>setDraft({...draft,contentWidth:Number(e.target.value)})}/></label>
- <label>Cards<select value={draft.cardLayout} onChange={e=>setDraft({...draft,cardLayout:e.target.value as 'grid'|'list'})}><option value="grid">Grid</option><option value="list">List</option></select></label>
- <label className="n-check"><input type="checkbox" checked={draft.reduceMotion} onChange={e=>setDraft({...draft,reduceMotion:e.target.checked})}/> Reduce motion</label></div>
- <div className="n-row"><button className="n-button primary" disabled={saving} onClick={()=>void save()}>{saving?'…':preferences.language==='en'?'Save design':'Simpan desain'}</button><button className="n-button" onClick={()=>setDraft({...defaultPreferences().design,accent:null,background:null,surface:null,text:null,muted:null,border:null})}>{preferences.language==='en'?'Reset fields':'Reset isian'}</button>{pending&&<span role="status">{preferences.language==='en'?'Changes waiting to sync':'Perubahan menunggu sinkronisasi'}</span>}</div>
- {saved&&!pending&&!conflict&&<p role="status">{preferences.language==='en'?'Design saved.':'Desain tersimpan.'}</p>}{error&&<p role="alert" className="n-error">{error}</p>}{conflict&&<div className="n-conflict" role="alert"><span>Pengaturan di server sudah berubah. Perubahan lokal tetap disimpan.</span><button onClick={()=>void onUseServer().catch(e=>setError(String(e)))}>Muat pengaturan server</button></div>}</section>;
-}
