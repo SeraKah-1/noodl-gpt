@@ -3,7 +3,7 @@
    This layer adds list rhythm, one dark navigation anchor and readable Review. */
 .noodl-app .desk-library-index {
   min-width:46px;align-self:center;text-align:left;
-  font-family:Georgia,"Times New Roman",serif;
+  font-family:var(--noodl-typeface,system-ui,sans-serif);
   font-size:clamp(1.4rem,3vw,2.1rem);
   font-variant-numeric:tabular-nums;
   letter-spacing:-.06em;
@@ -97,14 +97,14 @@ html[data-noodl-theme="default"] .desk-resource-list>button {
 }
 html[data-noodl-theme="default"] .desk-resource-list>button:first-child {border-top:1px solid var(--desk-border);}
 html[data-noodl-theme="default"] .desk-resource-list>button strong {
- font-family:Georgia,"Times New Roman",serif;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);
  font-size:1.13rem;letter-spacing:-.025em;
 }
 /* Review was the hold-out "dashboard of cards". It now scans like an
    index of available recall work, but actual review interactions stay intact. */
 html[data-noodl-theme="default"] .desk-review>.tools-between {padding-bottom:24px;border-bottom:1px solid var(--desk-border);}
 html[data-noodl-theme="default"] .desk-review>.tools-between h2 {
- font-family:Georgia,"Times New Roman",serif;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);
  font-size:clamp(1.75rem,4vw,2.8rem);
  font-weight:700;letter-spacing:-.05em;
 }
@@ -120,7 +120,7 @@ html[data-noodl-theme="default"] .desk-review .review-stats article {
 html[data-noodl-theme="default"] .desk-review .review-stats article:first-child {padding-left:0;}
 html[data-noodl-theme="default"] .desk-review .review-stats article:last-child {border-right:0;}
 html[data-noodl-theme="default"] .desk-review .review-stats strong {
- font-family:Georgia,"Times New Roman",serif;font-size:clamp(1.75rem,4vw,2.7rem);
+ font-family:var(--noodl-typeface,system-ui,sans-serif);font-size:clamp(1.75rem,4vw,2.7rem);
  font-weight:700;color:#172630;
 }
 html[data-noodl-theme="default"] .desk-review .review-stats span {color:#57666A;font-size:.79rem;}
@@ -129,7 +129,7 @@ html[data-noodl-theme="default"] .desk-review .tools-panel:not(.review-card) {
  border-radius:0;box-shadow:none;margin-top:12px;padding:22px 0 0;
 }
 html[data-noodl-theme="default"] .desk-review .tools-panel:not(.review-card) h3 {
- font-family:Georgia,"Times New Roman",serif;font-size:1.5rem;font-weight:700;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);font-size:1.5rem;font-weight:700;
 }
 html[data-noodl-theme="default"] .desk-review .due-row {
  border:0;border-bottom:1px solid var(--desk-border);
@@ -155,7 +155,7 @@ html[data-noodl-theme="default"] .desk-review .review-card {
  border-radius:16px;border-top:4px solid #D9F45F;
 }
 html[data-noodl-theme="default"] .desk-review .review-card h3 {
- font-family:Georgia,"Times New Roman",serif;
+ font-family:var(--noodl-typeface,system-ui,sans-serif);
  font-size:clamp(1.3rem,3vw,2rem);
  font-weight:700;
 }
