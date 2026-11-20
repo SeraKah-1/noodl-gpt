@@ -23,8 +23,8 @@ test('Debugger rejects forged cross-node edges, ambiguous grades, unsafe sources
  assert.throws(()=>parseDebugger(JSON.stringify({...water,edges:[{...water.edges[0],from:'unknown'}]})),/existing/);
  assert.throws(()=>parseDebugger(JSON.stringify({...water,edges:[{...water.edges[0],sourceRefs:[]}]})),/source/);
  assert.throws(()=>parseDebugger(JSON.stringify({...water,edges:water.edges.map(e=>({...e,correctLabel:e.displayLabel}))})),/deliberately incorrect/);
- assert.throws(()=>gradeDebugger(water,{e1:'flows into'}),/exactly/);
- assert.throws(()=>gradeDebugger(water,{e1:'injected label',e2:'flows into'}),/listed/);
+ assert.throws(()=>gradeDebugger(parseDebugger(JSON.stringify(water)),{e1:'flows into'}),/exactly/);
+ assert.throws(()=>gradeDebugger(parseDebugger(JSON.stringify(water)),{e1:'injected label',e2:'flows into'}),/listed/);
  assert.throws(()=>parseDebugger(JSON.stringify({...circuit,edges:[{...circuit.edges[0],sourceRefs:[{title:'Bad',status:'provided',uri:'javascript:alert(1)'}]}]})),/HTTPS/);
 });
 
