@@ -641,3 +641,10 @@ html[data-noodl-theme="default"] .desk-next .v3-manual-link{
  text-underline-offset:4px;
 }
 html[data-noodl-theme="default"] .desk-next .v3-manual-link:hover{color:#FFFFFF;}
+
+html[data-noodl-theme="default"] .v3-library-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+html[data-noodl-theme="default"] .v3-library-actions button{white-space:nowrap;}
+@media(max-width:520px){
+ html[data-noodl-theme="default"] .v3-library-actions{width:100%;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+ html[data-noodl-theme="default"] .v3-library-actions button{white-space:normal;min-width:0;justify-content:center;}
+}
