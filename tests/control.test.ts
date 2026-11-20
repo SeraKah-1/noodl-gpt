@@ -303,3 +303,62 @@ test('Brain Dump gap reader takes latest evidence only, preserves slide provenan
  assert.equal((await ok(db,'get_workspace')).counts.packs,0,'Gap lookup must not create fake questions');
  assert.equal((await call(db,'get_brain_dump_gaps',{sessionId:first.sessionId,limit:51})).isError,true);
 });
+
+test('Brain Dump repair creates a real unseen Batch session and binds it to reviewed owner evidence',async()=>{
+ const db=database();
+ const q1={id:'q1',type:'MULTIPLE_CHOICE',text:'What releases histamine?',conceptName:'ECL histamine',
+  difficulty:'Easy',options:[{id:'a',text:'ECL cell'},{id:'b',text:'Goblet cell'}],correctOptionId:'a',explanation:'ECL release histamine'};
+ const q2={...q1,id:'q2',text:'Which stomach cell responds to gastrin by releasing histamine?'};
+ const bank=await ok(db,'create_pack',{operationId:'recall-bank',pack:{title:'Gastric',questions:[q1,q2]}});
+ const shown=await ok(db,'start_attempt',{packId:bank.id,operationId:'shown-original',
+  options:{mode:'BATCH',batchSize:1,shuffle:false,mixed:false,retention:false}});
+ assert.equal(shown.questions[0].text,q1.text);
+ const recall=await ok(db,'start_brain_dump',{operationId:'recall-start',title:'Gastric mechanism',
+  units:[{objective:'Recall ECL function',prompt:'Explain gastric histamine release',slides:[7],
+   points:[{slide:7,concept:'ECL histamine'}]}]});
+ const responded=await ok(db,'record_recall',{operationId:'recall-response',sessionId:recall.sessionId,
+  expectedRevision:recall.revision,answer:'The first private response missed ECL'});
+ await ok(db,'review_recall',{operationId:'recall-review',sessionId:recall.sessionId,
+  expectedRevision:responded.revision,feedback:[{point:1,verdict:'missing',explanation:'ECL explanation missing'}]});
+ const totalBefore=(await ok(db,'list_attempts')).total;
+ const preview=await ok(db,'prepare_recall_repair',{sessionId:recall.sessionId});
+ assert.equal(preview.available,true);
+ assert.equal(preview.selectedCount,1);
+ assert.equal(preview.diagnosedConcepts[0].unseenQuestions,1);
+ assert.equal(preview.diagnosedConcepts[0].slideAnchors[0],7);
+ assert.equal((await ok(db,'list_attempts')).total,totalBefore,'Preview must be read-only');
+ const started=await ok(db,'start_recall_repair',{sessionId:recall.sessionId,operationId:'save-recall-repair'});
+ assert.equal(started.status,'active');
+ assert.equal(started.questions.length,1);
+ assert.equal(started.questions[0].text,q2.text);
+ assert.equal(started.questions[0].correctOptionId,undefined,'Live Batch must hide answer key');
+ assert.equal(started.stored,true);
+ assert.equal((await ok(db,'list_attempts')).total,totalBefore+1);
+ const repeated=await ok(db,'start_recall_repair',{sessionId:recall.sessionId,operationId:'save-recall-repair'});
+ assert.equal(repeated.attemptId,started.attemptId);
+ const anotherOp=await ok(db,'start_recall_repair',{sessionId:recall.sessionId,operationId:'another-repair-op'});
+ assert.equal(anotherOp.attemptId,started.attemptId,'Same reviewed evidence must not spawn duplicate sessions');
+ assert.equal((await ok(db,'list_attempts')).total,totalBefore+1);
+ const noMore=await ok(db,'prepare_recall_repair',{sessionId:recall.sessionId});
+ assert.equal(noMore.available,false,'Both question stems are now previously presented');
+ assert.equal((await call(db,'prepare_recall_repair',{sessionId:recall.sessionId},'different-owner')).isError,true);
+ const wrongSession=await call(db,'start_recall_repair',{sessionId:'nonexistent',operationId:'save-recall-repair'});
+ assert.equal(wrongSession.isError,true,'Reusing an operation for another source must be rejected');
+});
+
+test('Brain Dump repair refuses made-up source metadata and unrelated concepts',async()=>{
+ const db=database();
+ const pack=await ok(db,'create_pack',{operationId:'bank2',pack:{title:'Other concept',questions:[{
+  ...question,id:'unrelated',conceptName:'Algebra',text:'What is sodium?' }] }});
+ const recall=await ok(db,'start_brain_dump',{operationId:'second-recall',title:'Gastric',
+  units:[{prompt:'Recall histamine',slides:[4],points:[{slide:4,concept:'ECL histamine'}]}]});
+ const response=await ok(db,'record_recall',{operationId:'second-answer',sessionId:recall.sessionId,
+  expectedRevision:recall.revision,answer:'An unrelated explanation'});
+ await ok(db,'review_recall',{operationId:'second-grade',sessionId:recall.sessionId,
+  expectedRevision:response.revision,feedback:[{point:1,verdict:'incorrect',explanation:'Different physiological process'}]});
+ const preview=await ok(db,'prepare_recall_repair',{sessionId:recall.sessionId,packId:pack.id});
+ assert.equal(preview.available,false);
+ const unavailable=await ok(db,'start_recall_repair',{sessionId:recall.sessionId,packId:pack.id,operationId:'nothing-to-save'});
+ assert.equal(unavailable.status,'needs_questions');
+ assert.equal((await ok(db,'list_attempts')).total,0);
+});
