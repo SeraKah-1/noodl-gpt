@@ -32,7 +32,7 @@ try{
  assert.ok((await page.locator('.study-counter').innerText()).includes('0 / 1'));
  let field=page.locator('.batch-quiz .question-card').first();
  let input=field.locator('input[type="radio"]');
- if(await input.count())await input.first().check();else await field.locator('input').first().fill('answer');
+ if(await input.count())await field.locator('label.batch-choice').first().click();else await field.locator('input').first().fill('answer');
  await page.locator('.batch-submit .study-primary').click();
  await page.locator('.results-screen').waitFor();
  await screenshot('quick-one-results');
@@ -46,7 +46,7 @@ try{
  const cards=page.locator('.batch-quiz .question-card');
  for(let i=0;i<3;i++){
   const q=cards.nth(i),radio=q.locator('input[type="radio"]');
-  if(await radio.count())await radio.first().check();else await q.locator('input').first().fill('answer');
+  if(await radio.count())await q.locator('label.batch-choice').first().click();else await q.locator('input').first().fill('answer');
  }
  await page.locator('.batch-submit .study-primary').click();
  await page.locator('.results-screen').waitFor();
