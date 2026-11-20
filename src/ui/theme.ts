@@ -8,7 +8,7 @@ import type {WorkspacePreferences} from '../shared/preferences';
  * Disusun berdasarkan prinsip kenyamanan mata, psikologi warna, dan tren estetik.
  */
 
-export type ThemeName = 'default' | 'matcha' | 'lilac' | 'blush' | 'sky' | 'vanilla' | 'sunset' | 'midnight' | 'oled' | 'paper';
+export type ThemeName = 'default' | 'indigo' | 'matcha' | 'lilac' | 'blush' | 'sky' | 'vanilla' | 'sunset' | 'midnight' | 'oled' | 'paper';
 
 interface ThemePalette {
   name: string;
@@ -28,6 +28,21 @@ interface ThemePalette {
 
 const THEMES: Record<ThemeName, ThemePalette> = {
   default: {
+    name: "Noodl Editorial",
+    desc: "Ink · Ivory · Lime",
+    vars: {
+      '--app-bg': '#F6F2E8',
+      '--glass-bg': 'rgba(255, 253, 247, 0.9)',
+      '--glass-border': 'rgba(23, 38, 48, 0.13)',
+      '--text-main': '#172630',
+      '--text-muted': '#4C5B61',
+      '--primary': '#D9F45F',
+      '--mesh-c1': 'transparent',
+      '--mesh-c2': 'transparent',
+      '--mesh-c3': 'transparent'
+    }
+  },
+  indigo: {
     name: "Focus Indigo",
     desc: "Seimbang & Tenang",
     vars: {
@@ -212,6 +227,7 @@ export const applyTheme = (themeName: ThemeName) => {
     root.style.setProperty(key, value);
   });
 
+  root.dataset.noodlTheme=themeName in THEMES?themeName:'default';
   applyDeskContrast(theme.vars['--primary'],theme.vars['--app-bg'],theme.vars['--text-main']);
   localStorage.setItem(THEME_KEY, themeName);
 };
@@ -246,4 +262,5 @@ export function applyWorkspacePreferences(preferences?:WorkspacePreferences){
  const d=preferences?.design;if(!d)return;
  for(const [key,value] of Object.entries({'--primary':d.accent,'--app-bg':d.background,'--glass-bg':d.surface,'--text-main':d.text,'--text-muted':d.muted,'--glass-border':d.border}))if(value)root.style.setProperty(key,value);
  root.style.setProperty('--n-radius',`${d.radius}px`);root.style.setProperty('--n-font-scale',String(d.fontScale));root.style.setProperty('--n-content-width',`${d.contentWidth}px`);root.style.setProperty('--n-space',d.density==='compact'?'14px':d.density==='spacious'?'30px':'22px');
+ applyDeskContrast(d.accent??THEMES[preferences?.theme??'default'].vars['--primary'],d.background??THEMES[preferences?.theme??'default'].vars['--app-bg'],d.text??THEMES[preferences?.theme??'default'].vars['--text-main']);
 }
