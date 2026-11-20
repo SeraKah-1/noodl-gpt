@@ -1,4 +1,4 @@
-import {useEffect,useMemo,useState} from 'react';
+import {useEffect,useMemo,useRef,useState} from 'react';
 import {AnimatePresence,motion,useReducedMotion} from 'framer-motion';
 import {ArrowRight,BookOpen,ChevronLeft,CheckCircle2,Clock3,FileText,Layers,MessageSquare,MoreHorizontal,Network,Orbit,PenLine,Play,Share2,Trash2,BookMarked} from 'lucide-react';
 import type {Attempt,Pack,Question} from '../shared/types';
@@ -6,6 +6,7 @@ import {progressFor} from '../shared/engine';
 import {StudyText} from './StudyText';
 import {BankHistory} from './BankHistory';
 import {ExportMenu} from './Tools';
+import {PublishPreview} from './PublishPreview';
 import type {Locale,ToolTab} from './classic/Navigation';
 
 interface Props{
@@ -20,6 +21,8 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
  const [tab,setTab]=useState<WorkspaceTab>('learn');
  const [selectedId,setSelectedId]=useState<string|null>(null),[selectedTopic,setSelectedTopic]=useState<string|null>(null);
  const [asking,setAsking]=useState(false),[feedback,setFeedback]=useState('');
+ const [showPublish,setShowPublish]=useState(false);
+ const publishTrigger=useRef<HTMLButtonElement>(null);
  const materials=pack.artifacts.filter(a=>a.kind==='material'||a.kind==='insight');
  const visuals=pack.artifacts.filter(a=>a.kind==='visualization'||a.kind==='simulation');
  const comics=pack.artifacts.filter(a=>a.kind==='comic');
@@ -29,7 +32,7 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
  const history=attempts.filter(a=>a.items.some(i=>i.sourcePackId===pack.id));
  const active=history.filter(a=>a.status==='active').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0];
  const latest=history.filter(a=>a.status==='completed').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0];
- useEffect(()=>{setTab('learn');setSelectedId(null);setSelectedTopic(null);setFeedback('');},[pack.id]);
+ useEffect(()=>{setTab('learn');setSelectedId(null);setSelectedTopic(null);setFeedback('');setShowPublish(false);},[pack.id]);
  async function request(prompt:string){
   if(!onAskChatGPT||asking)return;
   setAsking(true);setFeedback('');
@@ -50,12 +53,15 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
      <button onClick={onEdit}><PenLine size={16}/>{en?'Edit questions':'Edit soal'}</button>
      <button onClick={onRename}>{en?'Rename and move':'Ubah nama dan folder'}</button>
      <ExportMenu pack={pack}/>
-     <button disabled={busy} onClick={onPublish}><Share2 size={16}/>{en?'Publish a copy':'Publikasikan salinan'}</button>
+     <button ref={publishTrigger} disabled={busy} onClick={()=>setShowPublish(true)}><Share2 size={16}/>{en?'Publish a copy':'Publikasikan salinan'}</button>
      <button disabled={busy} onClick={onUnpublish}>{en?'Unpublish':'Cabut publikasi'}</button>
      <button className="danger" onClick={onDelete}><Trash2 size={16}/>{en?'Delete bank':'Hapus bank'}</button>
     </div></details>
    </div>
   </header>
+  <PublishPreview pack={pack} locale={locale} open={showPublish} busy={busy}
+   onCancel={()=>{setShowPublish(false);publishTrigger.current?.focus();}}
+   onConfirm={()=>{setShowPublish(false);onPublish();}}/>
   <nav className="v3-workspace-mobile-tabs" aria-label={en?'Workspace sections':'Bagian workspace'}>
    {([['material',BookOpen,en?'Materials':'Materi'],['learn',Play,en?'Learn':'Belajar'],['studio',Layers,'Studio']] as const).map(([key,Icon,label])=><button key={key} aria-current={tab===key?'page':undefined} onClick={()=>setTab(key)}><Icon size={16}/>{label}</button>)}
   </nav>
