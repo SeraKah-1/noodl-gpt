@@ -31,6 +31,7 @@ jobs:
           exit 1
       - run: PLAYWRIGHT_BROWSER_CHANNEL=chrome node scripts/smoke-ui.mjs
       - run: PLAYWRIGHT_BROWSER_CHANNEL=chrome node scripts/smoke-comic.mjs
+      - run: PLAYWRIGHT_BROWSER_CHANNEL=chrome node scripts/smoke-quick.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
