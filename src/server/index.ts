@@ -1,12 +1,13 @@
 import {validDiagnostic} from '../shared/practice';
 import {brainTools,callBrainTool} from './brainDump';
+import {recallRepairTools,callRecallRepairTool} from './recallRepair';
 import {guestIdentity,startGuestSession} from './guest';
 import {bankBackup,storageConfigured,type SupabaseEnv} from './supabase';
 import {controlTools,callControlTool} from './control';
 import {preferenceTools,callPreferenceTool,getPreferences,updatePreferences} from './preferences';
 import {exportTools,callExportTool,handleExportRequest} from './exports';
 import type { Attempt, MutationResult, Operation, Pack, Publication, Snapshot, User } from '../shared/types';
-import { evaluate, missedReviewEvents, sessionProgress, correctAnswerText } from '../shared/engine';
+import { evaluate, missedReviewEvents, sessionProgress, correctAnswerText, normalizeAnswer } from '../shared/engine';
 import { requestTooLarge, validateAttempt, validatePackInput, validateQuestion, validateReviewEvent, validateArtifact } from '../shared/validation';
 export interface Statement { bind(...values:unknown[]):Statement; first<T=Record<string,unknown>>():Promise<T|null>; all<T=Record<string,unknown>>():Promise<{results:T[]}>; run():Promise<unknown> }
 export interface Database {prepare(sql:string):Statement;batch(statements:Statement[]):Promise<unknown[]>}
@@ -65,12 +66,45 @@ export async function mutate(db:Database,owner:string,op:Operation):Promise<Muta
   if(current){
    if(current.deletedAt)return {operationId:id,ok:false,code:'CONFLICT',error:'Attempt was deleted',current};
    if(current.status==='completed')return {operationId:id,ok:false,code:'CONFLICT',error:'Completed attempt is immutable',current};
-   for(const key of ['items','options','packId','packRevision','createdAt','diagnostic'])if(JSON.stringify(record[key])!==JSON.stringify(current[key]))throw new Error('Attempt snapshot is immutable');
+   for(const key of ['items','options','packId','packRevision','createdAt','diagnostic','recallRepair'])if(JSON.stringify(record[key])!==JSON.stringify(current[key]))throw new Error('Attempt snapshot is immutable');
    for(const previous of current.answers){const next=record.answers.find((a:any)=>a.occurrenceId===previous.occurrenceId);if(!next||next.value!==previous.value||next.answeredAt!==previous.answeredAt)throw new Error('Existing answers are immutable');}
   }else{
    if(record.diagnostic){
      const source=await readRecord<Attempt & {deletedAt?:string}>(db,owner,'attempt',record.diagnostic.attemptId);
      if(!source || source.deletedAt || !validDiagnostic(source,record.diagnostic.occurrenceId,record))throw new Error('Invalid diagnostic source');
+   }
+   if(record.recallRepair){
+    const link=record.recallRepair;
+    const recall=await readRecord<any>(db,owner,'recall',link.sessionId);
+    if(!recall||recall.revision!==link.feedbackRevision)throw new Error('Invalid or stale Brain Dump evidence origin');
+    if(record.options.mode!=='BATCH'||record.items.length>20)throw new Error('Brain Dump repair requires a short Batch session');
+    const latest=new Map<number,any>();
+    for(const round of recall.history??[])if(round.feedback)latest.set(round.unitNumber,round);
+    const supported=new Set<string>();
+    for(const [unitNumber,round] of latest){
+     const unit=recall.units?.[unitNumber-1];
+     if(!unit)continue;
+     for(const feedback of round.feedback){
+      if(feedback.verdict==='recalled'&&round.hintPoint!==feedback.point)continue;
+      const point=unit.points?.[feedback.point-1];
+      if(point?.concept)supported.add(normalizeAnswer(point.concept));
+     }
+    }
+    if(!supported.size||record.items.some((item:Attempt['items'][number])=>!supported.has(normalizeAnswer(item.question.conceptName??''))))
+     throw new Error('Repair questions must match actually observed Brain Dump gaps');
+    const prior=await db.prepare("SELECT data FROM records WHERE owner_id=? AND kind='attempt'").bind(owner).all<{data:string}>();
+    const shownIds=new Set<string>(),shownStems=new Set<string>();
+    for(const row of prior.results)for(const item of (JSON.parse(row.data) as Attempt).items??[]){
+     shownIds.add(item.sourcePackId+':'+item.sourceQuestionId);
+     shownStems.add(normalizeAnswer(item.question.text));
+    }
+    const stems=new Set<string>();
+    for(const item of record.items){
+     const stem=normalizeAnswer(item.question.text);
+     if(shownIds.has(item.sourcePackId+':'+item.sourceQuestionId)||shownStems.has(stem)||stems.has(stem))
+      throw new Error('Brain Dump repair must use genuinely unseen, distinct questions');
+     stems.add(stem);
+    }
    }
    const itemsByPack = new Map<string, Attempt['items']>();
    for (const item of (record as Attempt).items) {
@@ -172,7 +206,7 @@ const destructivePackTools=new Set(['update_pack','save_artifacts','delete_pack'
  'app_mutate','app_publish','app_unpublish']);
 function tool(name:string,description:string,properties:Record<string,unknown>={},required:string[]=[],app=false,readOnly=false,ui=false){return {name,description,inputSchema:{type:'object',properties,required,additionalProperties:false},annotations:{readOnlyHint:readOnly,destructiveHint:destructivePackTools.has(name),openWorldHint:publicCatalogTools.has(name),idempotentHint:true},_meta:{ui:{visibility:app?['app']:['model','app'],...(ui?{resourceUri:'ui://noodl/workspace'}:{})}}};}
 export const toolsList=[
- ...brainTools,...controlTools,...preferenceTools,...exportTools,
+ ...brainTools,...recallRepairTools,...controlTools,...preferenceTools,...exportTools,
  tool('create_pack','Save finished study questions from the ChatGPT conversation. No AI calls or source uploads. Use unique question IDs and option IDs.',{operationId:stringSchema,pack:packSchema},['operationId','pack'],false,false,true),
  tool('update_pack','Replace a private pack at an expected revision.',{operationId:stringSchema,packId:stringSchema,expectedRevision:{type:'integer'},pack:packSchema},['operationId','packId','expectedRevision','pack']),
  tool('append_questions','Append new questions without changing existing content.',{operationId:stringSchema,packId:stringSchema,expectedRevision:{type:'integer'},questions:{type:'array',items:questionSchema}},['operationId','packId','expectedRevision','questions']),
@@ -194,6 +228,7 @@ export const toolsList=[
 async function callTool(db:Database,user:User,name:string,args:any,origin:string){
  if(name.startsWith('app_')&&args.expectedOwner!==undefined&&args.expectedOwner!==user.id)throw new AccessError('Akun aktif sudah berubah. Masuk kembali untuk menyinkronkan.');
  const brain=await callBrainTool(db,user.id,name,args);if(brain!==undefined)return brain;
+ const recallRepair=await callRecallRepairTool(db,user.id,name,args,{snapshot,mutate});if(recallRepair!==undefined)return recallRepair;
  const control=await callControlTool(db,user,name,args,{read:readRecord,snapshot,mutate});if(control!==undefined)return control;
  const preference=await callPreferenceTool(db,user.id,name,args);if(preference!==undefined)return preference;
  const exported=await callExportTool(db,user.id,name,args,origin);if(exported!==undefined)return exported;
