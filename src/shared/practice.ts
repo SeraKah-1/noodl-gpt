@@ -74,6 +74,23 @@ export async function diagnosticAttempt(source:Attempt,choice:{pack:Pack;questio
   attempt.diagnostic={attemptId:source.id,occurrenceId:choice.missed.id};
   return attempt;
 }
+/** Optional immediate retention probe. It must be a different, unseen stem.
+ * Seeing the source cards never creates a score or review rating. */
+export function quickCheckQuestion(pack:Pack,session:Exposure,exposures:Exposure[],attempts:Attempt[]):Question|undefined{
+ if(!session.shown.length)return;
+ const concepts=new Set(session.shown.map(x=>x.concept).filter(Boolean));
+ const shown=[...session.shown,...exposures.flatMap(e=>e.shown)];
+ const ids=new Set(shown.map(x=>x.id));
+ const texts=new Set(shown.map(x=>normalizeAnswer(x.text)));
+ for(const attempt of attempts.filter(a=>a.ownerId===pack.ownerId)){
+  for(const item of attempt.items){
+   texts.add(normalizeAnswer(item.question.text));
+   if(item.sourcePackId===pack.id)ids.add(item.sourceQuestionId);
+  }
+ }
+ return pack.questions.find(q=>concepts.has(concept(q))&&!ids.has(q.id)&&!texts.has(normalizeAnswer(q.text)));
+}
+
 export function delayedQuestion(pack:Pack,session:Exposure,exposures:Exposure[],attempts:Attempt[],now=Date.now()){
   if(now-session.lastShownAt<recallDelay)return;
   const concepts=new Set(session.shown.map(s=>s.concept).filter(Boolean));
