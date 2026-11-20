@@ -117,7 +117,10 @@ export function validateAttempt(input: unknown): Attempt {
   }
   const origin=a.diagnostic===undefined?undefined:record(a.diagnostic,'diagnostic');
   const diagnostic=origin?{attemptId:id(origin.attemptId,'source attempt'),occurrenceId:id(origin.occurrenceId,'source occurrence')}:undefined;
-  return {...(diagnostic?{diagnostic}:{}),...(draft?{draft}:{}),id:id(a.id,'attempt.id'),ownerId:id(a.ownerId,'ownerId'),packId:id(a.packId,'packId'),packRevision:integer(a.packRevision,'packRevision'),title:string(a.title,'title',300),options,items,answers,currentIndex:integer(a.currentIndex,'currentIndex',0,items.length-1),lives:integer(a.lives,'lives',0,3),streak:integer(a.streak,'streak'),deadline:a.deadline as number|null,status:a.status,createdAt:iso(a.createdAt,'createdAt'),updatedAt:iso(a.updatedAt,'updatedAt'),...(a.completedAt===undefined?{}:{completedAt:iso(a.completedAt,'completedAt')}),revision:integer(a.revision,'revision')};
+  const recall= a.recallRepair===undefined?undefined:record(a.recallRepair,'recallRepair');
+  const recallRepair=recall?{sessionId:id(recall.sessionId,'recall session'),feedbackRevision:integer(recall.feedbackRevision,'recall feedback revision',1)}:undefined;
+  if(diagnostic&&recallRepair)throw new DomainError('Attempt cannot be both a diagnostic and Brain Dump repair');
+  return {...(diagnostic?{diagnostic}:{}),...(recallRepair?{recallRepair}:{}),...(draft?{draft}:{}),id:id(a.id,'attempt.id'),ownerId:id(a.ownerId,'ownerId'),packId:id(a.packId,'packId'),packRevision:integer(a.packRevision,'packRevision'),title:string(a.title,'title',300),options,items,answers,currentIndex:integer(a.currentIndex,'currentIndex',0,items.length-1),lives:integer(a.lives,'lives',0,3),streak:integer(a.streak,'streak'),deadline:a.deadline as number|null,status:a.status,createdAt:iso(a.createdAt,'createdAt'),updatedAt:iso(a.updatedAt,'updatedAt'),...(a.completedAt===undefined?{}:{completedAt:iso(a.completedAt,'completedAt')}),revision:integer(a.revision,'revision')};
 }
 export function validateReviewEvent(input: unknown): ReviewEvent {
   const e=record(input,'review');
