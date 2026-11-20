@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {diagnosticQuestion,delayedQuestion,needsOptions,phaseSeconds,recallDelay,type Exposure} from '../src/shared/practice';
+import {diagnosticQuestion,delayedQuestion,quickCheckQuestion,needsOptions,phaseSeconds,recallDelay,type Exposure} from '../src/shared/practice';
 import {createAttempt,answerAttempt,finishAttempt} from '../src/shared/engine';
 import type {Question,Pack} from '../src/shared/types';
 const q:Question={id:'first',text:'What hormone stimulates ECL cells?',type:'MULTIPLE_CHOICE',correctOptionId:'a',
@@ -28,4 +28,14 @@ test('autopilot preserves option-dependent stems and gives long choices reading 
  assert.equal(needsOptions({...q,text:'Manakah pernyataan berikut yang benar?'}),true);
  assert.equal(needsOptions({...q,text:'What hormone from the following options is relevant?'}),true);
  assert.ok(phaseSeconds({...q,text:'long '.repeat(200)},false)>phaseSeconds(q,false));
+});
+
+test('immediate Quick Check selects an unseen distinct stem, never a displayed card',()=>{
+ const session:Exposure={id:'quick',startedAt:1,lastShownAt:2,activeMs:5000,shown:[{id:q.id,text:q.text,concept:'acid secretion'}]};
+ const bank={...p,questions:[q,{...q,id:'duplicate'},related]};
+ assert.equal(quickCheckQuestion(bank,session,[session],[])?.id,'second');
+ const prior=createAttempt(bank,{mode:'STANDARD',retention:false,mixed:false,shuffle:false},p.ownerId);
+ assert.equal(quickCheckQuestion(bank,session,[session],[prior]),undefined);
+ assert.equal(quickCheckQuestion(bank,session,[session],[{...prior,ownerId:'other'}])?.id,'second');
+ assert.equal(quickCheckQuestion(bank,{...session,shown:[]},[session],[]),undefined);
 });
