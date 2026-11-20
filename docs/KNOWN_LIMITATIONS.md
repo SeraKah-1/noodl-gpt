@@ -27,7 +27,7 @@ This page describes current product limits. A limit is not evidence of a defect.
 - Two devices can edit the same record. The server rejects a stale revision. The user must read the newer record and decide how to apply the intended change.
 - The browser stores offline data per account, but account separation is not disk encryption. A private browser profile is needed on a shared device. Offline work syncs when the service is available.
 - Review schedules use event times. An incorrect device clock can affect scheduling while offline.
-- A public publication is a snapshot. Its ID contains the owner's ID and source bank ID. It includes correct answer keys and artifacts, but excludes attempts, submitted learner responses, and review history. Unpublishing removes the current listing; it cannot retract a copy that someone already made.
+- A public publication is a snapshot. New links use random opaque publication IDs; existing legacy links keep their original IDs on republication to avoid breaking saved URLs. It includes correct answer keys and artifacts, but excludes attempts, submitted learner responses, and review history. Unpublishing removes the current listing; it cannot retract a copy that someone already made.
 - Browser reminders work while the application is active. They do not promise delivery after the application closes.
 
 ## Verification scope

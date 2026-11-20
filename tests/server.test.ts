@@ -147,3 +147,42 @@ test('cross-bank Mix session keeps source provenance without saving a new bank',
  const data=await response!.json() as {packs:Pack[]};
  assert.equal(data.packs.length,2,'Starting Mix must not create a third persistent bank');
 });
+
+test('new publication IDs are opaque and re-publishing keeps the same canonical link and receipt',async()=>{
+ const db=database();await mutate(db,'owner-sensitive-id',op('create-private'));
+ async function publish(operationId:string,expectedRevision:number){
+  const response=(await handleRequest(new Request('https://app/api/publications',{method:'POST',
+   headers:{'oai-authenticated-user-id':'owner-sensitive-id'},
+   body:JSON.stringify({packId:'p',expectedRevision,operationId})}),{DB:db},null))!;
+  assert.equal(response.status,200);
+  return response.json() as Promise<{id:string;questionCount:number}>;
+ }
+ const first=await publish('publish-one',1);
+ assert.match(first.id,/^pub-[0-9a-f-]{36}$/);
+ assert.equal(first.id.includes('owner-sensitive-id'),false);
+ assert.equal(first.id.includes(':p'),false);
+ assert.deepEqual(await publish('publish-one',1),first);
+ const edit=await mutate(db,'owner-sensitive-id',op('change-bank',1,{...input,title:'Changed title'}));
+ assert.equal(edit.ok,true);
+ const second=await publish('publish-again',2);
+ assert.equal(second.id,first.id,'Republishing an existing bank must not break an active share URL');
+ const row=await db.prepare("SELECT data FROM publications WHERE owner_id=? AND source_id=?").bind('owner-sensitive-id','p').first<{data:string}>();
+ assert.equal(JSON.parse(row!.data).id,first.id);
+ const receipt=await db.prepare('SELECT result FROM operations WHERE owner_id=? AND id=?').bind('owner-sensitive-id','publish-again').first<{result:string}>();
+ assert.equal(JSON.parse(receipt!.result).record.id,first.id);
+});
+
+test('legacy publication links retain their identifiers when refreshed',async()=>{
+ const db=database();await mutate(db,'a',op('private'));
+ const legacyId='a:p';
+ await db.prepare('INSERT INTO publications(id,owner_id,source_id,data) VALUES(?,?,?,?)').bind(legacyId,'a','p',
+  JSON.stringify({id:legacyId,title:'Legacy bank',description:'',questionCount:1,publishedAt:new Date().toISOString(),
+   pack:{title:'Legacy bank',description:'',tags:[],questions:input.questions,artifacts:[]}})).run();
+ const res=(await handleRequest(new Request('https://app/api/publications',{method:'POST',
+  headers:{'oai-authenticated-user-id':'a'},body:JSON.stringify({packId:'p',expectedRevision:1,operationId:'republish-legacy'})}),
+  {DB:db},null))!;
+ assert.equal(res.status,200);
+ assert.equal((await res.json() as {id:string}).id,legacyId);
+ const original=(await handleRequest(new Request('https://app/api/public/catalog/'+encodeURIComponent(legacyId)),{DB:db},null))!;
+ assert.equal(original.status,200);
+});
