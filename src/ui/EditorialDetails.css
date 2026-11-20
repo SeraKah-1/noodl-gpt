@@ -1,0 +1,180 @@
+/* Noodl editorial finish. Deliberately small: the main editorial system
+   is already implemented in StudyDesk.css / Study.css.
+   This layer adds list rhythm, one dark navigation anchor and readable Review. */
+.noodl-app .desk-library-index {
+  min-width:46px;align-self:center;text-align:left;
+  font-family:Georgia,"Times New Roman",serif;
+  font-size:clamp(1.4rem,3vw,2.1rem);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:-.06em;
+  line-height:1;
+  color:var(--text-muted);
+}
+.noodl-app .desk-library-open>svg:last-child {
+  flex:none;color:var(--text-main);
+  transition:transform .16s ease;
+}
+@media(hover:hover) and (pointer:fine){
+ .noodl-app .desk-library-open:hover>svg:last-child {transform:translate(3px,-3px);}
+}
+html[data-noodl-theme="default"] .desk-library-icon {display:none;}
+html[data-noodl-theme="default"] .desk-library-card .desk-library-info strong {
+ font-size:clamp(1.18rem,2.8vw,1.6rem);
+}
+html[data-noodl-theme="default"] .desk-library-open {
+ gap:clamp(12px,2.7vw,28px);
+ padding-block:clamp(20px,3vw,30px);
+}
+html[data-noodl-theme="default"] .desk-library-card .desk-library-index {
+ color:#62706E;
+}
+html[data-noodl-theme="default"] .desk-library-card {
+ border-bottom:1px solid color-mix(in srgb,var(--text-main) 18%,transparent);
+}
+html[data-noodl-theme="default"] .desk-library-card.is-selected {
+ background:color-mix(in srgb,var(--primary) 14%,transparent);
+}
+/* Dark navigation establishes Ink as a structural color instead of adding
+   more green/purple cards; only the selected destination takes Lime. */
+html[data-noodl-theme="default"] .desk-nav {
+ border:0;box-shadow:none;
+}
+html[data-noodl-theme="default"] .desk-nav .classic-nav-inner {
+ background:#172630;
+ border:1px solid #172630;
+ box-shadow:0 12px 36px #17263030;
+ backdrop-filter:none;
+ border-radius:14px;
+}
+html[data-noodl-theme="default"] .desk-nav .classic-nav-inner button {
+ color:#D6E0DD;
+}
+html[data-noodl-theme="default"] .desk-nav .classic-nav-inner button[aria-current="page"],
+html[data-noodl-theme="default"] .desk-nav .classic-nav-inner button[aria-expanded="true"] {
+ background:#D9F45F;
+ color:#172630;
+ border-radius:10px;
+}
+html[data-noodl-theme="default"] .desk-nav .classic-nav-inner button:focus-visible {
+ outline:3px solid #D9F45F;
+ outline-offset:-2px;
+}
+html[data-noodl-theme="default"] .desk-nav .classic-nav-inner button[aria-current="page"]:focus-visible {
+ outline-color:#FFFFFF;
+}
+/* Typography is already a powerful divider: no card around each section. */
+html[data-noodl-theme="default"] .desk-page-head>.desk-kicker {
+ width:max-content;border-top:3px solid #D9F45F;padding-top:12px;
+}
+html[data-noodl-theme="default"] .desk-next:before {
+ content:"";position:absolute;inset:0 auto 0 0;
+ width:5px;background:#D9F45F;
+ border-radius:3px 0 0 3px;pointer-events:none;
+}
+html[data-noodl-theme="default"] .desk-next>* {position:relative;z-index:1;}
+html[data-noodl-theme="default"] .desk-star {color:#98BB27;}
+/* Desktop bank detail: two distinct work columns rather than stacked cards.
+   On mobile they read sequentially, preserving all resource actions. */
+html[data-noodl-theme="default"] .desk-pack {
+ grid-template-columns:minmax(0,1.12fr) minmax(0,1fr);
+ gap:clamp(26px,5vw,56px);
+}
+html[data-noodl-theme="default"] .desk-pack>.desk-back,
+html[data-noodl-theme="default"] .desk-pack>.desk-pack-head,
+html[data-noodl-theme="default"] .desk-pack>.desk-quiet {grid-column:1 / -1;}
+html[data-noodl-theme="default"] .desk-pack-head {padding-bottom:clamp(26px,4vw,46px);border-bottom:1px solid var(--desk-border);}
+html[data-noodl-theme="default"] .desk-pack-resources,
+html[data-noodl-theme="default"] .desk-pack-history {
+ border-top:0;padding-top:0;min-width:0;
+}
+html[data-noodl-theme="default"] .desk-pack-history {
+ border-left:1px solid var(--desk-border);
+ padding-left:clamp(22px,3vw,43px);
+}
+html[data-noodl-theme="default"] .desk-resource-list>button {
+ border-top:0;border-bottom:1px solid var(--desk-border);
+ min-height:78px;padding:16px 4px;
+}
+html[data-noodl-theme="default"] .desk-resource-list>button:first-child {border-top:1px solid var(--desk-border);}
+html[data-noodl-theme="default"] .desk-resource-list>button strong {
+ font-family:Georgia,"Times New Roman",serif;
+ font-size:1.13rem;letter-spacing:-.025em;
+}
+/* Review was the hold-out "dashboard of cards". It now scans like an
+   index of available recall work, but actual review interactions stay intact. */
+html[data-noodl-theme="default"] .desk-review>.tools-between {padding-bottom:24px;border-bottom:1px solid var(--desk-border);}
+html[data-noodl-theme="default"] .desk-review>.tools-between h2 {
+ font-family:Georgia,"Times New Roman",serif;
+ font-size:clamp(1.75rem,4vw,2.8rem);
+ font-weight:700;letter-spacing:-.05em;
+}
+html[data-noodl-theme="default"] .desk-review .review-stats {
+ gap:0;margin:10px 0 30px;
+ border-bottom:1px solid var(--desk-border);
+}
+html[data-noodl-theme="default"] .desk-review .review-stats article {
+ background:transparent;border:0;border-right:1px solid var(--desk-border);
+ border-radius:0;padding:20px clamp(8px,2.4vw,24px);
+ gap:7px;min-width:0;
+}
+html[data-noodl-theme="default"] .desk-review .review-stats article:first-child {padding-left:0;}
+html[data-noodl-theme="default"] .desk-review .review-stats article:last-child {border-right:0;}
+html[data-noodl-theme="default"] .desk-review .review-stats strong {
+ font-family:Georgia,"Times New Roman",serif;font-size:clamp(1.75rem,4vw,2.7rem);
+ font-weight:700;color:#172630;
+}
+html[data-noodl-theme="default"] .desk-review .review-stats span {color:#57666A;font-size:.79rem;}
+html[data-noodl-theme="default"] .desk-review .tools-panel:not(.review-card) {
+ background:transparent;border:0;border-top:1px solid var(--desk-border);
+ border-radius:0;box-shadow:none;margin-top:12px;padding:22px 0 0;
+}
+html[data-noodl-theme="default"] .desk-review .tools-panel:not(.review-card) h3 {
+ font-family:Georgia,"Times New Roman",serif;font-size:1.5rem;font-weight:700;
+}
+html[data-noodl-theme="default"] .desk-review .due-row {
+ border:0;border-bottom:1px solid var(--desk-border);
+ border-radius:0;padding:18px 4px!important;margin:0;background:transparent;
+}
+html[data-noodl-theme="default"] .desk-review .due-row:hover {
+ background:color-mix(in srgb,var(--text-main) 4%,transparent);
+}
+html[data-noodl-theme="default"] .desk-review .tools-primary {
+ background:#D9F45F!important;color:#172630!important;
+ border:1px solid #D9F45F!important;
+ font-weight:750;border-radius:9px;
+}
+html[data-noodl-theme="default"] .desk-review .tools-primary:focus-visible {
+ outline:3px solid #172630;outline-offset:3px;
+}
+html[data-noodl-theme="default"] .desk-review .tools-empty {
+ border:0;border-top:1px solid var(--desk-border);border-radius:0;
+ background:transparent;min-height:220px;
+}
+html[data-noodl-theme="default"] .desk-review .review-card {
+ background:#FFFEFB;box-shadow:none;border:0;
+ border-radius:16px;border-top:4px solid #D9F45F;
+}
+html[data-noodl-theme="default"] .desk-review .review-card h3 {
+ font-family:Georgia,"Times New Roman",serif;
+ font-size:clamp(1.3rem,3vw,2rem);
+ font-weight:700;
+}
+@media(max-width:760px) {
+ html[data-noodl-theme="default"] .desk-pack {grid-template-columns:1fr;gap:30px;}
+ html[data-noodl-theme="default"] .desk-pack>.desk-back,
+ html[data-noodl-theme="default"] .desk-pack>.desk-pack-head,
+ html[data-noodl-theme="default"] .desk-pack>.desk-quiet {grid-column:1;}
+ html[data-noodl-theme="default"] .desk-pack-history {
+  border-left:0;padding-left:0;border-top:1px solid var(--desk-border);padding-top:26px;
+ }
+}
+@media(max-width:420px) {
+ .noodl-app .desk-library-index {font-size:1.6rem;min-width:37px;}
+ html[data-noodl-theme="default"] .desk-library-open {gap:10px;}
+ html[data-noodl-theme="default"] .desk-review .review-stats article {padding-inline:8px;}
+ html[data-noodl-theme="default"] .desk-review .review-stats span {font-size:.7rem;}
+}
+@media(prefers-reduced-motion:reduce) {
+ .noodl-app .desk-library-open>svg:last-child {transition:none;}
+}
+html[data-reduced-motion="true"] .noodl-app .desk-library-open>svg:last-child {transition:none;}
