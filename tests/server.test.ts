@@ -297,3 +297,61 @@ test('embedded MCP debugger tool respects current owner and stores only validate
  const list=await tool('app_debugger_results',{expectedOwner:'learner',packId:'p',artifactId:'debug'});
  assert.equal(list.result.structuredContent.items.length,1);
 });
+
+test('Sweep self-claims are private, idempotent and never become scored answers',async()=>{
+ const db=database();const source=(await mutate(db,'alice',op('source-pack',0,{
+  ...input,questions:[{...input.questions[0],keyPoint:'Hydrogen secretion'}]
+ }))).record as Pack;
+ const data={version:1,id:'event-1',ownerId:'alice',packId:source.id,packRevision:source.revision,
+  pointId:'question:q',questionId:'q',choice:'known',decidedAt:'2026-11-21T01:00:00.000Z'};
+ const request=async(owner:string,decision:object,method='POST')=>{
+  const response=(await handleRequest(new Request('https://app/api/coverage/decision',{method,
+   headers:{'oai-authenticated-user-id':owner},body:JSON.stringify(decision)}),{DB:db},null))!;
+  return {status:response.status,data:await response.json() as any};
+ };
+ const first=await request('alice',data);
+ assert.equal(first.status,200);
+ assert.equal(first.data.status,'committed');
+ const repeated=await request('alice',data);
+ assert.equal(repeated.status,200);
+ assert.equal(repeated.data.replayed,true);
+ assert.equal((await request('alice',{...data,choice:'unsure'})).status,400,'Decision ID cannot silently change');
+ assert.equal((await request('bob',{...data,ownerId:'bob'})).status,400,'Other user cannot mark an unowned bank');
+ assert.equal((await request('alice',{...data,id:'forged',pointId:'question:missing'})).status,400);
+ const list=async(owner:string)=>{
+  const response=(await handleRequest(new Request('https://app/api/coverage/decisions?packId=p',{
+   headers:{'oai-authenticated-user-id':owner}}),{DB:db},null))!;
+  return {status:response.status,data:await response.json() as any};
+ };
+ assert.equal((await list('alice')).data.decisions.length,1);
+ assert.equal((await list('bob')).status,400);
+ const snapshot=(await handleRequest(new Request('https://app/api/snapshot',{
+  headers:{'oai-authenticated-user-id':'alice'}}),{DB:db},null))!;
+ const state=await snapshot.json() as any;
+ assert.equal(state.attempts.length,0);
+ assert.equal(state.reviews.length,0);
+ assert.equal(state.packs[0].questions[0].correctOptionId,'a');
+ const newRevision=(await mutate(db,'alice',op('edit-after-mark',1,{...input,title:'Updated',questions:[{...input.questions[0],keyPoint:'Hydrogen secretion'}]})));
+ assert.equal(newRevision.ok,true);
+ assert.equal((await request('alice',{...data,id:'stale-choice',choice:'unsure'})).status,400);
+ assert.equal((await list('alice')).data.decisions.length,1,'Historical claim is retained but must not count against new revision');
+});
+
+test('Sweep app tools use the same owner guard as HTTP and preserve self-claim semantics',async()=>{
+ const db=database();await mutate(db,'user',op('owned'));
+ const call=async(name:string,args:any,owner='user')=>{
+  const response=(await handleRequest(new Request('https://app/mcp',{method:'POST',
+   headers:{'oai-authenticated-user-id':owner},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',
+    params:{name,arguments:args}})}),{DB:db},null))!;
+  return response.json() as Promise<any>;
+ };
+ const event={version:1,id:'mcp-claim',ownerId:'user',packId:'p',packRevision:1,
+  pointId:'question:q',questionId:'q',choice:'known',decidedAt:'2026-11-21T01:00:00.000Z'};
+ const invalid=await call('app_save_sweep',{expectedOwner:'different',event});
+ assert.equal(invalid.result.isError,true);
+ const accepted=await call('app_save_sweep',{expectedOwner:'user',event});
+ assert.equal(accepted.result.structuredContent.status,'committed');
+ const list=await call('app_list_sweep',{expectedOwner:'user',packId:'p'});
+ assert.equal(list.result.structuredContent.decisions.length,1);
+ assert.equal(list.result.structuredContent.decisions[0].choice,'known');
+});
