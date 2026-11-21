@@ -3,6 +3,7 @@ import {parseComic} from './comic';
 import {parseConceptMap} from './conceptMap';
 import {parseSimulation} from './simulation';
 import {parseDebugger} from './debugger';
+import {parseExamPointMap} from './examCoverage';
 import type { Artifact, Attempt, Pack, Question, ReviewEvent, StudyOptions } from './types';
 
 export class DomainError extends Error {
@@ -68,12 +69,13 @@ export function validateQuestion(input: unknown): Question {
 
 export function validateArtifact(input: unknown): Artifact {
   const a = record(input,'artifact');
-  if (!['insight','material','visualization','comic','concept_map','simulation','debugger'].includes(String(a.kind))) throw new DomainError('Invalid artifact kind');
+  if (!['insight','material','visualization','comic','concept_map','simulation','debugger','exam_map'].includes(String(a.kind))) throw new DomainError('Invalid artifact kind');
   const result: Artifact = {id:id(a.id,'artifact.id'),kind:a.kind as Artifact['kind'],title:string(a.title,'artifact.title',300),content:string(a.content,'artifact.content',500000)};
   if(result.kind==='comic')result.content=JSON.stringify(parseComic(result.content));
   if(result.kind==='concept_map')result.content=JSON.stringify(parseConceptMap(result.content));
   if(result.kind==='simulation')result.content=JSON.stringify(parseSimulation(result.content));
   if(result.kind==='debugger')result.content=JSON.stringify(parseDebugger(result.content));
+  if(result.kind==='exam_map')result.content=JSON.stringify(parseExamPointMap(result.content));
   if (a.explanation!==undefined) result.explanation=string(a.explanation,'artifact.explanation',20000,true);
   if (a.interactionGuide!==undefined) result.interactionGuide=string(a.interactionGuide,'interactionGuide',20000,true);
   return result;
@@ -84,6 +86,9 @@ export function validatePackInput(input: unknown): PackInput {
   const questions=p.questions.map(validateQuestion); unique(questions.map(q=>q.id),'Question IDs');
   const artifacts=p.artifacts===undefined?[]:(Array.isArray(p.artifacts)?p.artifacts.map(validateArtifact):(()=>{throw new DomainError('artifacts must be an array')})());
   if (artifacts.length>100) throw new DomainError('Too many artifacts'); unique(artifacts.map(a=>a.id),'Artifact IDs');
+  const examMaps=artifacts.filter(a=>a.kind==='exam_map');
+  if(examMaps.length>1)throw new DomainError('Only one active exam map is allowed per bank');
+  if(examMaps[0])parseExamPointMap(examMaps[0].content,questions);
   const tags=p.tags===undefined?[]:(Array.isArray(p.tags)?p.tags.map(v=>string(v,'tag',100)):(()=>{throw new DomainError('tags must be an array')})());
   if (tags.length>50) throw new DomainError('Too many tags');
   return {title:string(p.title,'title',300),description:string(p.description,'description',20000,true),folder:string(p.folder,'folder',300,true),tags,questions,artifacts};
