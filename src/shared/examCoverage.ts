@@ -242,7 +242,7 @@ export function selectAuditQuestions(candidates:SweepCandidate[],choices:Record<
  if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw new Error('Audit limit must be 1..100');
  const unsure=candidates.filter(x=>choices[x.point.point.id]==='unsure');
  const known=candidates.filter(x=>choices[x.point.point.id]==='known');
- const selected=SweepCandidate[],used=new Set<string>();
+ const selected:SweepCandidate[]=[],used=new Set<string>();
  const push=(x:SweepCandidate)=>{
   if(used.has(x.question.id)||selected.length>=limit)return;
   selected.push(x);used.add(x.question.id);
