@@ -213,7 +213,9 @@ export interface SweepCandidate {point:CoveragePoint;question:Question;reason:'m
 export function selectSweepCandidates(coverage:CoverageSummary,reviews:ReviewEvent[]=[],now=Date.now()):SweepCandidate[]{
  const due=new Set(replayReviews(reviews.filter(r=>r.packId===coverage.packId))
   .filter(c=>normTime(c.nextReview)<=now).map(c=>c.questionId));
- const rank=(q:CoverageQuestion)=>{
+ const rank=(q:CoverageQuestion,point:CoveragePoint)=>{
+  // An unseen sibling is a stronger independent repair check than repeating the failed stem.
+  if(point.status==='needs_repair'&&q.shown===0)return -450;
   if(q.latest==='incorrect')return -400;
   if(due.has(q.question.id))return -300;
   if(!q.shown)return -200;
@@ -221,11 +223,11 @@ export function selectSweepCandidates(coverage:CoverageSummary,reviews:ReviewEve
   return q.correct*10+q.shown;
  };
  return coverage.points.map(point=>{
-  const ordered=point.questions.slice().sort((a,b)=>rank(a)-rank(b)||
+  const ordered=point.questions.slice().sort((a,b)=>rank(a,point)-rank(b,point)||
    a.question.id.localeCompare(b.question.id));
   const candidate=ordered[0];
   if(!candidate)return null;
-  const reason:SweepCandidate['reason']=candidate.latest==='incorrect'?'missed':
+  const reason:SweepCandidate['reason']=point.status==='needs_repair'?'missed':
    due.has(candidate.question.id)?'due':!candidate.shown?'unseen':point.status==='self_claimed'?'claim_audit':'repeat';
   return {point,question:candidate.question,reason};
  }).filter((v):v is SweepCandidate=>v!==null)
@@ -240,8 +242,9 @@ export function selectSweepCandidates(coverage:CoverageSummary,reviews:ReviewEve
  */
 export function selectAuditQuestions(candidates:SweepCandidate[],choices:Record<string,SweepChoice>,limit=20,seed='default'){
  if(!Number.isSafeInteger(limit)||limit<1||limit>100)throw new Error('Audit limit must be 1..100');
- const unsure=candidates.filter(x=>choices[x.point.point.id]==='unsure');
- const known=candidates.filter(x=>choices[x.point.point.id]==='known');
+ const mandatory=candidates.filter(x=>x.point.status==='needs_repair');
+ const unsure=candidates.filter(x=>x.point.status!=='needs_repair'&&choices[x.point.point.id]==='unsure');
+ const known=candidates.filter(x=>x.point.status!=='needs_repair'&&choices[x.point.point.id]==='known');
  const selected:SweepCandidate[]=[],used=new Set<string>();
  const push=(x:SweepCandidate)=>{
   if(used.has(x.question.id)||selected.length>=limit)return;
@@ -249,14 +252,17 @@ export function selectAuditQuestions(candidates:SweepCandidate[],choices:Record<
  };
  // Unsure items are not silently dropped just because the audit is capped;
  // caller must surface remaining count.
+ mandatory.forEach(push);
  unsure.forEach(push);
  const sorted=known.map(x=>({x,score:simpleHash(seed+'|'+x.point.point.id)}))
   .sort((a,b)=>a.score-b.score).map(y=>y.x);
  const target=Math.max(known.length?1:0,Math.ceil(known.length*.25));
  sorted.slice(0,target).forEach(push);
- return {questions:selected.map(x=>x.question),auditCount:selected.filter(x=>choices[x.point.point.id]==='known').length,
-  unsureCount:selected.filter(x=>choices[x.point.point.id]==='unsure').length,
-  unverifiedKnown:known.length,notIncluded:unsure.length+known.length-selected.length};
+ return {questions:selected.map(x=>x.question),
+  repairCount:selected.filter(x=>x.point.status==='needs_repair').length,
+  auditCount:selected.filter(x=>x.point.status!=='needs_repair'&&choices[x.point.point.id]==='known').length,
+  unsureCount:selected.filter(x=>x.point.status!=='needs_repair'&&choices[x.point.point.id]==='unsure').length,
+  unverifiedKnown:known.length,notIncluded:mandatory.length+unsure.length+known.length-selected.length};
 }
 function simpleHash(value:string){
  let hash=2166136261;
