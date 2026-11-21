@@ -108,3 +108,42 @@ test('default HTTP transport calls fetch without using the client as its receive
  assert.equal(user?.id,'a');
  await client.dispose();
 });
+
+test('Sweep known/unsure claims survive IndexedDB reopen and never enter the quiz outbox',async()=>{
+ const db=store();
+ const owner='guest:local-user',id=await db.db().then(d=>d.name);
+ const event={version:1 as const,id:'known-1',ownerId:owner,packId:'bank',packRevision:1,
+  pointId:'question:q',questionId:'q',choice:'known' as const,decidedAt:'2026-11-21T01:00:00.000Z'};
+ await db.saveCoverage(owner,event,true);
+ assert.equal((await db.coverage(owner,'bank')).decisions.length,1);
+ assert.equal((await db.coverage(owner,'bank')).pending,0);
+ assert.equal((await db.read(owner)).pending.length,0,'Self-claim is not an attempt/review');
+ await db.close();
+ const reopened=new LocalStore(id);
+ assert.equal((await reopened.coverage(owner,'bank')).decisions[0].choice,'known');
+ assert.equal((await reopened.coverage('guest:other','bank')).decisions.length,0);
+ await assert.rejects(()=>reopened.saveCoverage('guest:other',event,true),/owner/);
+ await reopened.close();
+});
+
+test('Sweep server sync handles uncertain delivery, same-id retries and revision conflicts',async()=>{
+ const db=store();const owner='learner';
+ const one={version:1 as const,id:'first',ownerId:owner,packId:'bank',packRevision:1,
+  pointId:'question:q',questionId:'q',choice:'known' as const,decidedAt:'2026-11-21T01:00:00.000Z'};
+ const two={...one,id:'second',choice:'unsure' as const,decidedAt:'2026-11-21T01:01:00.000Z'};
+ await db.saveCoverage(owner,one,false);
+ await db.saveCoverage(owner,two,false);
+ assert.equal((await db.coverage(owner,'bank')).pending,2);
+ await db.coverageConfirmed(owner,one);
+ assert.equal((await db.coverage(owner,'bank')).pending,1);
+ await db.coverageConflict(owner,two.id,'CONFLICT: bank changed');
+ const withConflict=await db.coverage(owner,'bank');
+ assert.equal(withConflict.conflicts.length,1);
+ assert.equal((await db.pendingCoverage(owner)).length,0);
+ assert.equal(withConflict.decisions.length,2,'Conflicting local evidence is retained without a false cloud receipt');
+ await db.mergeCoverage(owner,'bank',[one,{...one,id:'remote',decidedAt:'2026-11-20T01:00:00.000Z'}]);
+ assert.equal((await db.coverage(owner,'bank')).decisions.length,3);
+ assert.equal((await db.coverage('stranger','bank')).decisions.length,0);
+ await assert.rejects(()=>db.saveCoverage(owner,{...one,choice:'unsure'},false),/reused/);
+ await db.close();
+});
