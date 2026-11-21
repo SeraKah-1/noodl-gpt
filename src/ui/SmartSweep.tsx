@@ -1,7 +1,7 @@
-import {useEffect,useMemo,useRef,useState} from 'react';
+import {useEffect,useMemo,useRef,useState,type KeyboardEvent} from 'react';
 import {AnimatePresence,motion,useReducedMotion} from 'framer-motion';
 import {ArrowLeft,ArrowRight,BookOpen,Check,ClipboardCheck,FileSearch,Keyboard,Layers,RotateCcw,ShieldCheck} from 'lucide-react';
-import {client} from '../client';
+import {client} from '../client/index';
 import {buildExamCoverage,selectSweepCandidates,selectAuditQuestions,type SweepDecision,type SweepChoice} from '../shared/examCoverage';
 import type {Attempt,Pack,Question,ReviewEvent} from '../shared/types';
 import type {Locale} from './classic/Navigation';
@@ -78,7 +78,7 @@ export function SmartSweep({pack,attempts,reviews,locale,busy,onClose,onStartBat
   }catch(e){if(mounted.current)setMessage(e instanceof Error?e.message:String(e));}
   finally{if(mounted.current)setSaving(null);}
  }
- function keys(event:React.KeyboardEvent<HTMLElement>){
+ function keys(event:KeyboardEvent<HTMLElement>){
   if(tab!=='scan'||loading||saving||busy||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
   const target=event.target;
   if(target instanceof HTMLElement&&target.closest('input,textarea,select,[contenteditable=true]'))return;
