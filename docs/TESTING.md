@@ -45,6 +45,17 @@ The separate `Noodl knowledge debugger Chrome QA` workflow executes `scripts/smo
 
 The `OpenAI Sites release candidate` workflow packages a verified archive, its SHA256 and archive manifest on `main`; the successful artifact from commit `46ca078d` is in Actions run `44770261984`. The archive does **not** deploy or migrate an OpenAI Sites project. Current connected MCP capability version must be checked independently because the repository can be ahead of production.
 
+## V5 Smart Sweep acceptance
+
+The V5 implementation is covered by:
+- `tests/exam-coverage.test.ts`: point-map validation, omitted variants, separate self-claims vs correct answers, stable evidence, priority ordering, mandatory repair and deterministic audit.
+- `tests/server.test.ts`: owner-scoped and idempotent Sweep REST/MCP app records, stale revision refusal and no scored-answer contamination.
+- `tests/offline.test.ts`: claim persistence after IndexedDB restart, account isolation, pending retry, remote merge and conflict retention.
+- `scripts/smoke-sweep.mjs` via `.github/workflows/browser-sweep.yml`: imported bank, keyboard and bulk claimed-know actions, zero premature score, actual saved Batch verification, reload ledger evidence and unfiltered Full Exam.
+- Existing `scripts/smoke-ui.mjs` keeps Flashcards first in the Studio action list and guards quiz/Studio regressions.
+
+The successful OpenAI Sites candidate package built from V5 main commit `d50baa8ad48a6d248420d2b7acdb94f528b9de68` is [Actions run 44854525296](https://github.com/SeraKah-1/noodl-gpt/actions/runs/44854525296). This verifies a release **archive**, not deployment. The installed ChatGPT connector last reported 2.9.0, whereas this source advertises 3.0.0. V5 live behavior and real-device usability have not been verified.
+
 ## Manual checks
 
 Use these checks when you have access to the relevant host:
