@@ -124,3 +124,13 @@
 }
 @media(prefers-reduced-motion:reduce){.sweep-progress span{transition:none!important;}}
 html[data-reduced-motion=true] .sweep-progress span{transition:none!important;}
+
+/* One operation for five explicit self-claims, never a bulk correct-answer award. */
+.sweep-bulk-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+ padding:.7rem .85rem;border-left:3px solid var(--sw-accent);background:var(--sw-paper);}
+.sweep-bulk-row p{margin:0;flex:1;min-width:200px;font-size:.72rem;line-height:1.5;color:var(--sw-muted);}
+.sweep-bulk-row button{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+ min-height:42px;border:1px solid var(--sw-ink);border-radius:8px;background:transparent;color:var(--sw-ink);
+ font:inherit;font-size:.75rem;font-weight:730;padding:.55rem .75rem;cursor:pointer;}
+.sweep-bulk-row button:disabled{opacity:.45;cursor:not-allowed;}
+@media(max-width:390px){.sweep-bulk-row{padding:.7rem;}.sweep-bulk-row button{width:100%;}}
