@@ -86,6 +86,9 @@ export function validatePackInput(input: unknown): PackInput {
   const questions=p.questions.map(validateQuestion); unique(questions.map(q=>q.id),'Question IDs');
   const artifacts=p.artifacts===undefined?[]:(Array.isArray(p.artifacts)?p.artifacts.map(validateArtifact):(()=>{throw new DomainError('artifacts must be an array')})());
   if (artifacts.length>100) throw new DomainError('Too many artifacts'); unique(artifacts.map(a=>a.id),'Artifact IDs');
+  const examMaps=artifacts.filter(a=>a.kind==='exam_map');
+  if(examMaps.length>1)throw new DomainError('Only one active exam map is allowed per bank');
+  if(examMaps[0])parseExamPointMap(examMaps[0].content,questions);
   const tags=p.tags===undefined?[]:(Array.isArray(p.tags)?p.tags.map(v=>string(v,'tag',100)):(()=>{throw new DomainError('tags must be an array')})());
   if (tags.length>50) throw new DomainError('Too many tags');
   return {title:string(p.title,'title',300),description:string(p.description,'description',20000,true),folder:string(p.folder,'folder',300,true),tags,questions,artifacts};
