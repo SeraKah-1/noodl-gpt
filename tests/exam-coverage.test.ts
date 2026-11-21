@@ -4,7 +4,7 @@ import {buildExamCoverage,parseExamPointMap,resolveExamPoints,selectAuditQuestio
 import {createAttempt} from '../src/shared/engine';
 import {validatePackInput} from '../src/shared/validation';
 import type {Pack,Question,Attempt} from '../src/shared/types';
-import type {SweepDecision} from '../src/shared/examCoverage';
+import type {SweepDecision,SweepChoice} from '../src/shared/examCoverage';
 const question=(id:string,point:string):Question=>({
  id,type:'TRUE_FALSE',text:'Question about '+point+' ('+id+')',correctBoolean:true,
  explanation:'Author supplied explanation',difficulty:'Easy',conceptName:point,
@@ -80,7 +80,7 @@ test('sweep selects one per reviewed point without deleting full bank; audit sam
  const candidates=selectSweepCandidates(coverage);
  assert.equal(candidates.length,3);
  assert.equal(pack.questions.length,4);
- const choices=Object.fromEntries(candidates.map(c=>[c.point.point.id,c.point.point.id==='pump'?'unsure':'known']));
+ const choices:Record<string,SweepChoice>=Object.fromEntries(candidates.map(c=>[c.point.point.id,c.point.point.id==='pump'?'unsure':'known']));
  const first=selectAuditQuestions(candidates,choices,20,'same-session');
  const retry=selectAuditQuestions(candidates,choices,20,'same-session');
  assert.deepEqual(first,retry);
