@@ -48,7 +48,7 @@ The saved map is itself an `Artifact` with `kind: "exam_map"`. The validator lim
 `SweepDecision` includes version, UUID, account owner, bank ID, bank revision, point ID, question ID, choice and timestamp. The local IndexedDB store partitions by owner and bank. Server-backed accounts sync decisions through authenticated `/api/coverage/decision` and `/api/coverage/decisions`; embedded ChatGPT uses `app_save_sweep` and `app_list_sweep`. Server writes reject ownership mismatches, invalid point/question membership, modified duplicate IDs and stale revisions.
 
 - Local Guest saves decisions across refresh but must not claim cloud persistence.
-- An offline decision stays pending until server acknowledgment. A stale bank revision becomes a visible conflict, not an silently rewritten decision.
+- An offline decision stays pending until server acknowledgment. A stale bank revision becomes a visible conflict, not a silently rewritten decision.
 - Decisions are **never stored in** the graded attempt answers or `ReviewEvent` tables. No inferred mastery score is awarded.
 - The app routes questions into the existing persisted quiz engine rather than making a new fake question renderer.
 
