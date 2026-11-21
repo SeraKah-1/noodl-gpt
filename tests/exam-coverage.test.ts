@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {buildExamCoverage,parseExamPointMap,resolveExamPoints,selectAuditQuestions,selectSweepCandidates} from '../src/shared/examCoverage';
 import {createAttempt} from '../src/shared/engine';
 import {validatePackInput} from '../src/shared/validation';
-import type {Pack,Question,Attempt,SweepDecision} from '../src/shared/types';
+import type {Pack,Question,Attempt} from '../src/shared/types';
+import type {SweepDecision} from '../src/shared/examCoverage';
 const question=(id:string,point:string):Question=>({
  id,type:'TRUE_FALSE',text:'Question about '+point+' ('+id+')',correctBoolean:true,
  explanation:'Author supplied explanation',difficulty:'Easy',conceptName:point,
