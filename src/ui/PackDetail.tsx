@@ -1,7 +1,8 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {AnimatePresence,motion,useReducedMotion} from 'framer-motion';
-import {ArrowRight,BookOpen,ChevronLeft,CheckCircle2,Clock3,FileText,Layers,MessageSquare,MoreHorizontal,Network,Orbit,PenLine,Play,Share2,Trash2,BookMarked} from 'lucide-react';
-import type {Attempt,Pack,Question} from '../shared/types';
+import {ArrowRight,BookOpen,ChevronLeft,CheckCircle2,Clock3,FileText,Layers,MessageSquare,MoreHorizontal,Network,Orbit,PenLine,Play,Share2,Trash2,BookMarked,ScanSearch} from 'lucide-react';
+import type {Attempt,Pack,Question,ReviewEvent} from '../shared/types';
+import {SmartSweep} from './SmartSweep';
 import {progressFor} from '../shared/engine';
 import {StudyText} from './StudyText';
 import {BankHistory} from './BankHistory';
@@ -10,15 +11,16 @@ import {PublishPreview} from './PublishPreview';
 import type {Locale,ToolTab} from './classic/Navigation';
 
 interface Props{
- pack:Pack;attempts:Attempt[];locale:Locale;busy:boolean;
- onBack:()=>void;onPractice:()=>void;onPracticeTopic?:(questions:Question[])=>void;onFlashcards:()=>void;onTool:(tab:ToolTab)=>void;
+ pack:Pack;attempts:Attempt[];reviews:ReviewEvent[];locale:Locale;busy:boolean;onFullExam:()=>void;
+ onBack:()=>void;onPractice:()=>void;onPracticeTopic:(questions:Question[])=>void;onFlashcards:()=>void;onTool:(tab:ToolTab)=>void;
  onEdit:()=>void;onRename:()=>void;onPublish:()=>void;onUnpublish:()=>void;onDelete:()=>void;
  onOpenAttempt:(attempt:Attempt)=>void;onAskChatGPT?:(prompt:string)=>Promise<void>;
 }
 type WorkspaceTab='material'|'learn'|'studio';
-export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracticeTopic,onFlashcards,onTool,onEdit,onRename,onPublish,onUnpublish,onDelete,onOpenAttempt,onAskChatGPT}:Props){
+export function PackDetail({pack,attempts,reviews,locale,busy,onBack,onPractice,onFullExam,onPracticeTopic,onFlashcards,onTool,onEdit,onRename,onPublish,onUnpublish,onDelete,onOpenAttempt,onAskChatGPT}:Props){
  const en=locale==='en',reduce=useReducedMotion()||document.documentElement.dataset.reducedMotion==='true';
  const [tab,setTab]=useState<WorkspaceTab>('learn');
+ const [sweepOpen,setSweepOpen]=useState(false);
  const [selectedId,setSelectedId]=useState<string|null>(null),[selectedTopic,setSelectedTopic]=useState<string|null>(null);
  const [asking,setAsking]=useState(false),[feedback,setFeedback]=useState('');
  const [showPublish,setShowPublish]=useState(false);
@@ -32,7 +34,7 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
  const history=attempts.filter(a=>a.items.some(i=>i.sourcePackId===pack.id));
  const active=history.filter(a=>a.status==='active').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0];
  const latest=history.filter(a=>a.status==='completed').sort((a,b)=>b.updatedAt.localeCompare(a.updatedAt))[0];
- useEffect(()=>{setTab('learn');setSelectedId(null);setSelectedTopic(null);setFeedback('');setShowPublish(false);},[pack.id]);
+ useEffect(()=>{setTab('learn');setSelectedId(null);setSelectedTopic(null);setFeedback('');setShowPublish(false);setSweepOpen(false);},[pack.id]);
  async function request(prompt:string){
   if(!onAskChatGPT||asking)return;
   setAsking(true);setFeedback('');
@@ -42,6 +44,9 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
  }
  const goMaterial=(id:string)=>{setSelectedId(id);setSelectedTopic(null);setTab('material');};
  const goTopic=(name:string)=>{setSelectedTopic(name);setSelectedId(null);setTab('learn');};
+ if(sweepOpen)return <SmartSweep pack={pack} attempts={attempts} reviews={reviews} locale={locale} busy={busy}
+  onClose={()=>setSweepOpen(false)} onStartBatch={onPracticeTopic} onFullExam={onFullExam}
+  onAskChatGPT={onAskChatGPT}/>;
  return <motion.section className="v3-bank-workspace" aria-labelledby="desk-pack-title" initial={reduce?false:{opacity:0,y:8}} animate={{opacity:1,y:0}} transition={{duration:.22}}>
   <button className="desk-link v3-back" onClick={onBack}><ChevronLeft size={18}/>{en?'Back to Library':'Kembali ke Library'}</button>
   <header className="v3-bank-header">
@@ -95,6 +100,9 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
          <p>{latest?`${en?'Previous accuracy':'Akurasi terakhir'}: ${progressFor(latest).score}% · ${latest.items.length} ${en?'questions':'soal'}`:(en?'No completed practice yet.':'Belum ada sesi latihan selesai.')}</p></div>
         <button className="desk-primary" onClick={active?()=>onOpenAttempt(active):onPractice}><Play size={17}/>{active?(en?'Resume':'Lanjutkan'):(en?'Choose practice mode':'Atur mode latihan')}</button>
        </div>
+       <div className="v3-learning-actions"><button className="desk-secondary" onClick={()=>setSweepOpen(true)}>
+        <ScanSearch size={17}/>{en?'Smart Sweep · fewer repeats':'Smart Sweep · kurangi pengulangan'}
+       </button></div>
        <section className="v3-canvas-section"><h3>{en?'Study history':'Riwayat belajar'}</h3>
         <BankHistory packId={pack.id} attempts={history} english={en} onOpen={onOpenAttempt}/></section>
       </>}
@@ -105,6 +113,7 @@ export function PackDetail({pack,attempts,locale,busy,onBack,onPractice,onPracti
     <div className="v3-panel-heading"><span className="v3-eyebrow">03 / STUDIO</span><h2>{en?'Study tools':'Alat belajar'}</h2></div>
     <p>{en?'Choose the action you want to take with this bank.':'Pilih apa yang ingin dilakukan dengan bank ini.'}</p>
     <div className="v3-studio-actions">
+     <button onClick={()=>setSweepOpen(true)}><ScanSearch size={20}/><span><strong>Smart Sweep</strong><small>{en?'Rapid scan · audit · full coverage':'Scan cepat · audit · cakupan'}</small></span><ArrowRight size={17}/></button>
      <button onClick={onFlashcards}><Layers size={20}/><span><strong>Flashcards</strong><small>{en?'Self-recall and review':'Uji ingatan sendiri'}</small></span><ArrowRight size={17}/></button>
      <button onClick={()=>onTool('material')}><FileText size={20}/><span><strong>{en?'Materials':'Materi'}</strong><small>{materials.length} {en?'saved':'tersimpan'}</small></span><ArrowRight size={17}/></button>
      <button onClick={()=>onTool('graph')}><Network size={20}/><span><strong>{en?'Concept associations':'Asosiasi konsep'}</strong><small>{en?'Text similarity, not causal proof':'Kemiripan teks, bukan sebab-akibat'}</small></span><ArrowRight size={17}/></button>
