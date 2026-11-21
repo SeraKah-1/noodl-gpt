@@ -44,7 +44,7 @@ export function SmartSweep({pack,attempts,reviews,locale,busy,onClose,onStartBat
   }).catch(error=>{if(active)setNetworkError(error instanceof Error?error.message:String(error));})
    .finally(()=>{if(active)setLoading(false)});
   return ()=>{active=false;mounted.current=false};
- },[pack.id,pack.revision]);
+ },[pack.id,pack.ownerId,pack.revision]);
  const coverage=useMemo(()=>buildExamCoverage(pack,attempts,reviews,decisions),
   [pack,attempts,reviews,decisions]);
  const all=useMemo(()=>selectSweepCandidates(coverage,reviews),[coverage,reviews]);
@@ -58,13 +58,14 @@ export function SmartSweep({pack,attempts,reviews,locale,busy,onClose,onStartBat
    .sort((a,b)=>a.decidedAt.localeCompare(b.decidedAt)||a.id.localeCompare(b.id));
   return Object.fromEntries(sorted.map(x=>[x.pointId,x.choice])) as Record<string,SweepChoice>;
  },[decisions,pack.id,pack.ownerId,pack.revision]);
- const marked=all.filter(x=>choices[x.point.point.id]!==undefined&&!x.point.verified);
+ const marked=all.filter(x=>x.point.status==='needs_repair'||(choices[x.point.point.id]!==undefined&&!x.point.verified));
  const audit=selectAuditQuestions(marked,choices,20,pack.id+':'+attempts.length);
  const scanned=scannable.filter(x=>choices[x.point.point.id]!==undefined).length;
  const sourceAnchors=new Set(pack.questions.flatMap(q=>q.sourceRefs??[])
   .filter(ref=>ref.status!=='unavailable')
   .map(ref=>ref.title+'|'+(ref.anchor??'')));
  const latestAuditMisses=coverage.points.filter(p=>p.status==='needs_repair').length;
+ const remainingPage=pageItems.filter(item=>choices[item.point.point.id]!=='known');
  function changePage(next:number){setPage(Math.max(0,Math.min(maxPage,next)));setCursor(0);}
  async function decide(pointId:string,questionId:string,choice:SweepChoice){
   if(saving||busy)return;
@@ -77,6 +78,23 @@ export function SmartSweep({pack,attempts,reviews,locale,busy,onClose,onStartBat
    setMessage(en?'Saved on this device; server sync is separate.':'Tersimpan di perangkat. Sinkronisasi server berjalan terpisah.');
   }catch(e){if(mounted.current)setMessage(e instanceof Error?e.message:String(e));}
   finally{if(mounted.current)setSaving(null);}
+ }
+ async function markPageKnown(){
+  if(saving||busy||!remainingPage.length)return;
+  setSaving('page');setMessage('');
+  let committed=0;
+  try{
+   for(const item of remainingPage){
+    const saved=await client.recordCoverageDecision(pack,item.point.point.id,item.question.id,'known');
+    if(!mounted.current)return;
+    setDecisions(prev=>[...prev,saved]);
+    committed++;
+   }
+   if(!client.getState().localOnly)setPending(value=>value+committed);
+   setMessage(`${committed} poin halaman ini ditandai sebagai KLAIM tahu. Tidak ada nilai atau rating SRS yang diberikan. ${client.getState().localOnly?'Data tetap di perangkat ini.':'Sinkronisasi server perlu dikonfirmasi terpisah.'}`);
+  }catch(e){if(mounted.current)setMessage(`${committed} keputusan tersimpan; berikutnya gagal: ${e instanceof Error?e.message:String(e)}`);}
+  finally{if(mounted.current)setSaving(null);}
+  if(!client.getState().localOnly)void client.sync();
  }
  function keys(event:KeyboardEvent<HTMLElement>){
   if(tab!=='scan'||loading||saving||busy||event.altKey||event.ctrlKey||event.metaKey||event.shiftKey)return;
@@ -135,6 +153,11 @@ export function SmartSweep({pack,attempts,reviews,locale,busy,onClose,onStartBat
     <span style={{width:(scannable.length?scanned/scannable.length*100:100)+'%'}}/>
    </div>
    <div className="sweep-keyboard-note"><Keyboard size={15}/>{en?'1: Known · 2: Unsure · ↑/↓: Move':'1: Sudah tahu · 2: Ragu · ↑/↓: Pindah baris'}</div>
+   <div className="sweep-bulk-row"><p>{en?'Very familiar page? Make one explicit claim for all visible points; each remains untested until verified.':'Halaman terasa terlalu mudah? Nyatakan semua poin yang terlihat sebagai klaim tahu; tak satu pun otomatis dianggap benar.'}</p>
+    <button type="button" disabled={busy||saving!==null||!remainingPage.length} onClick={()=>void markPageKnown()}>
+     <Check size={16}/>{en?`Claim all ${remainingPage.length} visible points`:`Klaim tahu ${remainingPage.length} poin terlihat`}
+    </button>
+   </div>
    {scannable.length?<AnimatePresence mode="wait" initial={false}>
     <motion.div key={currentPage} className="sweep-scan-list"
      initial={reduced?false:{opacity:0,x:8}} animate={{opacity:1,x:0}}
@@ -178,6 +201,7 @@ export function SmartSweep({pack,attempts,reviews,locale,busy,onClose,onStartBat
      <p>{en?'All unsure points are prioritized. A deterministic sample of known claims is audited without increasing difficulty.':'Poin ragu diprioritaskan. Sebagian klaim tahu diambil sebagai audit tanpa menaikkan tingkat kesulitan.'}</p></div>
      <strong>{audit.questions.length} {en?'questions':'soal'}</strong></div>
     <div className="sweep-audit-stats">
+     {audit.repairCount>0&&<span>{audit.repairCount} {en?'misses / mandatory repair':'jawaban salah · wajib diuji ulang'}</span>}
      <span>{audit.unsureCount} {en?'unsure':'ragu'}</span>
      <span>{audit.auditCount} {en?'known claims sampled':'klaim tahu diaudit'}</span>
      <span>{audit.unverifiedKnown} {en?'known claims not equivalent to proof':'klaim tahu belum menjadi bukti'}</span>
