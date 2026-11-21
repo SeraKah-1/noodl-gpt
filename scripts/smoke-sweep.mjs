@@ -33,13 +33,13 @@ try{
  await openSweep();
  assert.equal(await page.locator('.sweep-scan-row').count(),3);
  assert.equal((await page.locator('.sweep-numbers').innerText()).includes('3'),true);
- await page.locator('.sweep-scan-row').nth(0).getByRole('button',{name:/Sudah tahu/}).click();
+ await page.locator('.sweep-scan-row').nth(0).focus();
+ await page.keyboard.press('1');
  await page.locator('.sweep-scan-row').nth(0).locator('button[aria-pressed=true]').waitFor();
+ await page.locator('.sweep-bulk-row button').click();
+ await page.locator('.sweep-scan-row').nth(2).locator('button[aria-pressed=true]').waitFor();
  await page.locator('.sweep-scan-row').nth(1).getByRole('button',{name:/Ragu/}).click();
  await page.locator('.sweep-scan-row').nth(1).locator('button[aria-pressed=true]').waitFor();
- await page.locator('.sweep-scan-row').nth(2).focus();
- await page.keyboard.press('1');
- await page.locator('.sweep-scan-row').nth(2).locator('button[aria-pressed=true]').waitFor();
  assert.equal(await page.locator('.sweep-scan-row button[aria-pressed="true"]').count(),3);
  await page.getByRole('button',{name:/Peta cakupan/}).click();
  assert.ok((await page.locator('.sweep-ledger-stats').innerText()).includes('0 / 3'),'Self-claims must not advance tested score');
