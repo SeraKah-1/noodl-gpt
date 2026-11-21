@@ -2,6 +2,7 @@ import type {WorkspacePreferences,Preferences} from '../shared/preferences';
 import {defaultPreferences,mergePreferences} from '../shared/preferences';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Attempt, MutationResult, Operation, Pack, ReviewEvent, Snapshot, User } from '../shared/types';
+import type {SweepDecision} from '../shared/examCoverage';
 
 type RecordValue = Pack | Attempt | ReviewEvent;
 type Kind = 'packs' | 'attempts' | 'reviews';
@@ -34,6 +35,57 @@ export class LocalStore {
    db.createObjectStore('outbox', {keyPath:['ownerId','id']}).createIndex('owner','ownerId');
    db.createObjectStore('meta');
   }});
+ }
+ /** All Sweep decisions are isolated by account and bank and are never answer events. */
+ async coverage(ownerId:string,packId:string){
+  const db=await this.db();
+  const events=(await db.get('meta',`${ownerId}:coverage:${packId}`)) as SweepDecision[]|undefined;
+  const queue=(await db.get('meta',`${ownerId}:coverage-pending`)) as
+   {event:SweepDecision;status:'pending'|'conflict';error?:string}[]|undefined;
+  return {decisions:events??[],pending:(queue??[]).filter(row=>row.event.packId===packId&&row.status==='pending').length,
+   conflicts:(queue??[]).filter(row=>row.event.packId===packId&&row.status==='conflict')};
+ }
+ async saveCoverage(ownerId:string,event:SweepDecision,localOnly:boolean){
+  if(ownerId!==event.ownerId)throw new Error('Different owner for Sweep decision');
+  if(localOnly&&!ownerId.startsWith('guest:'))throw new Error('Expected a local Guest');
+  const db=await this.db(),tx=db.transaction('meta','readwrite');
+  const key=`${ownerId}:coverage:${event.packId}`,pendingKey=`${ownerId}:coverage-pending`;
+  const existing=(await tx.store.get(key)) as SweepDecision[]|undefined??[];
+  const pending=(await tx.store.get(pendingKey)) as
+   {event:SweepDecision;status:'pending'|'conflict';error?:string}[]|undefined??[];
+  const same=existing.find(v=>v.id===event.id);
+  if(same){if(JSON.stringify(same)!==JSON.stringify(event))throw new Error('Sweep decision ID was reused');await tx.done;return;}
+  if(existing.length>=3000||pending.length>=3000)throw new Error('Too many Sweep decisions pending; resolve sync before adding more');
+  await tx.store.put([...existing,event],key);
+  if(!localOnly)await tx.store.put([...pending,{event,status:'pending'}],pendingKey);
+  await tx.done;
+ }
+ async pendingCoverage(ownerId:string){
+  const pending=(await (await this.db()).get('meta',`${ownerId}:coverage-pending`)) as
+   {event:SweepDecision;status:'pending'|'conflict';error?:string}[]|undefined;
+  return (pending??[]).filter(r=>r.status==='pending').map(r=>r.event);
+ }
+ async coverageConfirmed(ownerId:string,event:SweepDecision){
+  const db=await this.db(),tx=db.transaction('meta','readwrite');
+  const key=`${ownerId}:coverage:${event.packId}`,pendingKey=`${ownerId}:coverage-pending`;
+  const entries=(await tx.store.get(key)) as SweepDecision[]|undefined??[];
+  const queue=(await tx.store.get(pendingKey)) as {event:SweepDecision;status:'pending'|'conflict';error?:string}[]|undefined??[];
+  await tx.store.put(entries.some(e=>e.id===event.id)?entries.map(e=>e.id===event.id?event:e):[...entries,event],key);
+  await tx.store.put(queue.filter(x=>x.event.id!==event.id),pendingKey);
+  await tx.done;
+ }
+ async coverageConflict(ownerId:string,eventId:string,error:string){
+  const db=await this.db(),key=`${ownerId}:coverage-pending`;
+  const queue=(await db.get('meta',key)) as {event:SweepDecision;status:'pending'|'conflict';error?:string}[]|undefined??[];
+  const next=queue.map(row=>row.event.id===eventId?{...row,status:'conflict' as const,error}:row);
+  await db.put('meta',next,key);
+ }
+ async mergeCoverage(ownerId:string,packId:string,remote:SweepDecision[]){
+  const db=await this.db(),key=`${ownerId}:coverage:${packId}`;
+  const local=(await db.get('meta',key)) as SweepDecision[]|undefined??[];
+  const events=new Map(local.map(e=>[e.id,e]));
+  for(const event of remote)if(event.ownerId===ownerId&&event.packId===packId)events.set(event.id,event);
+  await db.put('meta',[...events.values()],key);
  }
  async preferences(ownerId:string):Promise<WorkspacePreferences|undefined>{return await (await this.db()).get('meta',`${ownerId}:preferences`) as WorkspacePreferences|undefined;}
  async pendingPreferences(ownerId:string):Promise<{operationId:string;expectedRevision:number;patch:Preferences}|undefined>{return await (await this.db()).get('meta',`${ownerId}:preferences-pending`) as {operationId:string;expectedRevision:number;patch:Preferences}|undefined;}
