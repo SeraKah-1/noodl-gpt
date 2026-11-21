@@ -99,3 +99,16 @@ test('invalid or unsafe source and duplicated references are rejected',()=>{
  const dup={...authorship,points:authorship.points.map(p=>({...p,questionIds:['a']}))};
  assert.throws(()=>parseExamPointMap(JSON.stringify(dup)),/multiple/);
 });
+
+test('failed verification forces a repair and chooses genuinely unshown sibling before repeating the failed stem',()=>{
+ const wrong=history('wrong-a','a',false,'2026-11-20T00:00:00.000Z');
+ const coverage=buildExamCoverage(pack,[wrong],[],[]);
+ const candidates=selectSweepCandidates(coverage);
+ const target=candidates.find(x=>x.point.point.id==='histamine')!;
+ assert.equal(target.reason,'missed');
+ assert.equal(target.question.id,'b','A source-aligned unseen alternative is preferred over the known failed stem');
+ const audit=selectAuditQuestions(candidates,{},20,'after-miss');
+ assert.equal(audit.repairCount,1,'Missed concept is mandatory even without new self-report');
+ assert.deepEqual(audit.questions.map(x=>x.id),['b']);
+ assert.equal(audit.auditCount,0);
+});
