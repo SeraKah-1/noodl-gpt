@@ -1,0 +1,38 @@
+name: Noodl Smart Sweep Chrome QA
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: noodl-sweep-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  sweep-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm install --no-save --ignore-scripts playwright@1.58.2
+      - run: command -v google-chrome || command -v google-chrome-stable
+      - name: Start Vite
+        run: |
+          npx vite --host 127.0.0.1 --port 4173 > /tmp/noodl-sweep-vite.log 2>&1 &
+          echo $! > /tmp/noodl-sweep-vite.pid
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/noodl-sweep-vite.log
+          exit 1
+      - run: PLAYWRIGHT_BROWSER_CHANNEL=chrome node scripts/smoke-sweep.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: noodl-sweep-screenshots
+          path: artifacts/ui/
+          if-no-files-found: ignore

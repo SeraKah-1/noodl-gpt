@@ -205,7 +205,8 @@ export class NoodlClient {
    await this.reload();this.patch({syncing:false});
    if(succeeded&&this.state.user?.id===owner){
     const {hasSyncable}=await this.local.read(owner);
-    if(this.state.user?.id===owner&&(hasSyncable||(this.state.preferencesPending&&!this.state.preferencesConflict))){
+    const pendingCoverage=(await this.local.pendingCoverage(owner)).length>0;
+    if(this.state.user?.id===owner&&(hasSyncable||pendingCoverage||(this.state.preferencesPending&&!this.state.preferencesConflict))){
      clearTimeout(this.retryTimer);this.retryTimer=setTimeout(()=>{void this.sync();},1000);this.retryTimer.unref?.();
     }
    }
