@@ -77,7 +77,7 @@ Source-level tests do not establish usability, retention benefits or absence of 
 
 ## Production gate / outstanding refinements
 
-At the latest read-only capability check, the installed Noodl MCP reported **2.9.0** while `main` reports **3.0.0** after `exam_map` support. Repository merge and passing release packaging are not evidence that V5 has been deployed to OpenAI Sites.
+At the latest read-only capability check, the installed Noodl MCP reported **2.9.0** while `main` reports **3.0.0** after `exam_map` support. The V5 Sites release candidate for commit `d50baa8ad48a6d248420d2b7acdb94f528b9de68` passed [GitHub Actions run 44854525296](https://github.com/SeraKah-1/noodl-gpt/actions/runs/44854525296). Repository merge and successful release packaging are **not** evidence that V5 has been deployed to OpenAI Sites.
 
 1. Deploy the tested Worker/UI archive through the authorized existing Sites project, preserving host identity and D1 bindings.
 2. Check the production capability contract, bank-specific source-map writes, and actual stored claim receipts with a disposable test account. Do not mutate real learner banks just to smoke-test.
