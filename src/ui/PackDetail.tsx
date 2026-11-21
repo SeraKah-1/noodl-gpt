@@ -113,8 +113,8 @@ export function PackDetail({pack,attempts,reviews,locale,busy,onBack,onPractice,
     <div className="v3-panel-heading"><span className="v3-eyebrow">03 / STUDIO</span><h2>{en?'Study tools':'Alat belajar'}</h2></div>
     <p>{en?'Choose the action you want to take with this bank.':'Pilih apa yang ingin dilakukan dengan bank ini.'}</p>
     <div className="v3-studio-actions">
-     <button onClick={()=>setSweepOpen(true)}><ScanSearch size={20}/><span><strong>Smart Sweep</strong><small>{en?'Rapid scan · audit · full coverage':'Scan cepat · audit · cakupan'}</small></span><ArrowRight size={17}/></button>
      <button onClick={onFlashcards}><Layers size={20}/><span><strong>Flashcards</strong><small>{en?'Self-recall and review':'Uji ingatan sendiri'}</small></span><ArrowRight size={17}/></button>
+     <button onClick={()=>setSweepOpen(true)}><ScanSearch size={20}/><span><strong>Smart Sweep</strong><small>{en?'Rapid scan · audit · full coverage':'Scan cepat · audit · cakupan'}</small></span><ArrowRight size={17}/></button>
      <button onClick={()=>onTool('material')}><FileText size={20}/><span><strong>{en?'Materials':'Materi'}</strong><small>{materials.length} {en?'saved':'tersimpan'}</small></span><ArrowRight size={17}/></button>
      <button onClick={()=>onTool('graph')}><Network size={20}/><span><strong>{en?'Concept associations':'Asosiasi konsep'}</strong><small>{en?'Text similarity, not causal proof':'Kemiripan teks, bukan sebab-akibat'}</small></span><ArrowRight size={17}/></button>
      {visuals.length>0&&<button onClick={()=>onTool('visual')}><Orbit size={20}/><span><strong>Visual Lab</strong><small>{visuals.length} {en?'saved':'tersimpan'}</small></span><ArrowRight size={17}/></button>}
