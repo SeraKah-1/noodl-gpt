@@ -1,4 +1,5 @@
 import type {Preferences,WorkspacePreferences} from '../shared/preferences';
+import type {SweepDecision,SweepChoice} from '../shared/examCoverage';
 import type { Attempt, Operation, Pack, Publication, ReviewEvent, Snapshot, User } from '../shared/types';
 import { requestTooLarge, validatePackInput, type PackInput } from '../shared/validation';
 import { LocalStore, samePackContent, type PendingOperation } from './store';
@@ -28,6 +29,8 @@ export class NoodlClient {
    if(names[path])return callHost<T>(names[path],path==='/api/me'?{}:appArgs);
    if(path==='/api/preferences')return callHost<T>(method==='GET'?'app_get_preferences':'app_update_preferences',appArgs);
    if(path==='/api/publications')return callHost<T>(method==='GET'?'app_publications':'app_publish',appArgs);
+   if(path==='/api/coverage/decision')return callHost<T>('app_save_sweep',{...appArgs,event:body});
+   if(path.startsWith('/api/coverage/decisions?')){const params=new URLSearchParams(path.split('?')[1]);return callHost<T>('app_list_sweep',{...appArgs,packId:params.get('packId')});}
    if(path==='/api/debugger/submit')return callHost<T>('app_submit_debugger',appArgs);
    if(path.startsWith('/api/debugger/results?')){const params=new URLSearchParams(path.split('?')[1]);return callHost<T>('app_debugger_results',{...appArgs,packId:params.get('packId'),artifactId:params.get('artifactId')});}
    const sourceMatch=path.match(/^\/api\/publications\/source\/([^/]+)$/);
@@ -191,7 +194,7 @@ export class NoodlClient {
    }
    if(this.state.user?.id!==owner)return;
    const snapshot=await this.request<Snapshot>('/api/snapshot','GET',undefined,guestOwner??'',owner);
-   if(this.state.user?.id===owner){await this.local.merge(owner,snapshot);await this.syncPreferences(owner,guestOwner??'');}
+   if(this.state.user?.id===owner){await this.local.merge(owner,snapshot);await this.syncPreferences(owner,guestOwner??'');await this.syncCoverage(owner,guestOwner??'');}
    succeeded=true;this.retryDelay=2000;this.channel?.postMessage('changed');
   }catch(error){
    if(this.state.user?.id!==owner)return;
@@ -282,6 +285,49 @@ export class NoodlClient {
   const owner=this.owner();
   return this.request<{items:{id:string;gradedAt:string;correct:number;total:number;passed:boolean;packRevision:number}[]}>(
    '/api/debugger/results?'+new URLSearchParams({packId,artifactId}).toString(),'GET',undefined,this.state.guest?owner:'',owner);
+ }
+ /** Sweep assertions do not enter the graded attempt or SRS stream. */
+ async recordCoverageDecision(pack:Pack,pointId:string,questionId:string,choice:SweepChoice){
+  const owner=this.owner();
+  if(pack.ownerId!==owner)throw new Error('Bank belongs to another user');
+  const event:SweepDecision={version:1,id:crypto.randomUUID(),ownerId:owner,packId:pack.id,
+   packRevision:pack.revision,pointId,questionId,choice,decidedAt:new Date().toISOString()};
+  await this.local.saveCoverage(owner,event,!!this.state.localOnly);
+  this.channel?.postMessage('changed');
+  if(this.state.online&&!this.state.localOnly)void this.sync();
+  return event;
+ }
+ /** Local claims are always readable, even when the server is offline. */
+ async readCoverageDecisions(packId:string){
+  const owner=this.owner();
+  let error:string|null=null;
+  if(!this.state.localOnly&&this.state.online){
+   try{
+    const result=await this.request<{packId:string;decisions:SweepDecision[]}>(
+     '/api/coverage/decisions?'+new URLSearchParams({packId}).toString(),'GET');
+    if(this.state.user?.id===owner)await this.local.mergeCoverage(owner,packId,result.decisions);
+   }catch(e){error=e instanceof Error?e.message:String(e);}
+  }
+  return {...await this.local.coverage(owner,packId),error};
+ }
+ private async syncCoverage(owner:string,guestOwner:string){
+  const pending=await this.local.pendingCoverage(owner);
+  for(const event of pending){
+   if(this.state.user?.id!==owner)return;
+   try{
+    const result=await this.request<{status:'committed';event:SweepDecision}>(
+     '/api/coverage/decision','POST',event,guestOwner,owner);
+    if(result.status!=='committed'||result.event.id!==event.id)throw new Error('Server did not acknowledge the Sweep decision');
+    await this.local.coverageConfirmed(owner,result.event);
+   }catch(e){
+    const status=(e as {status?:number}).status;
+    if(status===400||status===409||status===422){
+     await this.local.coverageConflict(owner,event.id,(e as Error).message);
+     continue;
+    }
+    throw e;
+   }
+  }
  }
  async storageStatus() {
   return this.request<{configured: boolean}>('/api/storage');
